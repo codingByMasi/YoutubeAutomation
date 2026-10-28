@@ -112,8 +112,8 @@ def mix_cmd(video: Path, voice: Path, out: Path, music: Path | None, music_db: f
                        str(out)]
 
 
-SUB_STYLE = "FontName=DejaVu Sans,FontSize=20,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1," \
-            "Outline=2,Shadow=0,MarginV=40"
+SUB_STYLE = "FontName=DejaVu Sans,FontSize=16,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1," \
+            "Outline=2,Shadow=0,MarginV=30"
 
 
 def _escape_sub(path: Path | None) -> str:
@@ -125,7 +125,7 @@ def vertical_cmd(src: Path, start: float, duration: float, out: Path, subtitles:
     fc = ("[0:v]split=2[bg][fg];[bg]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,"
           "boxblur=20:2[b];[fg]scale=1080:-2[f];[b][f]overlay=(W-w)/2:(H-h)/2,setsar=1")
     if subtitles:
-        fc += f",subtitles='{_escape_sub(subtitles)}':force_style='{SUB_STYLE},FontSize=14,MarginV=120'"
+        fc += f",subtitles='{_escape_sub(subtitles)}':force_style='{SUB_STYLE},FontSize=12,MarginV=55'"
     fc += "[v]"
     return ["ffmpeg", "-y", "-ss", f"{start:.3f}", "-i", str(src), "-t", f"{duration:.3f}", "-filter_complex", fc,
             "-map", "[v]", "-map", "0:a?", "-c:v", "libx264", "-preset", "veryfast", "-crf", "21",

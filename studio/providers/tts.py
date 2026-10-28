@@ -33,8 +33,11 @@ class EdgeTTS:
         import edge_tts
 
         def go() -> None:
-            asyncio.run(edge_tts.Communicate(text, self.voice).save(str(out)))
-        with_retry(go, "edge-tts synthesis")
+            try:
+                asyncio.run(edge_tts.Communicate(text, self.voice).save(str(out)))
+            except Exception as exc:  # aiohttp/websocket errors: treat as network trouble
+                raise ConnectionError(f"{type(exc).__name__}: {exc}") from exc
+        with_retry(go, "edge-tts synthesis (needs internet access to speech.platform.bing.com)")
         return out
 
 

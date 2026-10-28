@@ -27,6 +27,8 @@ def fmt(value: float, unit: str) -> str:
     """Format a value with its unit: $1.2, 35%, 4.1B."""
     v = f"{value:,.2f}".rstrip("0").rstrip(".") if isinstance(value, float) else f"{value:,}"
     if unit in {"$", "₹", "€", "£"}:
+        if isinstance(value, float) and not value.is_integer():
+            v = f"{value:,.2f}"
         return f"{unit}{v}"
     return f"{v}{unit}" if unit in {"%", "x"} else f"{v} {unit}".strip()
 
@@ -73,7 +75,7 @@ def _bar(chart, foot, out: Path, stem: str) -> list[Path]:
     steps = list(range(1, len(labels) + 1))[-MAX_STEPS:] if len(labels) > MAX_STEPS else range(1, len(labels) + 1)
     for k in steps:
         fig = _fig()
-        ax = fig.add_axes([0.06, 0.16, 0.88, 0.64])
+        ax = fig.add_axes([0.06, 0.27, 0.88, 0.55])
         _style(ax)
         shown = [v if i < k else 0 for i, v in enumerate(values)]
         colors = [brand.ACCENT if i == k - 1 else brand.ACCENT_2 for i in range(len(values))]
@@ -94,7 +96,7 @@ def _line(chart, foot, out: Path, stem: str) -> list[Path]:
     paths = []
     for k in cut:
         fig = _fig()
-        ax = fig.add_axes([0.06, 0.16, 0.88, 0.64])
+        ax = fig.add_axes([0.06, 0.27, 0.88, 0.55])
         _style(ax)
         ax.plot(range(n), values, alpha=0)  # fixes axes
         ax.plot(range(k), values[:k], color=brand.ACCENT, linewidth=6, marker="o", markersize=12)
@@ -109,7 +111,7 @@ def _line(chart, foot, out: Path, stem: str) -> list[Path]:
 
 def _pie(chart, foot, out: Path, stem: str) -> list[Path]:
     fig = _fig()
-    ax = fig.add_axes([0.25, 0.12, 0.5, 0.7])
+    ax = fig.add_axes([0.25, 0.22, 0.5, 0.62])
     unit = chart.get("unit", "")
     ax.pie(chart["values"], labels=[f"{lb}\n{fmt(v, unit)}" for lb, v in zip(chart["labels"], chart["values"])],
            colors=brand.SERIES[: len(chart["values"])], startangle=90, counterclock=False,

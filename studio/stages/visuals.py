@@ -12,6 +12,7 @@ from studio.providers.charts import render_chart, source_line, text_card
 from studio.providers.pexels import Pexels
 from studio.stages.base import get_video, run_stage
 from studio.stages.script import CHART_GAP_MAX, load_package, timeline, write_package
+from studio.stages.timing import shots_needed, split_segment
 from studio.util.logging import get_logger
 
 log = get_logger("visuals")
@@ -51,18 +52,25 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET) -> None:
         fallbacks = 0
         for pos, seg in enumerate(pkg["segments"], 1):
             vis: dict = {}
-            clip = stock.find(seg["visual_keywords"], used) if stock else None
-            if clip:
-                vis.update(kind="clip", path=str(clip.path))
+            duration = float(seg.get("real_seconds") or seg["est_seconds"])
+            bg_seconds, _ = split_segment(duration, bool(seg.get("chart_data")))
+            found = []
+            for _ in range(max(1, shots_needed(bg_seconds))):
+                clip = stock.find(seg["visual_keywords"], used) if stock else None
+                if not clip:
+                    break
+                found.append(clip)
                 s.add(Asset(video_id=video_id, kind="clip", path=str(clip.path),
                             source=f"Pexels: {clip.author}".strip(), licence=clip.licence,
                             attribution_url=clip.page_url))
+            if found:
+                vis.update(kind="clip", path=str(found[0].path), paths=[str(c.path) for c in found])
             else:
                 fallbacks += 1
                 log.info("No stock clip for segment %d (%s); using a generated card", pos, seg["visual_keywords"])
                 card = text_card(seg.get("chapter") or seg["visual_keywords"][0], "", clips_dir / f"card_{pos:03d}.png",
                                  ctx.settings.assets_dir)
-                vis.update(kind="card", path=str(card))
+                vis.update(kind="card", path=str(card), paths=[str(card)])
                 s.add(Asset(video_id=video_id, kind="card", path=str(card), source="generated card",
                             licence=OWN_LICENCE))
             if seg.get("chart_data"):
@@ -76,7 +84,8 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET) -> None:
                 rows[pos].clip_path = vis["path"]
         write_package(ctx, video_id, pkg)
         charts = sum(1 for g in pkg["segments"] if g.get("chart_data"))
-        typer.echo(f"Visuals: {len(pkg['segments']) - fallbacks} stock clips, {fallbacks} generated cards, "
+        clips = sum(len(g["visual"]["paths"]) for g in pkg["segments"] if g["visual"]["kind"] == "clip")
+        typer.echo(f"Visuals: {clips} stock clips, {fallbacks} segments on generated cards, "
                    f"{charts} charts.")
         for w in chart_gaps(pkg["segments"]):
             typer.secho(f"warning: {w}", fg=typer.colors.YELLOW)
@@ -85,7 +94,7 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET) -> None:
     typer.echo(r.message + (f" Next: build {video_id}" if r.ran else ""))
 
 
-def visual_paths(seg: dict) -> tuple[Path | None, list[Path]]:
-    """(background clip/card, chart frames) for a segment from script.json."""
+def visual_paths(seg: dict) -> tuple[list[Path], list[Path]]:
+    """(background clips/cards, chart frames) for a segment from script.json."""
     vis = seg.get("visual") or {}
-    return (Path(vis["path"]) if vis.get("path") else None), [Path(p) for p in vis.get("chart_frames", [])]
+    return [Path(p) for p in vis.get("paths", [])], [Path(p) for p in vis.get("chart_frames", [])]
