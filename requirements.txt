@@ -1,0 +1,15 @@
+typer>=0.12
+sqlalchemy>=2.0
+python-dotenv>=1.0
+google-api-python-client>=2.100
+google-auth-oauthlib>=1.2
+google-auth>=2.20
+edge-tts>=6.1
+Pillow>=10.0
+matplotlib>=3.8
+pytest>=8.0
+# Optional extras (install only if you use them):
+# faster-whisper>=1.0   # word-accurate captions; without it captions come from the script text
+# anthropic>=0.40       # LLM_PROVIDER=anthropic
+# openai>=1.40          # LLM_PROVIDER=openai
+# google-genai>=1.0     # LLM_PROVIDER=gemini

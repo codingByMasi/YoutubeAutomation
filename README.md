@@ -1,0 +1,196 @@
+# YouTube Channel Studio
+
+A command-line studio that runs a faceless YouTube channel from topic research to published video to ongoing management, with a human approval gate before anything goes public.
+
+```
+research -> approve -> script -> voice -> visuals -> build -> thumbnail
+        -> review (you type "yes") -> publish -> analytics -> next topics
+```
+
+Nothing is published, posted, or replied to without your typed confirmation.
+
+Full design: see `SPEC.md`. Build progress: see `PROGRESS.md`.
+
+---
+
+## 1. Requirements
+
+- Python 3.11+
+- ffmpeg installed and on PATH
+  - macOS: `brew install ffmpeg`
+  - Ubuntu/Debian: `sudo apt install ffmpeg`
+  - Windows: `winget install ffmpeg` (or download from ffmpeg.org and add to PATH)
+- A Google account that owns the YouTube channel
+- API keys: an LLM provider, Pexels (free). ElevenLabs is optional.
+
+## 2. Install
+
+```bash
+git clone <your-repo-url> yt-studio
+cd yt-studio
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+## 3. Google Cloud setup (one time, done by hand)
+
+1. Go to the Google Cloud Console and create a project.
+2. Enable **YouTube Data API v3** and **YouTube Analytics API** for that project.
+3. Configure the **OAuth consent screen**. While the app is in "Testing" mode, add your own Google account under **Test users**.
+4. Create credentials: **OAuth client ID**, application type **Desktop app**.
+5. Download the JSON and save it in the project root as `client_secret.json`.
+6. Never commit this file. It is already in `.gitignore`.
+
+First-run authorization: the first command that needs YouTube opens a browser window, asks you to sign in and grant access, and saves a `token.json`. If the token expires or is revoked, the tool deletes it and asks you to sign in again.
+
+Note on uploads: YouTube may force videos uploaded through API projects that have not passed its compliance audit to **private**. If your uploads show up private, either apply for the audit (see the official YouTube API docs) or switch the video to public manually in YouTube Studio. The tool will tell you when this happens.
+
+## 4. Other keys
+
+1. **LLM provider:** create an API key with your chosen provider.
+2. **Pexels:** sign up at pexels.com/api for a free key.
+3. **ElevenLabs (optional):** only if you want higher-quality voices than the free edge-tts default.
+
+## 5. Configure `.env`
+
+Copy the example and fill it in:
+
+```bash
+cp .env.example .env
+```
+
+```
+LLM_PROVIDER=
+LLM_API_KEY=
+LLM_MODEL=
+CHANNEL_ID=
+GOOGLE_CLIENT_SECRET_PATH=./client_secret.json
+PEXELS_API_KEY=
+TTS_PROVIDER=edge
+TTS_VOICE=
+ELEVENLABS_API_KEY=
+DAILY_QUOTA_LIMIT=10000
+QUOTA_SAFETY_MARGIN=500
+```
+
+Find your `CHANNEL_ID` in YouTube Studio under Settings > Channel > Advanced settings.
+
+## 6. Add your assets
+
+Place these in `assets/`:
+- `music/` background tracks (keep licence info with each file)
+- `intro/` and `outro/` short clips (under 5 seconds)
+- `fonts/` brand fonts
+- `thumb_templates/` thumbnail templates
+
+Only use music, footage, and fonts whose licences allow YouTube use and monetization.
+
+## 7. Fill in the brief
+
+Open `SPEC.md` and complete Section 1 (channel brief) and Section 9 (style guide). The tool reads these to decide tone, title style, and pacing.
+
+## 8. Run the full flow (example)
+
+```bash
+# 1. Find topics
+python -m studio.cli research "index funds for beginners"
+
+# 2. Approve the idea you like (id from the ranked table)
+python -m studio.cli approve-idea 3
+
+# 3. Generate titles and script
+python -m studio.cli script 3
+
+# 4. Voice, visuals, build, thumbnails
+python -m studio.cli voice 3
+python -m studio.cli visuals 3
+python -m studio.cli build 3
+python -m studio.cli thumbnail 3
+
+# 5. Optional: cut Shorts
+python -m studio.cli shorts 3
+
+# 6. Watch projects/3/final.mp4, then review (type "yes" to approve)
+python -m studio.cli review 3
+
+# 7. Schedule the upload
+python -m studio.cli publish 3 --at "2026-11-05 18:00"
+```
+
+Or run everything up to the review gate in one go:
+
+```bash
+python -m studio.cli run-all "index funds for beginners"
+```
+
+## 9. Command reference
+
+| Command | What it does |
+|---|---|
+| `research "<seed>"` | Find and rank topic ideas, flag small-channel outliers |
+| `approve-idea <id>` | Approve a topic and start a video record |
+| `script <idea_id>` | Generate titles, script, and segment list |
+| `voice <video_id>` | Generate narration audio per segment |
+| `visuals <video_id>` | Fetch stock clips per segment, record licences |
+| `build <video_id>` | Assemble the final MP4 with captions and music |
+| `shorts <video_id>` | Cut vertical Shorts from the video |
+| `thumbnail <video_id>` | Generate 3 thumbnail variants |
+| `review <video_id>` | Checklist and typed approval gate |
+| `publish <video_id> --at "<datetime>"` | Upload and schedule after review |
+| `analytics` | Pull 28-day metrics and write a plain-English report |
+| `ab-log <video_id>` | Record title/thumbnail changes with before/after metrics |
+| `comments <video_id>` | Draft comment replies to a file (never posts) |
+| `calendar` | 4-week content calendar |
+| `status` | Every video and its current stage |
+| `run-all "<seed>"` | Chain research through thumbnail, stop at review |
+
+Add `--force` to re-run a finished stage. Run `python -m studio.cli <command> --help` for flags.
+
+## 10. Weekly routine
+
+1. **Monday:** `analytics`, read the report, pick what to make more of.
+2. **Monday:** `research` on 2-3 seeds, `approve-idea` for the week's topics.
+3. **Tue-Wed:** `run-all` for each approved topic.
+4. **Thu:** watch each video fully, edit anything you dislike, then `review`.
+5. **Thu:** `publish` with scheduled times.
+6. **Fri:** `comments` on recent videos, edit the drafts, post replies yourself.
+7. **Ongoing:** `ab-log` whenever you change a title or thumbnail.
+
+## 11. Quota
+
+The default daily YouTube Data API quota is 10,000 units. One fully published video costs roughly 2,050 units (upload 1,600 + captions 400 + thumbnail 50), so plan for about 4 videos per day at most. The tool tracks usage in `quota_log` and stops before the limit. Quota resets at midnight Pacific time. Verify current costs in the official docs.
+
+## 12. Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| "Missing API key" | Add the named variable to `.env` |
+| Browser sign-in loop or auth error | Delete `token.json` and rerun a YouTube command |
+| "Access blocked" during sign-in | Add your account as a test user on the OAuth consent screen |
+| "ffmpeg not found" | Install ffmpeg and make sure it is on PATH |
+| Quota exceeded | Wait for the midnight Pacific reset, or request a quota increase from Google |
+| Uploaded videos are private | API audit restriction; see section 3, or publish manually in YouTube Studio |
+| No stock clips found | The tool falls back to generated cards; try broader visual keywords |
+| `publish` refuses | Run `review <video_id>` and type `yes` first |
+
+## 13. Tests
+
+```bash
+pytest -q
+```
+
+All external APIs are mocked, so tests need no keys or network.
+
+## 14. Security
+
+- `.env`, `client_secret.json`, and `token.json` must never be committed or shared.
+- The tool never logs keys or tokens.
+- Publishing and posting always require a typed `yes`.
+
+## 15. Policy reminders
+
+- Every video needs original commentary, structure, or analysis. Do not copy other creators' content.
+- Avoid mass-producing near-identical videos; YouTube can demote or demonetize repetitive, low-effort content.
+- Disclose realistic AI-generated or altered content when YouTube requires it. The review step shows this flag.
+- Add sources and a disclaimer to finance, health, legal, and news videos.

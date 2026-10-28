@@ -1,0 +1,20 @@
+# Secrets: never commit
+.env
+token.json
+client_secret.json
+*.client_secret.json
+
+# Runtime data
+projects/
+studio.db
+logs/
+reports/
+assets/cache/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
