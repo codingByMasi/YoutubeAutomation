@@ -12,7 +12,7 @@ import statistics
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import typer
 
@@ -28,7 +28,9 @@ SMALL_CHANNEL_SUBS = 100_000   # channels below this count as "small"
 OUTLIER_RATIO = 2.0            # views per subscriber at or above this is an outlier
 LOOKBACK_DAYS = 180
 SUGGEST_URL = "https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&q="
-STOPWORDS = set("a an the of to in on for and or how why what is are does do x vs with my your their its".split())
+STOPWORDS = set(
+    "a an the of to in on for and or how why what is are does do x vs with my your their its".split()
+)
 
 
 @dataclass
@@ -115,7 +117,7 @@ def fetch_competitor_stats(ctx: Ctx, seed: str) -> list[VideoStat]:
     """Top recent videos for the seed with view and subscriber counts (1 search + 2 list calls)."""
     data, _ = ctx.youtube("research")
     ctx.quota.check({"search.list": 1, "videos.list": 1, "channels.list": 1})
-    after = (datetime.now(timezone.utc) - timedelta(days=LOOKBACK_DAYS)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    after = (datetime.now(UTC) - timedelta(days=LOOKBACK_DAYS)).strftime("%Y-%m-%dT%H:%M:%SZ")
     items = data.search_videos(seed, after)
     ids = [i["id"]["videoId"] for i in items if i.get("id", {}).get("videoId")]
     vids = data.videos(ids, part="snippet,statistics")
@@ -132,9 +134,10 @@ def _print_ideas(ideas: list[Idea], limit: int) -> None:
                    f"{i.outlier_score:>7.1f}  {i.status:<8}  {i.topic}")
 
 
-def run(ctx: Ctx, seed: str, force: bool = False, limit: int = 15,
-        suggest=fetch_suggestions, competitors=fetch_competitor_stats) -> list[Idea]:
+def run(ctx: Ctx, seed: str, force: bool = False, limit: int = 15, suggest=None, competitors=None) -> list[Idea]:
     """Research a seed, save ideas, print a ranked table. Same seed on the same day reuses results."""
+    suggest = suggest or fetch_suggestions
+    competitors = competitors or fetch_competitor_stats
     s = ctx.session
     today = utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     existing = s.query(Idea).filter(Idea.seed == seed, Idea.created_at >= today).all()

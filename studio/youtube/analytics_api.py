@@ -48,10 +48,10 @@ class YouTubeAnalytics:
             log.info("Impressions/CTR not available from the Analytics API: %s", exc)
             return []
 
-    def traffic_sources(self, video_id: str, start: date, end: date) -> dict[str, int]:
-        rows = self._query(startDate=start.isoformat(), endDate=end.isoformat(), metrics="views",
-                           dimensions="insightTrafficSourceType", filters=f"video=={video_id}")
-        return {r["insightTrafficSourceType"]: int(r["views"]) for r in rows}
+    def traffic_daily(self, video_id: str, start: date, end: date) -> list[dict]:
+        """Views per day per traffic source type."""
+        return self._query(startDate=start.isoformat(), endDate=end.isoformat(), metrics="views",
+                           dimensions="day,insightTrafficSourceType", filters=f"video=={video_id}")
 
     def retention(self, video_id: str, start: date, end: date) -> list[tuple[float, float]]:
         rows = self._query(startDate=start.isoformat(), endDate=end.isoformat(), metrics="audienceWatchRatio",

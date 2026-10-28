@@ -25,7 +25,8 @@ IMAGE_EXT = {".png", ".jpg", ".jpeg"}
 
 def licence_for(path: Path) -> str:
     """Licence text from a sidecar file `<name>.licence.txt` or `<name>.txt`; 'unknown' if none."""
-    for side in (path.with_name(path.name + ".licence.txt"), path.with_suffix(".licence.txt"), path.with_suffix(".txt")):
+    sidecars = (path.with_name(path.name + ".licence.txt"), path.with_suffix(".licence.txt"), path.with_suffix(".txt"))
+    for side in sidecars:
         if side.exists() and side.read_text(encoding="utf-8").strip():
             return side.read_text(encoding="utf-8").strip().splitlines()[0][:200]
     return "unknown"
@@ -84,7 +85,7 @@ def run(ctx: Ctx, video_id: int, force: bool = False) -> None:
         ff.run(ff.concat_cmd(ff.concat_list(parts, tmp / "parts.txt"), tmp / "picture.mp4"), "joining shots")
 
         # 2. narration track
-        voices = [Path(ctx.settings.project_dir(video_id) / "voice" / f"seg_{i:03d}.mp3") for i in range(1, len(segs) + 1)]
+        voices = [out / "voice" / f"seg_{i:03d}.mp3" for i in range(1, len(segs) + 1)]
         ff.run(ff.audio_concat_cmd(ff.concat_list(voices, tmp / "voice.txt"), tmp / "narration.wav"),
                "joining narration")
 

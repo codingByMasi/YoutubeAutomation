@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import sys
-from typing import Optional
 
 import typer
 
@@ -92,7 +91,7 @@ def thumbnail(video_id: int, force: bool = FORCE) -> None:
 @app.command()
 def review(video_id: int,
            thumb: int = typer.Option(1, help="Which thumbnail variant to use (1-3)."),
-           title: Optional[str] = typer.Option(None, help="Override the picked title."),
+           title: str | None = typer.Option(None, help="Override the picked title."),
            force: bool = FORCE) -> None:
     """Show the pre-publish checklist and require a typed 'yes'."""
     from studio.stages import review as m
@@ -101,8 +100,8 @@ def review(video_id: int,
 
 @app.command()
 def publish(video_id: int,
-            at: Optional[str] = typer.Option(None, "--at", help="Publish time, e.g. '2026-11-05 18:00' (local)."),
-            playlist: Optional[str] = typer.Option(None, help="Playlist id to add the video to.")) -> None:
+            at: str | None = typer.Option(None, "--at", help="Publish time, e.g. '2026-11-05 18:00' (local)."),
+            playlist: str | None = typer.Option(None, help="Playlist id to add the video to.")) -> None:
     """Upload as private/scheduled with all metadata. Needs `review` and a typed 'yes'."""
     from studio.stages import publish as m
     m.run(_ctx(), video_id, at=at, playlist=playlist)
@@ -118,9 +117,9 @@ def analytics(days: int = typer.Option(28, help="Days of history to pull.")) -> 
 
 @app.command("ab-log")
 def ab_log(video_id: int,
-           field: Optional[str] = typer.Option(None, help="title or thumbnail"),
-           new: Optional[str] = typer.Option(None, help="New value (title text or thumbnail path)."),
-           old: Optional[str] = typer.Option(None, help="Old value (defaults to the current live value).")) -> None:
+           field: str | None = typer.Option(None, help="title or thumbnail"),
+           new: str | None = typer.Option(None, help="New value (title text or thumbnail path)."),
+           old: str | None = typer.Option(None, help="Old value (defaults to the current live value).")) -> None:
     """Record a title/thumbnail change with before/after metrics. Without options, lists and refreshes."""
     from studio.manage import ab_log as m
     m.run(_ctx(), video_id, field=field, new=new, old=old)
@@ -128,7 +127,7 @@ def ab_log(video_id: int,
 
 @app.command()
 def comments(target: str = typer.Argument(..., help="A video id to draft replies, or 'post'."),
-             file: Optional[str] = typer.Argument(None, help="With 'post': the drafts file to post from.")) -> None:
+             file: str | None = typer.Argument(None, help="With 'post': the drafts file to post from.")) -> None:
     """Draft replies to recent comments (never posts). `comments post <file>` posts with per-reply 'yes'."""
     from studio.manage import comments as m
     if target == "post":

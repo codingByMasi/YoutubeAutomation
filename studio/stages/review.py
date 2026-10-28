@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import typer
@@ -167,7 +167,7 @@ def run(ctx: Ctx, video_id: int, thumb: int = 1, title: str | None = None, force
                               "Fix them, re-run the stage that produces the file, then `review` again.")
         require_yes(ctx.confirm, f"\nWatch {data['files']['video']} fully first.\n"
                                  f"Type yes to approve video {video_id} for publishing: ", "review")
-        data["approved_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        data["approved_at"] = datetime.now(UTC).isoformat(timespec="seconds")
         data["video_sha256"] = file_fingerprint(Path(data["files"]["video"]))
         (ctx.settings.project_dir(video_id) / "review.json").write_text(json.dumps(data, indent=2), encoding="utf-8")
 

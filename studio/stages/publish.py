@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import typer
 
 from studio.context import Ctx
 from studio.errors import StageError, StudioError
+from studio.models import Idea
 from studio.stages.base import advance, check_can_run, get_video
 from studio.stages.review import file_fingerprint, require_yes
 from studio.util.logging import get_logger
@@ -36,8 +37,8 @@ def parse_when(text: str | None, now: datetime | None = None) -> datetime | None
         raise StudioError(f"Could not read --at {text!r}.", "Expected a date and time.",
                           'Use the form --at "2026-11-05 18:00" (your local time).')
     dt = dt.astimezone() if dt.tzinfo is None else dt
-    dt = dt.astimezone(timezone.utc)
-    if dt <= (now or datetime.now(timezone.utc)):
+    dt = dt.astimezone(UTC)
+    if dt <= (now or datetime.now(UTC)):
         raise StudioError(f"--at {text!r} is in the past.", "YouTube needs a future publish time.",
                           "Pick a later time, or leave out --at to upload as private.")
     return dt
@@ -83,6 +84,9 @@ def run(ctx: Ctx, video_id: int, at: str | None = None, playlist: str | None = N
         typer.echo(f"Video {video_id} is already scheduled ({video.youtube_video_id}); nothing left to do.")
         return
 
+    if ctx.session.get(Idea, video.idea_id).seed.startswith("__"):
+        raise StudioError(f"Video {video_id} is the demo video and cannot be published.",
+                          "It uses sample figures that are not real data.", "Make a real video with `run-all`.")
     ctx.settings.require("publish")
     video_file = Path(review["files"]["video"])
     if not resuming and file_fingerprint(video_file) != review.get("video_sha256"):

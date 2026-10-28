@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 from studio.config import API_LLM_PROVIDERS, Settings
 from studio.errors import PendingLLMResponse, StudioError
@@ -28,7 +28,7 @@ def prompt_paths(work_dir: Path, task: str) -> tuple[Path, Path]:
 
 def _extract_json(text: str) -> dict:
     """Parse the first JSON object in text (tolerates ```json fences)."""
-    m = re.search(r"```(?:json)?\s*(\{.*\})\s*```", text, re.S)
+    m = re.search(r"```(?:json)?\s*(\{.*\})\s*```", text, re.DOTALL)
     raw = m.group(1) if m else text[text.find("{"): text.rfind("}") + 1]
     return json.loads(raw)
 

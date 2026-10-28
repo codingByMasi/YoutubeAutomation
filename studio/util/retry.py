@@ -5,7 +5,8 @@ from __future__ import annotations
 import socket
 import time
 import urllib.error
-from typing import Callable, TypeVar
+from collections.abc import Callable
+from typing import TypeVar
 
 from studio.errors import StudioError
 from studio.util.logging import get_logger
@@ -35,7 +36,7 @@ def with_retry(fn: Callable[[], T], what: str, attempts: int = MAX_ATTEMPTS, sle
     for attempt in range(1, attempts + 1):
         try:
             return fn()
-        except Exception as exc:  # noqa: BLE001 - classified below
+        except Exception as exc:
             if not is_retryable(exc):
                 raise
             if attempt == attempts:

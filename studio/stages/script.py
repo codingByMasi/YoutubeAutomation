@@ -156,7 +156,8 @@ def _spec_section(root: Path, number: int, default: str) -> str:
     spec = root / "SPEC.md"
     if not spec.exists():
         return default
-    m = re.search(rf"^## {number}\..*?$(.*?)(?=^## \d+\.|\Z)", spec.read_text(encoding="utf-8"), re.S | re.M)
+    text = spec.read_text(encoding="utf-8")
+    m = re.search(rf"^## {number}\..*?$(.*?)(?=^## \d+\.|\Z)", text, re.DOTALL | re.MULTILINE)
     return m.group(1).strip() if m else default
 
 

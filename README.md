@@ -21,7 +21,7 @@ Full design: see `SPEC.md`. Build progress: see `PROGRESS.md`.
   - Ubuntu/Debian: `sudo apt install ffmpeg`
   - Windows: `winget install ffmpeg` (or download from ffmpeg.org and add to PATH)
 - A Google account that owns the YouTube channel
-- API keys: an LLM provider, Pexels (free). ElevenLabs is optional.
+- API keys: Pexels (free). No LLM key is needed: Claude Code writes the scripts (see section 8). ElevenLabs is optional.
 
 ## 2. Install
 
@@ -48,7 +48,7 @@ Note on uploads: YouTube may force videos uploaded through API projects that hav
 
 ## 4. Other keys
 
-1. **LLM provider:** create an API key with your chosen provider.
+1. **LLM provider (optional):** not needed. By default Claude Code answers prompt files. Only if you want fully hands-off runs, set `LLM_PROVIDER` to `anthropic`, `openai` or `gemini`, add `LLM_API_KEY` and `LLM_MODEL`, and `pip install` that provider's package.
 2. **Pexels:** sign up at pexels.com/api for a free key.
 3. **ElevenLabs (optional):** only if you want higher-quality voices than the free edge-tts default.
 
@@ -61,15 +61,21 @@ cp .env.example .env
 ```
 
 ```
-LLM_PROVIDER=
+# LLM: "claude_code" (default) needs no key. Claude Code answers prompt files.
+# Optional API providers: anthropic, openai, gemini (then LLM_API_KEY and LLM_MODEL are required).
+LLM_PROVIDER=claude_code
 LLM_API_KEY=
 LLM_MODEL=
+
 CHANNEL_ID=
 GOOGLE_CLIENT_SECRET_PATH=./client_secret.json
 PEXELS_API_KEY=
+
+# TTS: edge (default, free), eleven (needs ELEVENLABS_API_KEY), silent (dry runs only)
 TTS_PROVIDER=edge
-TTS_VOICE=
+TTS_VOICE=en-US-AndrewNeural
 ELEVENLABS_API_KEY=
+
 DAILY_QUOTA_LIMIT=10000
 QUOTA_SAFETY_MARGIN=500
 ```
@@ -82,7 +88,9 @@ Place these in `assets/`:
 - `music/` background tracks (keep licence info with each file)
 - `intro/` and `outro/` short clips (under 5 seconds)
 - `fonts/` brand fonts
-- `thumb_templates/` thumbnail templates
+- `thumb_templates/` optional `overlay.png` (1280x720, transparent) laid over every thumbnail
+
+Every music, intro and outro file needs a licence note next to it: `song.mp3` + `song.mp3.licence.txt` (first line, e.g. "YouTube Audio Library, monetization allowed"). `review` refuses to approve a video that uses a file with no licence note. Pexels clips are recorded automatically.
 
 Only use music, footage, and fonts whose licences allow YouTube use and monetization.
 
@@ -92,36 +100,47 @@ Open `SPEC.md` and complete Section 1 (channel brief) and Section 9 (style guide
 
 ## 8. Run the full flow (example)
 
+Try the pipeline first with no keys at all:
+
 ```bash
-# 1. Find topics
-python -m studio.cli research "index funds for beginners"
-
-# 2. Approve the idea you like (id from the ranked table)
-python -m studio.cli approve-idea 3
-
-# 3. Generate titles and script
-python -m studio.cli script 3
-
-# 4. Voice, visuals, build, thumbnails
-python -m studio.cli voice 3
-python -m studio.cli visuals 3
-python -m studio.cli build 3
-python -m studio.cli thumbnail 3
-
-# 5. Optional: cut Shorts
-python -m studio.cli shorts 3
-
-# 6. Watch projects/3/final.mp4, then review (type "yes" to approve)
-python -m studio.cli review 3
-
-# 7. Schedule the upload
-python -m studio.cli publish 3 --at "2026-11-05 18:00"
+python -m studio.cli demo        # builds projects/<id>/final.mp4 + thumbnails from a sample script
 ```
 
-Or run everything up to the review gate in one go:
+Then a real video:
 
 ```bash
-python -m studio.cli run-all "index funds for beginners"
+# 1. Find topics (needs client_secret.json; first run opens a browser to sign in)
+python -m studio.cli research "how cruise lines make money"
+
+# 2. Approve the idea you like (ID from the ranked table). This prints the new video id.
+python -m studio.cli approve-idea 3
+
+# 3. Script: takes the IDEA id. It writes projects/<video_id>/prompts/script.prompt.md and stops.
+python -m studio.cli script 3
+#    In Claude Code, say: "Answer the prompt in projects/1/prompts/script.prompt.md"
+#    Claude Code researches sources and writes script.response.json. Then re-run:
+python -m studio.cli script 3
+
+# 4. Voice, visuals, build, thumbnails (these take the VIDEO id)
+python -m studio.cli voice 1
+python -m studio.cli visuals 1
+python -m studio.cli build 1
+python -m studio.cli thumbnail 1
+
+# 5. Optional: cut Shorts
+python -m studio.cli shorts 1
+
+# 6. Watch projects/1/final.mp4, then review (type "yes" to approve)
+python -m studio.cli review 1 --thumb 2
+
+# 7. Schedule the upload (asks for "yes" again)
+python -m studio.cli publish 1 --at "2026-11-05 18:00"
+```
+
+Or run everything up to the review gate in one go (re-run it after Claude Code answers the script prompt):
+
+```bash
+python -m studio.cli run-all "how cruise lines make money"
 ```
 
 ## 9. Command reference
@@ -130,7 +149,7 @@ python -m studio.cli run-all "index funds for beginners"
 |---|---|
 | `research "<seed>"` | Find and rank topic ideas, flag small-channel outliers |
 | `approve-idea <id>` | Approve a topic and start a video record |
-| `script <idea_id>` | Generate titles, script, and segment list |
+| `script <idea_id>` | Generate titles, script, and segment list (via a prompt file Claude Code answers) |
 | `voice <video_id>` | Generate narration audio per segment |
 | `visuals <video_id>` | Fetch stock clips per segment, record licences |
 | `build <video_id>` | Assemble the final MP4 with captions and music |
@@ -141,8 +160,11 @@ python -m studio.cli run-all "index funds for beginners"
 | `analytics` | Pull 28-day metrics and write a plain-English report |
 | `ab-log <video_id>` | Record title/thumbnail changes with before/after metrics |
 | `comments <video_id>` | Draft comment replies to a file (never posts) |
+| `comments post <file>` | Post edited replies, one typed `yes` per reply |
 | `calendar` | 4-week content calendar |
-| `status` | Every video and its current stage |
+| `status [--sync]` | Every video and its current stage; `--sync` marks published videos live |
+| `quota` | Today's YouTube API quota use |
+| `demo` | Keyless dry run that builds a sample MP4 |
 | `run-all "<seed>"` | Chain research through thumbnail, stop at review |
 
 Add `--force` to re-run a finished stage. Run `python -m studio.cli <command> --help` for flags.
@@ -159,7 +181,7 @@ Add `--force` to re-run a finished stage. Run `python -m studio.cli <command> --
 
 ## 11. Quota
 
-The default daily YouTube Data API quota is 10,000 units. One fully published video costs roughly 2,050 units (upload 1,600 + captions 400 + thumbnail 50), so plan for about 4 videos per day at most. The tool tracks usage in `quota_log` and stops before the limit. Quota resets at midnight Pacific time. Verify current costs in the official docs.
+The default daily YouTube Data API quota is 10,000 units, plus separate allowances of 100 uploads and 100 searches per day (verified 2026-10-28). One fully published video costs about 500 shared units (captions 400 + thumbnail 50 + playlist 50) plus one upload, so quota will not limit a 2-videos-a-week channel. The tool tracks usage in `quota_log`, shows it with `quota`, and stops before the limit minus a 500-unit safety margin. Quota resets at midnight Pacific time.
 
 ## 12. Troubleshooting
 
@@ -173,6 +195,9 @@ The default daily YouTube Data API quota is 10,000 units. One fully published vi
 | Uploaded videos are private | API audit restriction; see section 3, or publish manually in YouTube Studio |
 | No stock clips found | The tool falls back to generated cards; try broader visual keywords |
 | `publish` refuses | Run `review <video_id>` and type `yes` first |
+| "Prompt written to ..." (exit code 3) | Ask Claude Code to answer that prompt file, then re-run the same command |
+| Review fails: unknown licence | Add a `<file>.licence.txt` next to the music/intro/outro file, rebuild, review again |
+| edge-tts fails | It needs internet access to Microsoft's speech service; retry, or set `TTS_PROVIDER=eleven` |
 
 ## 13. Tests
 
@@ -180,7 +205,7 @@ The default daily YouTube Data API quota is 10,000 units. One fully published vi
 pytest -q
 ```
 
-All external APIs are mocked, so tests need no keys or network.
+All external APIs are mocked, so tests need no keys or network. Tests that render video need ffmpeg and are skipped without it.
 
 ## 14. Security
 

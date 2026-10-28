@@ -64,10 +64,10 @@ Rules: a stage can only advance in order; re-running a finished stage is a no-op
 | Database | SQLite via SQLAlchemy |
 | Config | python-dotenv (`.env`) |
 | YouTube | google-api-python-client, google-auth-oauthlib (Data API v3 + Analytics API) |
-| LLM | One wrapper module; provider/model set in `.env` |
+| LLM | One wrapper module. Default `claude_code`: the CLI writes a prompt file and Claude Code writes the JSON answer (no API key). Optional API providers: anthropic, openai, gemini |
 | TTS | edge-tts default; ElevenLabs optional behind the same interface |
 | Captions | faster-whisper (local) -> SRT |
-| Video | ffmpeg + MoviePy |
+| Video | ffmpeg (command builders in `util/ffmpeg.py`; MoviePy not needed) |
 | Footage | Pexels API (fallback: generated text/image cards) |
 | Charts/diagrams | matplotlib (and Pillow) to render animated or step-by-step charts, flow diagrams, and number cards from segment data |
 | Thumbnails | Pillow with a template system |
@@ -110,7 +110,7 @@ Every command is resumable and idempotent.
 - `approve-idea <id>`: move an idea to `approved` and create the `videos` row.
 
 ### 4.2 Scripts
-- `script <idea_id>`: generate 15 title variants (under 70 characters, no misleading clickbait, mark a pick); generate the full script; output a segment list (narration text, visual keywords, estimated seconds); save `script.md` + `script.json`.
+- `script <idea_id>`: (with the default `claude_code` provider this writes `prompts/script.prompt.md` and stops until Claude Code writes `script.response.json`; re-run to continue) generate 15 title variants (under 70 characters, no misleading clickbait, mark a pick); generate the full script; output a segment list (narration text, visual keywords, estimated seconds); save `script.md` + `script.json`.
 
 Script rules: a 15-second hook; a retention beat (question, reveal, example, or pattern break) every 30-45 seconds; a clear call to action; original commentary, structure, or analysis in every video.
 
@@ -129,15 +129,17 @@ Script rules: a 15-second hook; a retention beat (question, reveal, example, or 
 
 ### 4.6 Review and publish
 - `review <video_id>`: print a checklist (title, description, tags, chapters, thumbnail, file paths, synthetic-content flag, licence list) and require the owner to type `yes`. Writes `review.json` and advances to `reviewed`.
-- `publish <video_id> --at "<datetime>"`: upload as private/scheduled; set title, description, tags, chapters, thumbnail, captions, playlist; set the synthetic-media disclosure when the video contains realistic AI-generated content (confirm the exact API field in current docs). Refuses without `reviewed`.
+- `publish <video_id> --at "<datetime>"`: requires a second typed `yes`; refuses if `final.mp4` changed since review; upload as private/scheduled; set title, description, tags, chapters, thumbnail, captions, playlist; set the synthetic-media disclosure when the video contains realistic AI-generated content (`status.containsSyntheticMedia`, confirmed in the Data API revision history, 2024-10-30). Refuses without `reviewed`.
 
 ### 4.7 Channel management
 - `analytics`: pull last 28 days per video (views, watch time, average view duration, CTR, impressions, retention, traffic sources); store in `metrics_daily`; write a plain-English report of best topics, title styles, lengths, upload days, drop-off points, and what to make next.
 - `ab-log <video_id>`: record title/thumbnail changes with timestamps and before/after metrics.
-- `comments <video_id>`: fetch recent comments and write draft replies to a file for review. Never posts. A separate `comments post <file>` command may post only after per-reply typed confirmation.
+- `comments <video_id>`: fetch recent comments and write draft replies to `comments_drafts.json` for review. Never posts. A separate `comments post <file>` command may post only after per-reply typed confirmation.
 - `calendar`: 4-week content calendar from approved ideas; flag gaps against cadence.
-- `status`: one-screen table of every video and its stage.
-- `run-all "<seed>"`: chain research through thumbnail for the top approved idea, then stop at the review gate.
+- `status [--sync]`: one-screen table of every video and its stage; `--sync` marks published videos `live`.
+- `quota`: today's usage per quota bucket.
+- `demo`: dry run that builds a playable MP4 and thumbnails from the bundled sample script with no API keys (cannot be published).
+- `run-all "<seed>"`: chain research through thumbnail for the top approved idea (approving the top-ranked new idea if none is in progress), then stop at the review gate.
 
 ---
 
@@ -164,14 +166,14 @@ Use migrations or `create_all` with a schema version row; never drop tables sile
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `LLM_PROVIDER` | yes | Which LLM provider the wrapper uses |
-| `LLM_API_KEY` | yes | LLM key |
-| `LLM_MODEL` | yes | Model name |
+| `LLM_PROVIDER` | no | `claude_code` (default, no key), or `anthropic` / `openai` / `gemini` |
+| `LLM_API_KEY` | only for API providers | LLM key |
+| `LLM_MODEL` | only for API providers | Model name |
 | `CHANNEL_ID` | yes | Target channel |
 | `GOOGLE_CLIENT_SECRET_PATH` | yes | Path to `client_secret.json` |
 | `PEXELS_API_KEY` | yes (for visuals) | Stock footage |
 | `ELEVENLABS_API_KEY` | no | Optional TTS |
-| `TTS_PROVIDER` | no | `edge` (default) or `eleven` |
+| `TTS_PROVIDER` | no | `edge` (default), `eleven`, or `silent` (dry runs only) |
 | `TTS_VOICE` | no | Voice name |
 | `DAILY_QUOTA_LIMIT` | no | Default 10000 |
 | `QUOTA_SAFETY_MARGIN` | no | Default 500 units reserved |
@@ -182,24 +184,26 @@ Missing required values must produce a clear message naming the variable and the
 
 ## 7. Quota budget
 
-Default daily Data API quota is 10,000 units. Verify per-call costs in the official docs; approximate values at time of writing:
+Verified against the official quota calculator (developers.google.com/youtube/v3/determine_quota_cost) on 2026-10-28. Since late 2025, `search.list` and `videos.insert` have **their own daily buckets of 100 calls each**; every other endpoint draws from the shared daily budget (default 10,000 units).
 
-| Call | Approx. units |
-|---|---|
-| `videos.insert` | 1,600 |
-| `captions.insert` | 400 |
-| `thumbnails.set` | 50 |
-| `search.list` | 100 |
-| most `list` calls | 1 |
+| Call | Cost | Bucket |
+|---|---|---|
+| `videos.insert` | 1 call | upload (100/day) |
+| `search.list` | 1 call | search (100/day) |
+| `captions.insert` | 400 units | shared |
+| `thumbnails.set` | 50 units | shared |
+| `playlistItems.insert` | 50 units | shared |
+| `videos.update`, `comments.insert` | 50 units | shared |
+| `videos.list`, `channels.list`, `commentThreads.list` | 1 unit | shared |
 
 Worked example for one fully-published video:
-1. Upload 1,600 + captions 400 + thumbnail 50 = 2,050 units
-2. 10,000 / 2,050 = 4.88, so at most 4 full videos per day
-3. Leave 500 for research and analytics: (10,000 - 500) / 2,050 = 4.63, so 4 per day
+1. Shared units: captions 400 + thumbnail 50 + playlist 50 + status check 1 = 501 units; plus 1 upload call
+2. (10,000 - 500 margin) / 501 = 18.9, so about 18 full videos per day; uploads are capped at 100/day
+3. Quota is no longer the bottleneck for this channel's cadence
 
-`quota.py` logs every call to `quota_log`, shows remaining units, and aborts a command before it would exceed `DAILY_QUOTA_LIMIT - QUOTA_SAFETY_MARGIN`.
+`quota.py` logs every call to `quota_log` (failed calls count too), tracks all three buckets, shows remaining units (`quota` command), and aborts a command before it would exceed `DAILY_QUOTA_LIMIT - QUOTA_SAFETY_MARGIN` (or a bucket's 100 calls). `publish` checks its whole plan before uploading. The YouTube Analytics API has its own quota; its calls are logged but not charged to the Data API budget.
 
-**Important:** YouTube may force videos uploaded through API projects that have not passed its API compliance audit to private. Check the current official docs. If this applies, uploads will land as private and the owner must either pass the audit or publish manually from YouTube Studio. The tool must detect and report this instead of failing silently.
+**Important:** YouTube restricts videos uploaded through unaudited API projects (created after 2020-07-28) to private. `publish` uploads as private (with `publishAt` when `--at` is given); if the schedule comes back missing it reports the audit requirement instead of failing silently. The owner must either pass the audit or publish manually from YouTube Studio.
 
 ---
 

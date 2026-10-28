@@ -7,9 +7,9 @@ endpoint draws from the shared daily unit budget (default 10,000). Quota resets 
 
 from __future__ import annotations
 
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from datetime import date, datetime, timedelta
-from typing import Callable, Iterator
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import func

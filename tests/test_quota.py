@@ -24,9 +24,8 @@ def test_every_call_is_logged_with_cost(ctx):
 
 def test_failed_call_still_counts(ctx):
     q = tracker(ctx.session)
-    with pytest.raises(RuntimeError):
-        with q.spend("thumbnails.set"):
-            raise RuntimeError("boom")
+    with pytest.raises(RuntimeError), q.spend("thumbnails.set"):
+        raise RuntimeError("boom")
     row = ctx.session.query(QuotaLog).one()
     assert row.ok is False and q.used() == 50
 
@@ -36,9 +35,8 @@ def test_safety_margin_blocks_before_the_call(ctx):
     with q.spend("captions.insert"):  # 400 of 500 budget
         pass
     ran = False
-    with pytest.raises(QuotaError) as e:
-        with q.spend("captions.insert"):
-            ran = True
+    with pytest.raises(QuotaError) as e, q.spend("captions.insert"):
+        ran = True
     assert not ran
     msg = str(e.value)
     assert "need 400 units, 100 left" in msg and "safety margin 500" in msg and "Wait for the reset" in msg

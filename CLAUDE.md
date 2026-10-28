@@ -40,7 +40,8 @@ Business-model and economics explainers, English, faceless narration with charts
 ## Commands
 - Run tests: `pytest -q`
 - Run CLI: `python -m studio.cli --help`
-- Lint (if configured): `ruff check .`
+- Lint: `ruff check .`
+- Keyless dry run: `python -m studio.cli demo`
 
 ## Definition of done for any milestone
 1. Code written and runs.
@@ -50,6 +51,16 @@ Business-model and economics explainers, English, faceless narration with charts
 
 ## When blocked
 Make the most reasonable choice, write it down in `PROGRESS.md` under "Decisions", and continue. Ask the owner only for things that need their accounts or credentials.
+
+## Answering prompt files (LLM_PROVIDER=claude_code, the default)
+The owner has no LLM API key; Claude Code writes the creative text. Commands like `script` and
+`comments` write `projects/<id>/prompts/<task>.prompt.md`, exit with code 3, and wait.
+When asked to answer one:
+1. Read the whole prompt file; it holds the rules, the style guide and the exact JSON shape.
+2. Research real figures with web search; cite filings, annual reports or reputable articles in `sources`.
+   Never copy another creator's script or video; write original analysis.
+3. Write ONLY the JSON object to the matching `<task>.response.json`.
+4. Re-run the command; it validates the answer and prints any problems to fix.
 
 ## Token discipline
 Prefer one consolidated pass per milestone. Do not re-read whole files unnecessarily; read only the section you need.

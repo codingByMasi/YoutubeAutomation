@@ -12,12 +12,12 @@ from pathlib import Path
 import matplotlib
 
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt  # noqa: E402
-from matplotlib.patches import FancyArrowPatch, FancyBboxPatch  # noqa: E402
-from PIL import Image, ImageDraw, ImageFont  # noqa: E402
+import matplotlib.pyplot as plt
+from matplotlib.patches import FancyArrowPatch, FancyBboxPatch
+from PIL import Image, ImageDraw, ImageFont
 
-from studio.errors import StudioError  # noqa: E402
-from studio.providers import brand  # noqa: E402
+from studio.errors import StudioError
+from studio.providers import brand
 
 W, H, DPI = 1920, 1080, 100
 MAX_STEPS = 6

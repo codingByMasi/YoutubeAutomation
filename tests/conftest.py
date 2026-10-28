@@ -8,10 +8,10 @@ from pathlib import Path
 import pytest
 from sqlalchemy.orm import sessionmaker
 
-import studio.util.retry as retry
 from studio.config import Settings
 from studio.context import Ctx
 from studio.db import init_db, make_engine
+from studio.util import retry
 
 ENV_KEYS = ["LLM_PROVIDER", "LLM_API_KEY", "LLM_MODEL", "CHANNEL_ID", "GOOGLE_CLIENT_SECRET_PATH",
             "PEXELS_API_KEY", "ELEVENLABS_API_KEY", "TTS_PROVIDER", "TTS_VOICE", "DAILY_QUOTA_LIMIT",

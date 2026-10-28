@@ -54,7 +54,7 @@ def get_credentials(settings: Settings, run_flow=_run_flow) -> Any:
             creds = run_flow(settings)
         except StudioError:
             raise
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise StudioError(
                 "Google sign-in failed.",
                 str(exc),

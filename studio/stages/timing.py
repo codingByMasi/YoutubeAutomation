@@ -62,7 +62,7 @@ def pick_short_windows(spans: list[tuple[float, float]], segs: list[dict], count
 
     last = len(segs) - 2 if len(segs) > 2 else len(segs) - 1
     cands = []
-    for i in range(0, last + 1):
+    for i in range(last + 1):
         for j in range(i, last + 1):
             length = spans[j][1] - spans[i][0]
             if length > max_len:

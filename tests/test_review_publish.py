@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -185,8 +185,8 @@ def test_publish_checks_quota_before_uploading(ctx):
 
 
 def test_parse_when():
-    now = datetime(2026, 11, 1, tzinfo=timezone.utc)
-    assert publish.parse_when("2026-11-05T18:00:00+0000", now) == datetime(2026, 11, 5, 18, tzinfo=timezone.utc)
+    now = datetime(2026, 11, 1, tzinfo=UTC)
+    assert publish.parse_when("2026-11-05T18:00:00+0000", now) == datetime(2026, 11, 5, 18, tzinfo=UTC)
     with pytest.raises(StudioError):
         publish.parse_when("2020-01-01 10:00", now)
     with pytest.raises(StudioError):
