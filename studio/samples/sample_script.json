@@ -1,0 +1,219 @@
+{
+  "topic": "how coffee shops make money",
+  "originality_note": "Breaks one latte into each cost line with a single money-flow diagram.",
+  "sensitive_topic": true,
+  "synthetic_media": false,
+  "titles": [
+    {
+      "text": "How a Coffee Shop Really Makes Money",
+      "style": "how-x-really-works",
+      "is_pick": true
+    },
+    {
+      "text": "The Economics of a $5 Latte",
+      "style": "economics-of-x",
+      "is_pick": false
+    },
+    {
+      "text": "Where Your $5 Latte Actually Goes",
+      "style": "money-flow",
+      "is_pick": false
+    },
+    {
+      "text": "How Coffee Shops Make Money",
+      "style": "how-x-makes-money",
+      "is_pick": false
+    },
+    {
+      "text": "Why Coffee Shops Sell Pastries",
+      "style": "why-x",
+      "is_pick": false
+    },
+    {
+      "text": "The 30-Cent Coffee Behind a $5 Cup",
+      "style": "number-contrast",
+      "is_pick": false
+    },
+    {
+      "text": "Coffee Shop Economics in 60 Seconds",
+      "style": "explainer",
+      "is_pick": false
+    },
+    {
+      "text": "Rent, Milk, Labour: Inside a $5 Latte",
+      "style": "breakdown",
+      "is_pick": false
+    },
+    {
+      "text": "Is Your Local Café Profitable?",
+      "style": "question",
+      "is_pick": false
+    },
+    {
+      "text": "The Real Margin on a Cup of Coffee",
+      "style": "margin",
+      "is_pick": false
+    },
+    {
+      "text": "How Cafés Survive on Thin Margins",
+      "style": "how-x",
+      "is_pick": false
+    },
+    {
+      "text": "A $5 Latte, Line by Line",
+      "style": "breakdown",
+      "is_pick": false
+    },
+    {
+      "text": "What a Coffee Shop Keeps From Each Cup",
+      "style": "money-flow",
+      "is_pick": false
+    },
+    {
+      "text": "Coffee Shop Money, Explained Simply",
+      "style": "explainer",
+      "is_pick": false
+    },
+    {
+      "text": "The Hidden Cost Inside Every Latte",
+      "style": "reveal",
+      "is_pick": false
+    }
+  ],
+  "thumbnail_texts": [
+    "Where $5 Goes",
+    "30-Cent Coffee",
+    "Latte Math"
+  ],
+  "description_summary": "A five-dollar latte, broken down line by line.\nWhere the money really goes inside a coffee shop.",
+  "tags": [
+    "coffee shop economics",
+    "business model",
+    "how coffee shops make money",
+    "latte",
+    "unit economics"
+  ],
+  "sources": [
+    {
+      "id": "s1",
+      "title": "Sample data for the dry run",
+      "url_or_note": "Illustrative sample figures, not real data. Replace before publishing."
+    }
+  ],
+  "segments": [
+    {
+      "chapter": "The $5 question",
+      "narration": "You pay five dollars for a latte. The coffee in it costs about thirty cents. So where does the rest go?",
+      "visual_keywords": [
+        "latte art",
+        "coffee cup"
+      ],
+      "est_seconds": 8,
+      "beat": "question",
+      "chart_data": {
+        "type": "number",
+        "title": "Coffee beans per cup",
+        "labels": [
+          "Beans"
+        ],
+        "values": [
+          0.3
+        ],
+        "unit": "$",
+        "source_ids": [
+          "s1"
+        ],
+        "is_estimate": true
+      }
+    },
+    {
+      "chapter": "The customer",
+      "narration": "Most customers are not buying coffee. They are buying a quick, reliable habit and a place to sit for a while.",
+      "visual_keywords": [
+        "busy cafe",
+        "people with laptops"
+      ],
+      "est_seconds": 8,
+      "beat": null,
+      "chart_data": null
+    },
+    {
+      "chapter": "Where the money goes",
+      "narration": "Split the five dollars and rent and labour take the biggest share, far more than the coffee itself.",
+      "visual_keywords": [
+        "barista working"
+      ],
+      "est_seconds": 8,
+      "beat": "reveal",
+      "chart_data": {
+        "type": "bar",
+        "title": "Where a $5 latte goes",
+        "labels": [
+          "Labour",
+          "Rent",
+          "Milk & cup",
+          "Coffee",
+          "Profit"
+        ],
+        "values": [
+          1.6,
+          1.2,
+          0.6,
+          0.3,
+          0.5
+        ],
+        "unit": "$",
+        "source_ids": [
+          "s1"
+        ],
+        "is_estimate": true
+      }
+    },
+    {
+      "chapter": "The money flow",
+      "narration": "The money flows from your card, to the till, then out to staff, the landlord and suppliers, leaving a thin slice.",
+      "visual_keywords": [
+        "card payment"
+      ],
+      "est_seconds": 8,
+      "beat": "example",
+      "chart_data": {
+        "type": "flow",
+        "title": "Follow the five dollars",
+        "labels": [
+          "Customer",
+          "Till",
+          "Costs",
+          "Profit"
+        ],
+        "values": [],
+        "unit": "",
+        "source_ids": [
+          "s1"
+        ],
+        "is_estimate": true
+      }
+    },
+    {
+      "chapter": "The clever trick",
+      "narration": "The trick is the pastry case. Add-ons carry higher margins and lift the average order without extra rent.",
+      "visual_keywords": [
+        "pastry display"
+      ],
+      "est_seconds": 8,
+      "beat": "pattern_break",
+      "chart_data": null
+    },
+    {
+      "chapter": "Takeaway",
+      "narration": "So a café is really a rent and labour business that happens to sell coffee. If you liked this breakdown, subscribe for more.",
+      "visual_keywords": [
+        "coffee shop exterior"
+      ],
+      "est_seconds": 8,
+      "beat": null,
+      "chart_data": null
+    }
+  ],
+  "cta": "If you liked this breakdown, subscribe for more."
+}
