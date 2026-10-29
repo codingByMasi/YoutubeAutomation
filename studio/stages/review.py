@@ -66,8 +66,9 @@ def build_description(pkg: dict, chaps: list[tuple[float, str]], licences: list[
     if pkg.get("sources"):
         parts.append("Sources\n" + "\n".join(f"- {s.get('title', '')}: {s['url_or_note']}" for s in pkg["sources"]))
     parts.append(DISCLAIMER)
-    if any("Pexels" in lic["licence"] for lic in licences):
-        parts.append("Stock footage from Pexels (https://www.pexels.com).")
+    for name, site in (("Pexels", "https://www.pexels.com"), ("Pixabay", "https://pixabay.com")):
+        if any(name in lic["licence"] for lic in licences):
+            parts.append(f"Stock footage from {name} ({site}).")
     return "\n\n".join(p for p in parts if p)
 
 

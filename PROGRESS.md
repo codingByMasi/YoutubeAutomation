@@ -81,6 +81,7 @@ Record any choice made without asking the owner, with date and reason.
 |---|---|---|
 | 2026-10-28 | LLM default is `claude_code`: commands write `prompts/<task>.prompt.md`, exit code 3, and continue when Claude Code writes `<task>.response.json`. API providers stay optional. | Owner has no LLM API key and wants Claude Code to do the writing. |
 | 2026-10-28 | Quota tracked in three buckets: shared units (10,000), `search.list` (100 calls/day), `videos.insert` (100 calls/day). | Official quota calculator (checked 2026-10-28) shows upload dropped from ~1,600 units to its own bucket in Dec 2025. SPEC section 7 updated. |
+| 2026-10-29 | Footage is a pluggable provider (`studio/providers/footage.py`): Pixabay added, Pexels kept, chosen by `FOOTAGE_PROVIDER` (auto/pexels/pixabay/none). No key is required: `visuals` falls back to generated cards and charts and prints a message. An explicit provider with a missing key is an error. | Pexels paused new API key issuance. Pixabay docs and licence summary (checked 2026-10-29): free key, commercial use allowed, attribution not required, 24 h search cache requested, 100 req/60 s. Licence and page URL are still stored per asset; descriptions credit the provider. |
 | 2026-10-28 | ffmpeg directly, no MoviePy. | Fewer dependencies and pure command builders are easy to test. |
 | 2026-10-28 | Charts render as step frames (one bar/flow step at a time) shown in sequence, rather than a true animation. | Gives the "revealed step by step" effect with matplotlib only; fast to render. |
 | 2026-10-28 | Captions come from faster-whisper when installed, otherwise from the script text timed by word count. | faster-whisper is a large optional install; the narration text is already exact. |
@@ -100,9 +101,9 @@ Record any choice made without asking the owner, with date and reason.
 - [ ] Google Cloud project, YouTube Data API v3 and YouTube Analytics API enabled
 - [ ] OAuth consent screen and Desktop-app client secret saved as `client_secret.json`
 - [ ] Add owner's Google account as a test user if the app is in testing mode
-- [ ] `.env` filled in from `.env.example` (CHANNEL_ID, PEXELS_API_KEY; no LLM key needed)
+- [ ] `.env` filled in from `.env.example` (CHANNEL_ID; no LLM key needed)
 - [ ] ffmpeg installed and on PATH
-- [ ] Pexels API key
+- [ ] Optional: free Pixabay API key (`PIXABAY_API_KEY`) for stock footage; without it `visuals` uses generated cards and charts
 - [ ] Music files placed in `assets/music/` with a `<file>.licence.txt` each
 - [ ] Intro/outro clips (under 5 s, with licence notes) and brand fonts placed in `assets/`
 - [ ] SPEC.md Section 1 (channel name, audience) and Section 9 (brand colours, font, music mood) filled in

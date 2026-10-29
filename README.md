@@ -21,7 +21,7 @@ Full design: see `SPEC.md`. Build progress: see `PROGRESS.md`.
   - Ubuntu/Debian: `sudo apt install ffmpeg`
   - Windows: `winget install ffmpeg` (or download from ffmpeg.org and add to PATH)
 - A Google account that owns the YouTube channel
-- API keys: Pexels (free). No LLM key is needed: Claude Code writes the scripts (see section 8). ElevenLabs is optional.
+- API keys: none required. Optional free stock-footage key: Pixabay (or Pexels if you already have one). No LLM key is needed: Claude Code writes the scripts (see section 8). ElevenLabs is optional.
 
 ## 2. Install
 
@@ -49,7 +49,7 @@ Note on uploads: YouTube may force videos uploaded through API projects that hav
 ## 4. Other keys
 
 1. **LLM provider (optional):** not needed. By default Claude Code answers prompt files. Only if you want fully hands-off runs, set `LLM_PROVIDER` to `anthropic`, `openai` or `gemini`, add `LLM_API_KEY` and `LLM_MODEL`, and `pip install` that provider's package.
-2. **Pexels:** sign up at pexels.com/api for a free key.
+2. **Stock footage (optional):** Pexels has paused new API keys, so use **Pixabay**: sign up (free) at pixabay.com, open https://pixabay.com/api/docs/ while logged in, copy your key and put it in `.env` as `PIXABAY_API_KEY=...`. Pixabay's content licence allows commercial use (including monetized YouTube) with no attribution required; the licence is still recorded per clip. With no key, `visuals` still works: it uses generated cards, charts and number cards and says so. `FOOTAGE_PROVIDER` picks the source: `auto` (default: Pexels key if set, else Pixabay key, else none), `pexels`, `pixabay` or `none`. Existing Pexels keys keep working.
 3. **ElevenLabs (optional):** only if you want higher-quality voices than the free edge-tts default.
 
 ## 5. Configure `.env`
@@ -70,6 +70,8 @@ LLM_MODEL=
 CHANNEL_ID=
 GOOGLE_CLIENT_SECRET_PATH=./client_secret.json
 PEXELS_API_KEY=
+PIXABAY_API_KEY=
+FOOTAGE_PROVIDER=auto
 
 # TTS: edge (default, free), eleven (needs ELEVENLABS_API_KEY), silent (dry runs only)
 TTS_PROVIDER=edge
@@ -90,7 +92,7 @@ Place these in `assets/`:
 - `fonts/` brand fonts
 - `thumb_templates/` optional `overlay.png` (1280x720, transparent) laid over every thumbnail
 
-Every music, intro and outro file needs a licence note next to it: `song.mp3` + `song.mp3.licence.txt` (first line, e.g. "YouTube Audio Library, monetization allowed"). `review` refuses to approve a video that uses a file with no licence note. Pexels clips are recorded automatically.
+Every music, intro and outro file needs a licence note next to it: `song.mp3` + `song.mp3.licence.txt` (first line, e.g. "YouTube Audio Library, monetization allowed"). `review` refuses to approve a video that uses a file with no licence note. Stock clips (Pixabay or Pexels) are recorded automatically with their licence and page URL.
 
 Only use music, footage, and fonts whose licences allow YouTube use and monetization.
 

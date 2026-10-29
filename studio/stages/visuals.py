@@ -9,7 +9,7 @@ import typer
 from studio.context import Ctx
 from studio.models import Asset, Segment
 from studio.providers.charts import render_chart, source_line, text_card
-from studio.providers.pexels import Pexels
+from studio.providers.footage import make_footage
 from studio.stages.base import get_video, run_stage
 from studio.stages.script import CHART_GAP_MAX, load_package, timeline, write_package
 from studio.stages.timing import shots_needed, split_segment
@@ -33,15 +33,21 @@ def chart_gaps(segs: list[dict]) -> list[str]:
 
 
 def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET) -> None:
-    """stock: a Pexels-like object with find(keywords, exclude); None means cards only (dry runs)."""
+    """stock: a footage provider with find(keywords, exclude); None means generated cards only."""
     s = ctx.session
     video = get_video(s, video_id)
 
     def work() -> None:
         nonlocal stock
         if stock is UNSET:
-            ctx.settings.require("visuals", "PEXELS_API_KEY")
-            stock = Pexels(ctx.settings.pexels_api_key, ctx.settings.assets_dir / "cache" / "pexels")
+            name, stock = make_footage(ctx.settings)
+            if stock is None:
+                typer.secho(
+                    "No stock footage provider configured: using generated cards and charts only. "
+                    "To add real footage, set PIXABAY_API_KEY (free, pixabay.com/api/docs/) in .env.",
+                    fg=typer.colors.YELLOW)
+            else:
+                typer.echo(f"Stock footage provider: {name}.")
         out = ctx.settings.project_dir(video_id)
         clips_dir, charts_dir = out / "clips", out / "charts"
         clips_dir.mkdir(exist_ok=True)
@@ -61,7 +67,7 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET) -> None:
                     break
                 found.append(clip)
                 s.add(Asset(video_id=video_id, kind="clip", path=str(clip.path),
-                            source=f"Pexels: {clip.author}".strip(), licence=clip.licence,
+                            source=f"{clip.provider}: {clip.author}".strip(), licence=clip.licence,
                             attribution_url=clip.page_url))
             if found:
                 vis.update(kind="clip", path=str(found[0].path), paths=[str(c.path) for c in found])

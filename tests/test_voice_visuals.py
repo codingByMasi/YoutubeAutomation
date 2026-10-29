@@ -5,7 +5,8 @@ from pathlib import Path
 import pytest
 
 from studio.models import Asset, Idea, Segment, Video
-from studio.providers.pexels import StockClip, pick_file
+from studio.providers.footage import StockClip
+from studio.providers.pexels import pick_file
 from studio.stages import script as sc
 from studio.stages import visuals, voice
 
@@ -80,7 +81,8 @@ class FakeStock:
             return None
         p = self.tmp / f"clip{self.n}.mp4"
         p.write_bytes(b"x")
-        return StockClip(p, f"https://pexels.com/video/{self.n}", "Ann", "https://pexels.com/@ann")
+        return StockClip(p, f"https://pexels.com/video/{self.n}", "Ann", "https://pexels.com/@ann",
+                         "Pexels License", "Pexels")
 
 
 def test_visuals_fallback_cards_and_licences(ctx, tmp_path):
@@ -100,13 +102,95 @@ def test_visuals_fallback_cards_and_licences(ctx, tmp_path):
     assert v.stage == "visuals_ready"
 
 
-def test_visuals_require_pexels_key(ctx):
-    from studio.errors import ConfigError
+def test_visuals_without_any_key_uses_cards_and_says_so(ctx, capsys):
     v = scripted_video(ctx)
     voice.run(ctx, v.id, tts=FakeTTS(), measure=lambda p: 8.0)
+    visuals.run(ctx, v.id)  # no keys configured
+    out = capsys.readouterr().out + capsys.readouterr().err
+    assert "No stock footage provider configured" in out and "PIXABAY_API_KEY" in out
+    kinds = [a.kind for a in ctx.session.query(Asset).filter_by(video_id=v.id)]
+    assert "clip" not in kinds and kinds.count("card") == 6 and "chart" in kinds
+    assert v.stage == "visuals_ready"
+
+
+def test_explicit_provider_without_key_is_an_error(ctx):
+    from studio.errors import ConfigError
+    from studio.providers.footage import make_footage
+    ctx.settings.footage_provider = "pixabay"
     with pytest.raises(ConfigError) as e:
-        visuals.run(ctx, v.id)
-    assert "PEXELS_API_KEY" in str(e.value)
+        make_footage(ctx.settings)
+    assert "PIXABAY_API_KEY" in str(e.value) and "FOOTAGE_PROVIDER=none" in str(e.value)
+
+
+def test_provider_selection(ctx):
+    from studio.providers.footage import resolve_provider
+    s = ctx.settings
+    assert resolve_provider(s) == "none"
+    s.pixabay_api_key = "p"
+    assert resolve_provider(s) == "pixabay"
+    s.pexels_api_key = "x"
+    assert resolve_provider(s) == "pexels"  # existing Pexels users keep working
+    s.footage_provider = "pixabay"
+    assert resolve_provider(s) == "pixabay"
+    s.footage_provider = "none"
+    assert resolve_provider(s) == "none"
+
+
+def _fake_opener(calls, payload):
+    class Resp:
+        def __init__(self, data):
+            self.data = data
+
+        def read(self):
+            return self.data
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    def opener(req, timeout=0):
+        calls.append(req.full_url)
+        return Resp(payload if "api/videos" in req.full_url else b"video-bytes")
+    return opener
+
+
+PIXABAY_HIT = {"id": 7, "pageURL": "https://pixabay.com/videos/id-7/", "user": "ann", "user_id": 99, "videos": {
+    "large": {"url": "", "width": 0, "height": 0, "size": 0},
+    "medium": {"url": "https://cdn.pixabay.com/m.mp4", "width": 1920, "height": 1080, "size": 5},
+    "small": {"url": "https://cdn.pixabay.com/s.mp4", "width": 1280, "height": 720, "size": 3}}}
+
+
+def test_pixabay_picks_hd_and_records_licence(tmp_path):
+    from studio.providers.pixabay import Pixabay
+    from studio.providers.pixabay import pick_file as pix_pick
+
+    assert pix_pick(PIXABAY_HIT)["url"].endswith("m.mp4")
+    calls = []
+    px = Pixabay("KEY", tmp_path, opener=_fake_opener(calls, json.dumps({"hits": [PIXABAY_HIT]}).encode()))
+    used: set[int] = set()
+    clip = px.find(["coffee"], used)
+    assert clip.provider == "Pixabay" and clip.author == "ann" and "Pixabay Content License" in clip.licence
+    assert clip.page_url == "https://pixabay.com/videos/id-7/" and clip.path.read_bytes() == b"video-bytes"
+    assert used == {7} and px.find(["coffee"], used) is None  # already used
+    assert "key=KEY" in calls[0] and "pixabay.com/api/videos/" in calls[0]
+
+
+def test_pixabay_search_cached_24h(tmp_path):
+    from studio.providers.pixabay import CACHE_SECONDS, Pixabay
+
+    calls = []
+    clock = [1_000_000.0]
+    px = Pixabay("K", tmp_path, opener=_fake_opener(calls, json.dumps({"hits": []}).encode()), now=lambda: clock[0])
+    import os
+    px.search("tea")
+    os.utime(next(tmp_path.glob("search_*.json")), (clock[0], clock[0]))
+    px.search("tea")
+    assert len(calls) == 1
+    clock[0] += CACHE_SECONDS + 1
+    px.search("tea")
+    assert len(calls) == 2
 
 
 def test_pexels_picks_full_hd_landscape_mp4():

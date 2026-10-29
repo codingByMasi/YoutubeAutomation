@@ -13,11 +13,11 @@ from studio.errors import ConfigError
 API_LLM_PROVIDERS = {"anthropic", "openai", "gemini"}
 LLM_PROVIDERS = {"claude_code"} | API_LLM_PROVIDERS
 TTS_PROVIDERS = {"edge", "eleven", "silent"}
+FOOTAGE_PROVIDERS = {"auto", "pexels", "pixabay", "none"}
 
 # Which settings each command needs. Used to name the command in missing-key messages.
 COMMAND_REQUIREMENTS: dict[str, tuple[str, ...]] = {
     "research": ("GOOGLE_CLIENT_SECRET_PATH",),
-    "visuals": ("PEXELS_API_KEY",),
     "publish": ("CHANNEL_ID", "GOOGLE_CLIENT_SECRET_PATH"),
     "analytics": ("CHANNEL_ID", "GOOGLE_CLIENT_SECRET_PATH"),
     "comments": ("GOOGLE_CLIENT_SECRET_PATH",),
@@ -35,6 +35,8 @@ class Settings:
     channel_id: str = ""
     google_client_secret_path: str = "./client_secret.json"
     pexels_api_key: str = ""
+    pixabay_api_key: str = ""
+    footage_provider: str = "auto"
     elevenlabs_api_key: str = ""
     tts_provider: str = "edge"
     tts_voice: str = "en-US-AndrewNeural"
@@ -109,6 +111,8 @@ def load_settings(root: Path | None = None) -> Settings:
         channel_id=os.getenv("CHANNEL_ID", "").strip(),
         google_client_secret_path=os.getenv("GOOGLE_CLIENT_SECRET_PATH", "./client_secret.json").strip(),
         pexels_api_key=os.getenv("PEXELS_API_KEY", "").strip(),
+        pixabay_api_key=os.getenv("PIXABAY_API_KEY", "").strip(),
+        footage_provider=(os.getenv("FOOTAGE_PROVIDER") or "auto").strip().lower(),
         elevenlabs_api_key=os.getenv("ELEVENLABS_API_KEY", "").strip(),
         tts_provider=(os.getenv("TTS_PROVIDER") or "edge").strip().lower(),
         tts_voice=(os.getenv("TTS_VOICE") or "en-US-AndrewNeural").strip(),
@@ -127,11 +131,17 @@ def load_settings(root: Path | None = None) -> Settings:
             f"Supported: {', '.join(sorted(TTS_PROVIDERS))}.",
             "Set TTS_PROVIDER=edge in .env.",
         )
+    if s.footage_provider not in FOOTAGE_PROVIDERS:
+        raise ConfigError(
+            f"FOOTAGE_PROVIDER={s.footage_provider!r} is not supported.",
+            f"Supported: {', '.join(sorted(FOOTAGE_PROVIDERS))}.",
+            "Set FOOTAGE_PROVIDER=auto (use whichever key is set) or none (generated cards only) in .env.",
+        )
     if s.quota_safety_margin >= s.daily_quota_limit:
         raise ConfigError(
             "QUOTA_SAFETY_MARGIN must be smaller than DAILY_QUOTA_LIMIT.",
             f"Got margin {s.quota_safety_margin} and limit {s.daily_quota_limit}.",
             "Lower QUOTA_SAFETY_MARGIN in .env.",
         )
-    s.secrets = [v for v in (s.llm_api_key, s.pexels_api_key, s.elevenlabs_api_key) if v]
+    s.secrets = [v for v in (s.llm_api_key, s.pexels_api_key, s.pixabay_api_key, s.elevenlabs_api_key) if v]
     return s

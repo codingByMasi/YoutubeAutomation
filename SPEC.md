@@ -68,7 +68,7 @@ Rules: a stage can only advance in order; re-running a finished stage is a no-op
 | TTS | edge-tts default; ElevenLabs optional behind the same interface |
 | Captions | faster-whisper (local) -> SRT |
 | Video | ffmpeg (command builders in `util/ffmpeg.py`; MoviePy not needed) |
-| Footage | Pexels API (fallback: generated text/image cards) |
+| Footage | Pluggable provider: Pixabay or Pexels API (fallback: generated text/image cards and charts) |
 | Charts/diagrams | matplotlib (and Pillow) to render animated or step-by-step charts, flow diagrams, and number cards from segment data |
 | Thumbnails | Pillow with a template system |
 | Tests | pytest with mocked APIs |
@@ -91,7 +91,7 @@ yt-studio/
                            # build.py, thumbnail.py, review.py, publish.py
     manage/                # analytics_report.py, ab_log.py, comments.py,
                            # calendar.py, status.py
-    providers/             # tts_edge.py, tts_eleven.py, pexels.py, whisper.py, charts.py
+    providers/             # tts_edge.py, tts_eleven.py, footage.py (interface + selection), pixabay.py, pexels.py, whisper.py, charts.py
     util/                  # ffmpeg.py, retry.py, logging.py
   assets/                  # music/, intro/, outro/, fonts/, thumb_templates/
   projects/<video_id>/     # script.md, script.json, voice/, clips/, captions.srt,
@@ -116,7 +116,7 @@ Script rules: a 15-second hook; a retention beat (question, reveal, example, or 
 
 ### 4.3 Voice and visuals
 - `voice <video_id>`: synthesize narration per segment; measure real durations and update segment timings.
-- `visuals <video_id>`: for each segment fetch matching Pexels clips by keyword (fallback: generated cards); cache; record attribution and licence info in `assets`.
+- `visuals <video_id>`: for each segment fetch matching stock clips by keyword from the configured footage provider (fallback: generated cards; with no provider or key, cards and charts only, with a clear message); cache; record attribution and licence info in `assets`.
   - Segments that contain numbers (revenue splits, margins, prices, growth) must also produce a chart, diagram, or number card via `providers/charts.py`, driven by a `chart_data` field in `script.json` (type, labels, values, unit). Target at least one chart or diagram every 60-90 seconds.
   - Every number in `chart_data` must have a source URL or note in `script.json`; `review` fails if a chart has no source.
 
@@ -171,7 +171,9 @@ Use migrations or `create_all` with a schema version row; never drop tables sile
 | `LLM_MODEL` | only for API providers | Model name |
 | `CHANNEL_ID` | yes | Target channel |
 | `GOOGLE_CLIENT_SECRET_PATH` | yes | Path to `client_secret.json` |
-| `PEXELS_API_KEY` | yes (for visuals) | Stock footage |
+| `FOOTAGE_PROVIDER` | no | `auto` (default), `pexels`, `pixabay`, `none` |
+| `PIXABAY_API_KEY` | no | Free Pixabay key for stock footage |
+| `PEXELS_API_KEY` | no | Pexels key (new keys paused); still honoured |
 | `ELEVENLABS_API_KEY` | no | Optional TTS |
 | `TTS_PROVIDER` | no | `edge` (default), `eleven`, or `silent` (dry runs only) |
 | `TTS_VOICE` | no | Voice name |
@@ -245,7 +247,7 @@ Worked example for one fully-published video:
 | ffmpeg missing | Name the install command for the platform |
 | Missing API key | Name the variable and the command that needs it |
 | Network/API 5xx | Retry with exponential backoff, max 5 attempts, then fail with context |
-| Pexels returns no clips | Fall back to generated card; log it |
+| Provider returns no clips, or no key is set | Fall back to generated card; log it |
 | Upload forced private | Report it and point to the audit requirement |
 | Re-run of finished stage | Skip with a "already done" message |
 
