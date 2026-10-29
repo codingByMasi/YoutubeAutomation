@@ -188,8 +188,7 @@ def test_run_all_stops_at_review_gate(ctx, monkeypatch):
 
         def find(self, keywords, exclude):
             return None
-    monkeypatch.setattr(visuals, "Pexels", NoStock)
-    ctx.settings.pexels_api_key = "k"
+    monkeypatch.setattr(visuals, "make_footage", lambda settings: ("pexels", NoStock()))
     yt = FakeService({
         "search.list": lambda **kw: {"items": [{"id": {"videoId": "v1"}}]},
         "videos.list": lambda **kw: {"items": [{"id": "v1", "snippet": {"title": "How Coffee Shops Make Money",

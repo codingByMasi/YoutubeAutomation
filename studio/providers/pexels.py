@@ -5,22 +5,13 @@ from __future__ import annotations
 import json
 import urllib.parse
 import urllib.request
-from dataclasses import dataclass
 from pathlib import Path
 
+from studio.providers.footage import StockClip
 from studio.util.retry import with_retry
 
 SEARCH_URL = "https://api.pexels.com/v1/videos/search"
 LICENCE = "Pexels License (free for commercial use, no attribution required)"
-
-
-@dataclass
-class StockClip:
-    path: Path
-    page_url: str
-    author: str
-    author_url: str
-    licence: str = LICENCE
 
 
 def pick_file(video: dict, max_width: int = 2560) -> dict | None:
@@ -68,7 +59,7 @@ class Pexels:
             tmp.write_bytes(with_retry(go, "Pexels download"))
             tmp.rename(path)
         user = video.get("user") or {}
-        return StockClip(path, video.get("url", ""), user.get("name", ""), user.get("url", ""))
+        return StockClip(path, video.get("url", ""), user.get("name", ""), user.get("url", ""), LICENCE, "Pexels")
 
     def find(self, keywords: list[str], exclude: set[int] | None = None) -> StockClip | None:
         """First unused clip for the first keyword that returns results."""

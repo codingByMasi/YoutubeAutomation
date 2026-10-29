@@ -20,9 +20,16 @@ def test_env_file_is_read(root):
 def test_missing_key_names_variable_and_command(root):
     s = load_settings(root)
     with pytest.raises(ConfigError) as e:
-        s.require("visuals")
+        s.require("publish")
     msg = str(e.value)
-    assert "PEXELS_API_KEY" in msg and "`visuals`" in msg and ".env" in msg
+    assert "CHANNEL_ID" in msg and "`publish`" in msg and ".env" in msg
+
+
+def test_footage_provider_must_be_known(root):
+    (root / ".env").write_text("FOOTAGE_PROVIDER=getty\n")
+    with pytest.raises(ConfigError) as e:
+        load_settings(root)
+    assert "FOOTAGE_PROVIDER" in str(e.value) and "none" in str(e.value)
 
 
 def test_missing_client_secret_file_is_explained(root):

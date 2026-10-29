@@ -18,7 +18,7 @@ YouTube Channel Studio: a Python CLI that runs a faceless channel from topic res
 - Do not add features outside `SPEC.md` Section 12 "Out of scope" without asking.
 
 ## Stack
-Python 3.11, Typer, SQLAlchemy + SQLite, google-api-python-client, edge-tts, faster-whisper, ffmpeg/MoviePy, Pexels API, Pillow, matplotlib, pytest.
+Python 3.11, Typer, SQLAlchemy + SQLite, google-api-python-client, edge-tts, faster-whisper, ffmpeg/MoviePy, Pixabay/Pexels API, Pillow, matplotlib, pytest.
 
 ## Channel
 Business-model and economics explainers, English, faceless narration with charts and diagrams. Every figure needs a source. Details in `SPEC.md` Sections 1 and 9.

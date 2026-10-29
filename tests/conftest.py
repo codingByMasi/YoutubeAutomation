@@ -14,8 +14,8 @@ from studio.db import init_db, make_engine
 from studio.util import retry
 
 ENV_KEYS = ["LLM_PROVIDER", "LLM_API_KEY", "LLM_MODEL", "CHANNEL_ID", "GOOGLE_CLIENT_SECRET_PATH",
-            "PEXELS_API_KEY", "ELEVENLABS_API_KEY", "TTS_PROVIDER", "TTS_VOICE", "DAILY_QUOTA_LIMIT",
-            "QUOTA_SAFETY_MARGIN", "STUDIO_HOME"]
+            "PEXELS_API_KEY", "PIXABAY_API_KEY", "FOOTAGE_PROVIDER", "ELEVENLABS_API_KEY", "TTS_PROVIDER", "TTS_VOICE",
+            "DAILY_QUOTA_LIMIT",            "QUOTA_SAFETY_MARGIN", "STUDIO_HOME"]
 
 
 @pytest.fixture(autouse=True)
