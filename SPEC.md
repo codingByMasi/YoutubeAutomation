@@ -275,7 +275,7 @@ Definition of done for the build: all tests pass, `status` and `run-all` work en
 - Auto-publishing without review
 - AI-generated thumbnail images or video (phase two)
 - Multi-channel support
-- Web dashboard
+- Analytics web dashboard (a pipeline web app exists: see README "Web app")
 - Copying, re-uploading, or transcribing other creators' videos for reuse
 
 ---
