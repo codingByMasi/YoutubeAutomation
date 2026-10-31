@@ -97,7 +97,22 @@ def page_home() -> None:
 def page_topics() -> None:
     ctx = ctx_for()
     st.header("1. Pick a topic")
-    seed = st.text_input("Seed idea", placeholder="how cruise lines make money")
+    st.write("Don't have an idea? Let the studio find some. It avoids topics you already saved or used.")
+    if st.button("✨ Suggest topics for me", type="primary"):
+        with st.spinner("Looking for fresh ideas..."):
+            res = svc.auto_suggest_topics(ctx)
+        show(res, "New ideas added below.")
+        st.session_state["seed"] = "auto"
+    with st.expander("Or ask Claude for ideas (no AI key needed)"):
+        st.caption("Copy this into Claude (claude.ai or Claude Code), then paste its answer back here.")
+        st.code(svc.ideas_prompt(ctx), language="text")
+        answer = st.text_area("Claude's answer", key="claude_ideas")
+        if st.button("Add these ideas", disabled=not answer.strip()):
+            res = svc.import_claude_ideas(ctx, answer)
+            show(res, "Ideas added below.")
+            st.session_state["seed"] = "claude"
+    st.divider()
+    seed = st.text_input("Or expand your own seed idea", placeholder="how cruise lines make money")
     c1, c2 = st.columns(2)
     force = c2.checkbox("Fetch fresh results today")
     if c1.button("Suggest topics", type="primary", disabled=not seed.strip()):
@@ -105,13 +120,28 @@ def page_topics() -> None:
             res = svc.suggest_topics(ctx, seed.strip(), force=force)
         show(res, "Ideas saved below.")
         st.session_state["seed"] = seed.strip()
+    has_data = svc.has_competitor_data(ctx)
     st.caption("On the hosted app, topics come from YouTube search suggestions. Run locally and sign in to Google "
                "to also see small-channel outlier signals.")
+    with st.expander("What does the score mean?"):
+        st.markdown(
+            "- **Demand (0-10):** how high YouTube's own search box ranks this phrase, so people really type it. "
+            "10 is the top suggestion. With Google sign-in it also uses the views of recent matching videos.\n"
+            "- **Competition (0-10):** how big the channels already covering it are (median subscribers). "
+            "Low means a small channel can win. Shown as *n/a* until you sign in to Google, because the hosted "
+            "app cannot see competitors.\n"
+            "- **Score** = demand - competition + outlier bonus (small channels whose video beat their size). "
+            "Higher is better. Treat it as a rough guide, not a promise.")
     with st.expander("Or type your own topic"):
         own = st.text_input("Topic", key="own_topic")
         if st.button("Add topic", disabled=not own.strip()):
             svc.add_manual_topic(ctx, own)
             st.rerun()
+    used = svc.used_topics(ctx)
+    if used:
+        with st.expander(f"Topics you already used ({len(used)})"):
+            for u in used:
+                st.write("✅ " + u.topic)
     ideas = svc.ideas_for(ctx, st.session_state.get("seed") or None) or svc.ideas_for(ctx)
     if not ideas:
         return
@@ -119,8 +149,8 @@ def page_topics() -> None:
     for i in ideas[:30]:
         c1, c2, c3 = st.columns([6, 3, 2])
         c1.write(i.topic)
-        c2.caption(f"score {i.rank_score:.1f} · demand {i.demand_score:.0f} · competition "
-                   f"{i.competition_score:.0f} · {i.status}")
+        comp = f"{i.competition_score:.0f}" if has_data else "n/a"
+        c2.caption(f"score {i.rank_score:.1f} · demand {i.demand_score:.0f}/10 · competition {comp} · {i.status}")
         if i.status == "approved":
             c3.write("✅ approved")
         elif c3.button("Use this", key=f"use{i.id}"):

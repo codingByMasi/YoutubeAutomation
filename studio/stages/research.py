@@ -79,7 +79,7 @@ def score_topic(topic: str, position: int, total: int, videos: list[VideoStat]) 
     matched = [v for v in videos if matches(topic, v.title)]
     pool, factor = (matched, 1.0) if matched else (videos, 0.8)
     if not pool:
-        return {"demand": round(2 * (1 - position / max(total, 1)), 2), "competition": 0.0, "outlier": 0.0}
+        return {"demand": round(10 * (1 - position / max(total, 1)), 2), "competition": 0.0, "outlier": 0.0}
     med_views = statistics.median(v.views for v in pool)
     med_subs = statistics.median(v.subs for v in pool)
     demand = min(10.0, math.log10(med_views + 1) * 1.5) * factor + 2 * (1 - position / max(total, 1))
@@ -151,12 +151,16 @@ def run(ctx: Ctx, seed: str, force: bool = False, limit: int = 15, suggest=None,
     if not topics:
         raise StudioError(f"No topic ideas found for {seed!r}.", "Search suggestions returned nothing.",
                           "Try a broader seed, e.g. 'how airlines make money'.")
+    from studio.stages.discover import clean_topics
+    topics = [seed] + clean_topics([t for t in topics if t.lower() != seed.lower()], seed, known=[seed])
     outliers = sorted((v for v in videos if v.is_outlier), key=lambda v: v.ratio, reverse=True)
-    known = {i.topic.lower() for i in s.query(Idea).all()}
+    from studio.stages.discover import is_duplicate, key_tokens
+    seen = [key_tokens(i.topic) for i in s.query(Idea).all()]
     ideas = []
     for pos, topic in enumerate(topics):
-        if topic.lower() in known:
+        if is_duplicate(topic, seen):
             continue
+        seen.append(key_tokens(topic))
         sc = score_topic(topic, pos, len(topics), videos)
         ideas.append(Idea(seed=seed, topic=topic, demand_score=sc["demand"],
                           competition_score=sc["competition"], outlier_score=sc["outlier"]))
