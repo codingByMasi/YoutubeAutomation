@@ -234,6 +234,25 @@ def page_make() -> None:
                 show(svc.run_stage_by_name(ctx, redo, v.id, force=True, draft=draft))
 
 
+def show_player(ctx, video_id: int, final: Path) -> None:
+    """Play a small 480p browser-safe preview; if that fails, say why and point to the download."""
+    try:
+        issues = svc.playback_issues(final)
+        if issues:
+            st.warning("The full-quality file may not play in a browser (" + "; ".join(issues) + "). "
+                       "The preview below is converted so it plays; the download is unchanged.")
+        with st.spinner("Preparing a preview (a short wait the first time)..."):
+            prev = svc.ensure_preview(ctx, video_id)
+        if prev is not None:
+            st.video(str(prev))
+            st.caption("This is a small 480p preview. Download below for full quality.")
+    except StudioError as exc:
+        st.error(f"Preview failed. You can still download the video below.\n\n{exc}")
+    except Exception as exc:  # noqa: BLE001 - never let a preview problem hide the downloads
+        st.error(f"The preview player could not start ({type(exc).__name__}: {exc}). "
+                 "Download the video below and play it on your computer.")
+
+
 def page_review() -> None:
     ctx = ctx_for()
     st.header("4. Review and download")
@@ -243,7 +262,7 @@ def page_review() -> None:
         return
     files = svc.project_files(ctx, v.id)
     if files["video"]:
-        st.video(str(files["video"][0]))
+        show_player(ctx, v.id, files["video"][0])
     else:
         st.info("The video is not built yet. See **3. Make the video**.")
     cols = st.columns(3)
