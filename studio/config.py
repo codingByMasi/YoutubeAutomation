@@ -15,6 +15,7 @@ LLM_PROVIDERS = {"claude_code"} | API_LLM_PROVIDERS
 TTS_PROVIDERS = {"edge", "eleven", "silent"}
 FOOTAGE_PROVIDERS = {"auto", "pexels", "pixabay", "none"}
 IMAGE_PROVIDERS = {"auto", "pixabay", "commons", "none"}
+RENDERERS = {"2d", "blender"}
 
 # Which settings each command needs. Used to name the command in missing-key messages.
 COMMAND_REQUIREMENTS: dict[str, tuple[str, ...]] = {
@@ -41,6 +42,8 @@ class Settings:
     image_provider: str = "auto"
     elevenlabs_api_key: str = ""
     tts_provider: str = "edge"
+    renderer: str = "2d"  # kids mode picture renderer: 2d (default, works anywhere) or blender (PC only)
+    blender_path: str = ""
     tts_voice: str = "en-US-AndrewNeural"
     daily_quota_limit: int = 10000
     quota_safety_margin: int = 500
@@ -118,6 +121,8 @@ def load_settings(root: Path | None = None) -> Settings:
         image_provider=(os.getenv("IMAGE_PROVIDER") or "auto").strip().lower(),
         elevenlabs_api_key=os.getenv("ELEVENLABS_API_KEY", "").strip(),
         tts_provider=(os.getenv("TTS_PROVIDER") or "edge").strip().lower(),
+        renderer=(os.getenv("RENDERER") or "2d").strip().lower(),
+        blender_path=os.getenv("BLENDER_PATH", "").strip(),
         tts_voice=(os.getenv("TTS_VOICE") or "en-US-AndrewNeural").strip(),
         daily_quota_limit=_int("DAILY_QUOTA_LIMIT", 10000),
         quota_safety_margin=_int("QUOTA_SAFETY_MARGIN", 500),
@@ -133,6 +138,12 @@ def load_settings(root: Path | None = None) -> Settings:
             f"TTS_PROVIDER={s.tts_provider!r} is not supported.",
             f"Supported: {', '.join(sorted(TTS_PROVIDERS))}.",
             "Set TTS_PROVIDER=edge in .env.",
+        )
+    if s.renderer not in RENDERERS:
+        raise ConfigError(
+            f"RENDERER={s.renderer!r} is not supported.",
+            f"Supported: {', '.join(sorted(RENDERERS))}.",
+            "Set RENDERER=2d (works anywhere) or RENDERER=blender (needs Blender on your PC) in .env.",
         )
     if s.footage_provider not in FOOTAGE_PROVIDERS:
         raise ConfigError(

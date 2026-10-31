@@ -12,7 +12,7 @@ from PIL import ImageDraw, ImageFont
 
 from studio.context import Ctx
 from studio.errors import StageError, StudioError
-from studio.kids import draw, music, spec
+from studio.kids import build3d, draw, music, spec
 from studio.kids.script import project_dir
 from studio.kids.sprites import SpriteBank
 from studio.providers.brand import font_path
@@ -79,8 +79,12 @@ def _music(ctx: Ctx) -> Path | None:
     return files[0] if files else None
 
 
-def run(ctx: Ctx, slug: str, force: bool = False, size: tuple[int, int] = (1280, 720), fps: int = 15) -> Path:
-    """Build projects/kids_<slug>/final.mp4 from script.json. Idempotent: skips if final.mp4 exists."""
+def run(ctx: Ctx, slug: str, force: bool = False, size: tuple[int, int] = (1280, 720), fps: int = 15,
+        renderer: str | None = None) -> Path:
+    """Build projects/kids_<slug>/final.mp4 from script.json. Idempotent: skips if final.mp4 exists.
+
+    `renderer` is "2d" or "blender" (default: the RENDERER setting). Blender falls back to 2D when unavailable.
+    """
     d = project_dir(ctx, slug)
     final = d / "final.mp4"
     if final.exists() and not force:
@@ -102,6 +106,9 @@ def run(ctx: Ctx, slug: str, force: bool = False, size: tuple[int, int] = (1280,
     font_file = font_path(ctx.settings.assets_dir)
     counting = data["kind"] == "counting"
     sprites = SpriteBank(ctx.settings.assets_dir / "kids" / "characters")
+    exe = build3d.choose(renderer or ctx.settings.renderer, ctx.settings.blender_path)
+    if exe is not None:
+        fps = build3d.FPS_3D
     parts: list[Path] = []
     for i, scene in enumerate(data["scenes"], 1):
         audio, clip = d / f"scene{i:02d}.mp3", d / f"scene{i:02d}.mp4"
@@ -109,8 +116,12 @@ def run(ctx: Ctx, slug: str, force: bool = False, size: tuple[int, int] = (1280,
         if not audio.exists() or force:
             tts.synth(". ".join(scene["lines"]) + ".", audio)
         narr = ff.probe_duration(audio)
-        render_scene(scene, audio, narr, clip, size, fps, font_file, counting, sprites,
-                     scene.get("visual", {}).get("camera") or draw.CAMERAS[(i - 1) % len(draw.CAMERAS)])
+        cam = scene.get("visual", {}).get("camera") or draw.CAMERAS[(i - 1) % len(draw.CAMERAS)]
+        if exe is not None:
+            build3d.render_scene(exe, scene, audio, narr, clip, size, fps, font_file, counting, cam,
+                                 d / f"frames3d_{i:02d}")
+        else:
+            render_scene(scene, audio, narr, clip, size, fps, font_file, counting, sprites, cam)
         parts.append(clip)
     lst = ff.concat_list(parts, d / "scenes.txt")
     joined = d / "joined.mp4"

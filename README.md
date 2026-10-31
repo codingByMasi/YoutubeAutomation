@@ -86,6 +86,25 @@ one. SVGs need `cairosvg` (on a server also `libcairo2`); without it the code-dr
 Kids videos must be marked "Made for Kids" in YouTube Studio (no comments or personalised ads, lower RPM).
 Do not mass-produce near-identical videos: YouTube demonetises repetitive content.
 
+### Optional 3D renderer (Blender, your PC only)
+Kids scenes can be rendered as soft 3D instead of the flat 2D drawings. It is optional, free, and never used on a
+hosted app (no GPU there). Without Blender everything keeps working with the 2D renderer; if you ask for Blender and
+it is missing or too old, the build prints a note and uses 2D.
+
+Windows setup (one time):
+1. Install Blender 4.2 LTS or newer from blender.org (free, GPL; videos you render are yours). The default folder
+   `C:\Program Files\Blender Foundation\Blender <version>\` is found automatically. Otherwise set
+   `BLENDER_PATH=C:\path\to\blender.exe` in `.env`.
+2. Your normal Python (3.11 or 3.12) is fine: Blender runs the 3D script in its own bundled Python, and the script
+   only uses Blender's own modules. A 4 GB graphics card is enough for these simple flat-colour scenes.
+3. Try it: `python -m studio.cli kids demo --renderer blender --force` (or set `RENDERER=blender` in `.env` to make it
+   the default, and `RENDERER=2d` to switch back). Output: `projects/kids_demo/final.mp4`.
+4. If it fails, run again with `--renderer 2d` and send the error text. Updating the graphics driver fixes most
+   Blender start-up problems.
+
+Scenes are 24 fps, 1280x720, flat colours (no image textures) and use the same script, narration and captions as 2D.
+Blender is used for the pictures only; the Pexels/Pixabay stages and the main (non-kids) pipeline are unchanged.
+
 ### Growing the channel (page 5)
 The **5. Grow the channel** page has tabs for: channel profile, series/playlists (each video points to the next), a
 content calendar, 5 titles + 3 thumbnail concepts per video (scored by a checklist), description/tags/chapters with
