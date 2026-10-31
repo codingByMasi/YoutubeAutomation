@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import time
 import urllib.parse
 import urllib.request
@@ -17,8 +18,8 @@ CACHE_SECONDS = 24 * 3600  # Pixabay asks API users to cache results for 24 hour
 RENDITIONS = ("large", "medium", "small", "tiny")
 
 
-def pick_file(video: dict, max_width: int = 2560) -> dict | None:
-    """Best rendition: widest landscape file up to max_width, preferring >= 1920 (empty large URLs skipped)."""
+def pick_file(video: dict, max_width: int = 1920) -> dict | None:
+    """Best landscape mp4 rendition, widest up to max_width (1920: the video is 1080p)."""
     files = [f for f in (video.get("videos") or {}).values()
              if isinstance(f, dict) and f.get("url") and f.get("width")]
     files = [f for f in files if f["width"] >= f.get("height", 0) and f["width"] <= max_width]
@@ -55,12 +56,13 @@ class Pixabay:
             return None
         path = self.cache / f"{video['id']}_{f['width']}.mp4"
         if not path.exists():
-            def go() -> bytes:
-                req = urllib.request.Request(f["url"], headers={"User-Agent": "yt-studio/0.1"})
-                with self.open(req, timeout=120) as r:
-                    return r.read()
             tmp = path.with_suffix(".part")
-            tmp.write_bytes(with_retry(go, "Pixabay download"))
+
+            def go() -> None:  # stream to disk: clips can be 100 MB and must not sit in memory
+                req = urllib.request.Request(f["url"], headers={"User-Agent": "yt-studio/0.1"})
+                with self.open(req, timeout=120) as r, tmp.open("wb") as out:
+                    shutil.copyfileobj(r, out, 1 << 20)
+            with_retry(go, "Pixabay download")
             tmp.rename(path)
         user, uid = video.get("user", ""), video.get("user_id", "")
         return StockClip(path, video.get("pageURL", ""), user, f"https://pixabay.com/users/{user}-{uid}/",

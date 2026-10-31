@@ -141,8 +141,9 @@ def _fake_opener(calls, payload):
         def __init__(self, data):
             self.data = data
 
-        def read(self):
-            return self.data
+        def read(self, n=-1):
+            d, self.data = self.data, b""  # streamed reads: first call returns everything, then EOF
+            return d
 
         def __enter__(self):
             return self

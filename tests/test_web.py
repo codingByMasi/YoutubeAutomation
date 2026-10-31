@@ -83,3 +83,62 @@ def test_app_renders_every_page(root, monkeypatch):
     for page in ["1. Topics", "2. Script", "3. Make the video", "4. Review and download", "Settings"]:
         at.sidebar.radio[0].set_value(page).run()
         assert not at.exception, page
+
+
+def test_outcome_from_process_maps_exit_codes():
+    assert svc.outcome_from_process(0, "ok").ok
+    assert svc.outcome_from_process(3, "wait").pending
+    oom = svc.outcome_from_process(-9, "")
+    assert not oom.ok and "ran out of memory" in oom.error and "Next:" in oom.error
+    assert "exit code 1" in svc.outcome_from_process(1, "boom").error
+
+
+def test_run_cli_runs_child_process(root):
+    res = svc.run_cli(root, ["quota"])
+    assert res.ok, res.error
+    assert "units" in res.log
+
+
+def test_ffmpeg_low_memory_and_oom(monkeypatch):
+    from studio.util import ffmpeg as ff
+
+    cmd = ["ffmpeg", "-i", "a", "-c:v", "libx264", "out.mp4"]
+    out = ff.low_memory_cmd(cmd)
+    assert out[-1] == "out.mp4" and "-x264-params" in out
+    monkeypatch.setenv("STUDIO_FFMPEG_THREADS", "0")
+    assert ff.low_memory_cmd(cmd) == cmd
+    monkeypatch.setattr(ff.subprocess, "run", lambda *a, **k: type("P", (), {"returncode": -9, "stderr": ""})())
+    with pytest.raises(StudioError, match="out of memory"):
+        ff.run(cmd, "testing")
+
+
+def test_draft_profile_and_copy_mix(monkeypatch, tmp_path):
+    from studio.util import ffmpeg as ff
+
+    monkeypatch.delenv("STUDIO_DRAFT", raising=False)
+    assert ff.profile().w == 1920 and ff.profile().zoom
+    mix = ff.mix_cmd(tmp_path / "v.mp4", tmp_path / "a.wav", tmp_path / "o.mp4", None)
+    assert mix[mix.index("-c:v") + 1] == "copy"  # picture is not encoded a second time
+    burn = ff.mix_cmd(tmp_path / "v.mp4", tmp_path / "a.wav", tmp_path / "o.mp4", None, subtitles=tmp_path / "s.srt")
+    assert burn[burn.index("-c:v") + 1] == "libx264"
+    monkeypatch.setenv("STUDIO_DRAFT", "1")
+    p = ff.profile()
+    assert (p.w, p.h, p.preset, p.zoom) == (1280, 720, "ultrafast", False)
+    assert "zoompan" not in " ".join(ff.image_cmd(tmp_path / "i.jpg", 5, tmp_path / "o.mp4"))
+    assert "scale=1280:720" in " ".join(ff.clip_cmd(tmp_path / "c.mp4", 5, tmp_path / "o.mp4"))
+
+
+def test_failing_image_source_is_dropped_after_two_failures():
+    from studio.providers.images import ImageSearch
+
+    calls = []
+
+    class Down:
+        def find(self, kws, exclude):
+            calls.append(1)
+            raise StudioError("down")
+
+    s = ImageSearch([Down()])
+    for _ in range(5):
+        assert s.find(["a"], set()) is None
+    assert len(calls) == 2

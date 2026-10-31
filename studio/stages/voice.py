@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
 import typer
 
@@ -12,6 +14,8 @@ from studio.providers.tts import TTS, get_tts
 from studio.stages.base import get_video, run_stage
 from studio.stages.script import load_package, pacing_warnings, write_package
 from studio.util.ffmpeg import probe_duration
+
+VOICE_WORKERS = 4
 
 
 def apply_real_durations(pkg: dict, rows: list[Segment], durations: dict[int, float]) -> float:
@@ -35,13 +39,20 @@ def run(ctx: Ctx, video_id: int, force: bool = False, tts: TTS | None = None,
         pkg = load_package(ctx, video_id)
         rows = s.query(Segment).filter_by(video_id=video_id).order_by(Segment.position).all()
         durations = {}
-        with typer.progressbar(rows, label=f"Voicing {len(rows)} segments ({engine.name})") as bar:
-            for row in bar:
-                path = out / f"seg_{row.position:03d}.mp3"
-                if force or not path.exists() or path.stat().st_size == 0:
-                    engine.synth(row.narration, path)
+
+        def voice_row(row: Segment) -> tuple[Segment, Path]:
+            path = out / f"seg_{row.position:03d}.mp3"
+            if force or not path.exists() or path.stat().st_size == 0:
+                engine.synth(row.narration, path)
+            return row, path
+
+        # Synthesis waits on the network, so a few at once is much faster; results are kept in order.
+        with typer.progressbar(length=len(rows), label=f"Voicing {len(rows)} segments ({engine.name})") as bar, \
+                ThreadPoolExecutor(VOICE_WORKERS) as pool:
+            for row, path in pool.map(voice_row, rows):
                 row.audio_path = str(path)
                 durations[row.position] = measure(path)
+                bar.update(1)
         total = apply_real_durations(pkg, rows, durations)
         est = sum(r.est_seconds for r in rows)
         write_package(ctx, video_id, pkg)

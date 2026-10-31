@@ -5,6 +5,8 @@ from __future__ import annotations
 import contextlib
 import io
 import os
+import subprocess
+import sys
 import zipfile
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
@@ -67,12 +69,43 @@ def capture(fn: Callable[..., object], *args, **kwargs) -> Outcome:
     return Outcome(True, out.getvalue() + err.getvalue())
 
 
-def run_stage_by_name(ctx: Ctx, name: str, video_id: int, force: bool = False) -> Outcome:
-    """Run one production stage (voice, visuals, build, thumbnail, shorts) via the same code as the CLI."""
-    from studio.stages import build, shorts, thumbnail, visuals, voice
+def outcome_from_process(returncode: int, output: str) -> Outcome:
+    """Turn a finished CLI process into an Outcome with a readable error."""
+    if returncode == 0:
+        return Outcome(True, output)
+    if returncode == 3:
+        return Outcome(False, output, output.strip()[-800:], pending=True)
+    if returncode in (-9, 137):
+        return Outcome(False, output, "The step was killed because the host ran out of memory.\n"
+                       "Why: free cloud hosting has about 1 GB of RAM and video editing needs more.\n"
+                       "Next: run the app on your own computer (README, Web app), or make a shorter video.")
+    tail = output.strip()[-1500:] or "no output"
+    return Outcome(False, output, f"The step failed (exit code {returncode}).\n{tail}")
 
-    mods = {"voice": voice, "visuals": visuals, "build": build, "thumbnail": thumbnail, "shorts": shorts}
-    return capture(mods[name].run, ctx, video_id, force=force)
+
+def run_cli(root: Path, args: list[str], draft: bool = False) -> Outcome:
+    """Run `python -m studio.cli <args>` in a child process.
+
+    A crash or out-of-memory kill then ends only the child, so the web app stays up and shows an error.
+    """
+    repo = Path(__file__).resolve().parents[2]
+    env = {**os.environ, "STUDIO_HOME": str(root), "PYTHONPATH": str(repo)}
+    if draft:
+        env["STUDIO_DRAFT"] = "1"  # 720p, 24 fps, fastest encode
+    p = subprocess.run([sys.executable, "-m", "studio.cli", *args], cwd=repo, env=env,
+                       capture_output=True, text=True)
+    return outcome_from_process(p.returncode, (p.stdout or "") + (p.stderr or ""))
+
+
+def run_stage_by_name(ctx: Ctx, name: str, video_id: int, force: bool = False, draft: bool = False) -> Outcome:
+    """Run one production stage (voice, visuals, build, thumbnail, shorts) in a child process."""
+    return run_cli(ctx.settings.root, [name, str(video_id)] + (["--force"] if force else []), draft=draft)
+
+
+def log_tail(ctx: Ctx, lines: int = 80) -> str:
+    """Last lines of logs/studio.log for the Settings page."""
+    f = ctx.settings.root / "logs" / "studio.log"
+    return "\n".join(f.read_text(encoding="utf-8", errors="replace").splitlines()[-lines:]) if f.exists() else ""
 
 
 def suggest_topics(ctx: Ctx, seed: str, force: bool = False) -> Outcome:

@@ -173,16 +173,18 @@ def page_make() -> None:
     nxt = svc.next_produce_stage(v)
     if nxt is None:
         st.success("Production is finished. Go to **4. Review and download**.")
+    draft = st.checkbox("Fast draft (720p, quicker encode): about 2-3x faster editing, for checking the story",
+                        key="draft", help="For the final version, untick this and redo 'Edit the video'.")
     c1, c2 = st.columns(2)
     if nxt and c1.button(f"Run next step: {svc.STAGE_LABEL[nxt]}"):
         with st.spinner(f"{svc.STAGE_LABEL[nxt]}..."):
-            show(svc.run_stage_by_name(ctx, nxt, v.id), f"{svc.STAGE_LABEL[nxt]} done.")
+            show(svc.run_stage_by_name(ctx, nxt, v.id, draft=draft), f"{svc.STAGE_LABEL[nxt]} done.")
     if nxt and c2.button("Run everything to the end", type="primary"):
         bar = st.progress(0.0)
         todo = svc.PRODUCE_STAGES[svc.PRODUCE_STAGES.index(nxt):]
         for n, name in enumerate(todo):
             bar.progress(n / len(todo), text=f"{svc.STAGE_LABEL[name]}...")
-            res = svc.run_stage_by_name(ctx, name, v.id)
+            res = svc.run_stage_by_name(ctx, name, v.id, draft=draft)
             if not res.ok:
                 show(res)
                 break
@@ -191,12 +193,12 @@ def page_make() -> None:
             st.success("Video made. Go to **4. Review and download**.")
     if STAGES.index(v.stage) >= STAGES.index("built") and st.button("Also cut 2-3 Shorts"):
         with st.spinner("Cutting Shorts..."):
-            show(svc.run_stage_by_name(ctx, "shorts", v.id), "Shorts ready.")
+            show(svc.run_stage_by_name(ctx, "shorts", v.id, draft=draft), "Shorts ready.")
     with st.expander("Redo a step"):
         redo = st.selectbox("Step", svc.PRODUCE_STAGES, format_func=svc.STAGE_LABEL.get)
         if st.button("Redo it (later steps must be re-run)"):
             with st.spinner("Working..."):
-                show(svc.run_stage_by_name(ctx, redo, v.id, force=True))
+                show(svc.run_stage_by_name(ctx, redo, v.id, force=True, draft=draft))
 
 
 def page_review() -> None:
@@ -270,6 +272,8 @@ def page_settings() -> None:
                 keys[k] = val
         if keys:
             st.success(f"{len(keys)} key(s) active for this session.")
+    with st.expander("Recent log"):
+        st.code(svc.log_tail(ctx) or "No log yet.")
     st.write(f"Hosted storage is temporary: download videos from step 4 before the app sleeps. Quota today: "
              f"{ctx.quota.summary()['units']['used']} units.")
 
