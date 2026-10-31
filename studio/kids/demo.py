@@ -13,9 +13,9 @@ from studio.kids.script import project_dir
 SAMPLE = Path(__file__).parent.parent / "samples" / "kids_sample.json"
 
 
-def run(ctx: Ctx, force: bool = False) -> Path:
+def run(ctx: Ctx, force: bool = False, renderer: str | None = None) -> Path:
     """Copy the sample script into projects/kids_demo and build it. Returns the MP4 path."""
     d = project_dir(ctx, "demo")
     shutil.copyfile(SAMPLE, d / "script.json")
     quiet = dataclasses.replace(ctx, settings=dataclasses.replace(ctx.settings, tts_provider="silent"))
-    return build.run(quiet, "demo", force=force, size=(640, 360), fps=12)
+    return build.run(quiet, "demo", force=force, size=(640, 360), fps=12, renderer=renderer)

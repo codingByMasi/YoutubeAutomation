@@ -190,11 +190,13 @@ def kids_script(topic: str = typer.Argument(..., help="e.g. 'counting five littl
 
 
 @kids_app.command("build")
-def kids_build(topic: str, force: bool = FORCE) -> None:
+def kids_build(topic: str, force: bool = FORCE,
+               renderer: str = typer.Option("", help="2d (default) or blender; blender needs Blender on this PC "
+                                            "and falls back to 2d if it is missing.")) -> None:
     """Narrate and animate every scene into projects/kids_<slug>/final.mp4 (+ thumbnail.jpg)."""
     from studio.kids import build as m
     from studio.kids.script import slugify
-    typer.echo(f"Built {m.run(_ctx(), slugify(topic), force=force)}")
+    typer.echo(f"Built {m.run(_ctx(), slugify(topic), force=force, renderer=renderer or None)}")
 
 
 @kids_app.command("checklist")
@@ -206,10 +208,10 @@ def kids_checklist(topic: str) -> None:
 
 
 @kids_app.command("demo")
-def kids_demo(force: bool = FORCE) -> None:
+def kids_demo(force: bool = FORCE, renderer: str = typer.Option("", help="2d (default) or blender.")) -> None:
     """Keyless dry run: build a sample counting-song video with silent narration."""
     from studio.kids import demo as m
-    typer.echo(f"Built {m.run(_ctx(), force=force)}")
+    typer.echo(f"Built {m.run(_ctx(), force=force, renderer=renderer or None)}")
 
 
 def run() -> None:

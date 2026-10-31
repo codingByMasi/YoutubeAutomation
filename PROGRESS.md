@@ -155,3 +155,19 @@ Record any choice made without asking the owner, with date and reason.
   simple pentatonic tune, not a sung melody (still the biggest quality gap; see the roadmap).
 - Tests: 22 more (160 total) pass; ruff clean. Not tested: real edge-tts voice, Streamlit page in a browser, how the
   music sounds to a child, hosted app with libcairo2, YouTube upload and Made for Kids behaviour.
+
+## 2026-10-31: optional Blender 3D renderer for kids mode
+- Added `studio/blender/` (`provider.py` finds/validates Blender and runs it headless; `scene_script.py` runs inside
+  Blender and builds flat-colour 3D scenes for all 12 characters, 5 backgrounds, 4 motions and 4 camera moves),
+  `studio/kids/build3d.py` (frames + the same lyric captions and counting number as 2D), `RENDERER` / `BLENDER_PATH`
+  settings, `--renderer` on `kids build` and `kids demo`, README "Optional 3D renderer" with Windows steps.
+- Decisions: default stays `2d`; Blender is opt-in and falls back to 2D with a printed note if missing or older than
+  4.2; no image textures and 1280x720 at 24 fps to suit a 4 GB GPU; the script avoids importing `studio` so it runs
+  in Blender's bundled Python regardless of the system Python (3.11 or 3.12). The long-form (non-kids) pipeline is
+  not changed: economics charts and diagrams gain nothing from 3D.
+- Tests: 13 new (173 total) pass; ruff clean. The scene script was also run for real through the `bpy` module with
+  the Cycles CPU engine and the output frames were inspected.
+- Not tested: Eevee rendering (no GPU/OpenGL in the build sandbox), the `blender` executable on Windows 11, the RTX
+  A1000's render speed and memory use, and the engine id on Blender 4.2-4.5 (`BLENDER_EEVEE_NEXT`; Blender 5.x uses
+  `BLENDER_EEVEE`; the script tries both).
+- Owner must: install Blender 4.2+ and run the demo command above, then report the render time.
