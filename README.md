@@ -79,6 +79,13 @@ python -m studio.cli kids checklist "counting five little ducks"  # Made for Kid
 Kids videos must be marked "Made for Kids" in YouTube Studio (no comments or personalised ads, lower RPM).
 Do not mass-produce near-identical videos: YouTube demonetises repetitive content.
 
+### Growing the channel (page 5)
+The **5. Grow the channel** page has tabs for: channel profile, series/playlists (each video points to the next), a
+content calendar, 5 titles + 3 thumbnail concepts per video (scored by a checklist), description/tags/chapters with
+sources and photo credits, a Shorts plan, a fact and source checklist (must be complete before approval on page 4),
+pasting YouTube Studio numbers for next-script advice, and a Partner Program tracker with a monetization checklist.
+Where Claude's writing helps, copy the shown prompt into Claude and paste the JSON answer back. No API key needed.
+
 ## 1. Requirements
 
 - Python 3.11+
