@@ -129,3 +129,13 @@ Record any choice made without asking the owner, with date and reason.
 - Untested live: Wikimedia/Pixabay image endpoints were blocked in the build sandbox (403), so the first real run is on the owner's machine. Image source failures are skipped, not fatal.
 | 2026-10-31 | `IMAGE_PROVIDER=auto` default | Commons needs no key, so photos work out of the box |
 | 2026-10-31 | Auto topic suggestions (`studio/stages/discover.py`) | "Suggest topics for me" button: picks fresh subjects, asks YouTube search suggestions, dedupes near-duplicates, drops off-channel (games, pay, jobs), skips anything already saved. Also a paste-to-Claude prompt route. Autocomplete-only demand is now 0-10 and competition shows n/a without Google sign-in. |
+
+## 2026-10-31: kids mode (nursery rhymes / learning songs)
+- Added `studio/kids/` (spec, script prompt, Pillow drawing, build, checklist, demo, Streamlit page), `kids` CLI group
+  and a "Kids mode" page. Main pipeline files only got the mode switch (cli.py group, app.py page entry).
+- Decisions: no DB rows for kids projects (folder `projects/kids_<slug>/`); never publishes (out of SPEC scope, so
+  upload is manual after `kids checklist`); fixed visual vocabulary so no paid art tools are needed;
+  narration is spoken, not sung (edge-tts cannot sing).
+- Tests: 21 new, all passing, 138 total; ruff clean. Not tested: real edge-tts voice (no network to Bing here),
+  the Streamlit page in a browser, music mixing with a real track, playback on YouTube.
+- Owner must: drop a royalty-free track in `assets/music/` if wanted; set Made for Kids on every upload.

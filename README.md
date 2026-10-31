@@ -62,6 +62,23 @@ faster). For the final cut, untick it and redo "Edit the video". Environment kno
 
 ---
 
+## Kids mode (nursery rhymes and learning songs)
+
+A separate mode for short, original sing-along videos (counting, colours, animals, bedtime). It draws simple
+animated characters with Pillow, narrates with a free child-friendly edge-tts voice (`KIDS_TTS_VOICE`
+overrides it) and burns in big lyric captions. It does **not** copy any existing channel and it **never
+uploads**. In the web app pick **🧸 Kids mode**; on the command line:
+
+```
+python -m studio.cli kids demo                  # keyless dry run, silent narration
+python -m studio.cli kids script "counting five little ducks"   # writes the prompt, exit 3
+python -m studio.cli kids build  "counting five little ducks"   # projects/kids_<slug>/final.mp4
+python -m studio.cli kids checklist "counting five little ducks"  # Made for Kids checklist
+```
+
+Kids videos must be marked "Made for Kids" in YouTube Studio (no comments or personalised ads, lower RPM).
+Do not mass-produce near-identical videos: YouTube demonetises repetitive content.
+
 ## 1. Requirements
 
 - Python 3.11+

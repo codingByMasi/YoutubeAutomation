@@ -15,7 +15,8 @@ from studio.stages.base import STAGES
 from studio.web import service as svc
 
 ROOT = Path(os.getenv("STUDIO_HOME") or Path(__file__).parent).resolve()
-PAGES = ["Home", "1. Topics", "2. Script", "3. Make the video", "4. Review and download", "Settings"]
+PAGES = ["Home", "1. Topics", "2. Script", "3. Make the video", "4. Review and download", "Settings",
+         "🧸 Kids mode"]
 
 st.set_page_config(page_title="YouTube Channel Studio", page_icon="🎬", layout="wide")
 
@@ -308,13 +309,19 @@ def page_settings() -> None:
              f"{ctx.quota.summary()['units']['used']} units.")
 
 
+def page_kids() -> None:
+    from studio.kids import page
+
+    page.render(ctx_for, show)
+
+
 def main() -> None:
     gate()
     st.sidebar.title("🎬 Studio")
     page = st.sidebar.radio("Go to", PAGES, label_visibility="collapsed")
     try:
         {"Home": page_home, "1. Topics": page_topics, "2. Script": page_script, "3. Make the video": page_make,
-         "4. Review and download": page_review, "Settings": page_settings}[page]()
+         "4. Review and download": page_review, "Settings": page_settings, "🧸 Kids mode": page_kids}[page]()
     except StudioError as exc:
         st.error(str(exc))
 
