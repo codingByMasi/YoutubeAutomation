@@ -118,6 +118,45 @@ def suggest_topics(ctx: Ctx, seed: str, force: bool = False) -> Outcome:
     return capture(research.run, ctx, seed, force=force, limit=25, **kwargs)
 
 
+def auto_suggest_topics(ctx: Ctx, count: int = 8) -> Outcome:
+    """'Suggest topics for me': fresh channel-fit ideas with no seed typed."""
+    from studio.stages import discover
+
+    def go() -> None:
+        ideas = discover.auto_suggest(ctx, count=count)
+        print(f"Added {len(ideas)} new topic ideas.")
+
+    return capture(go)
+
+
+def ideas_prompt(ctx: Ctx) -> str:
+    """Prompt to paste into Claude asking for new topics (avoids everything already saved)."""
+    from studio.stages import discover
+
+    return discover.ideas_prompt(ctx)
+
+
+def import_claude_ideas(ctx: Ctx, text: str) -> Outcome:
+    """Save topics pasted back from Claude."""
+    from studio.stages import discover
+
+    def go() -> None:
+        print(f"Added {len(discover.import_ideas(ctx, text))} new topic ideas.")
+
+    return capture(go)
+
+
+def used_topics(ctx: Ctx) -> list[Idea]:
+    """Topics already approved into videos, newest first."""
+    return (ctx.session.query(Idea).filter(Idea.status == "approved", Idea.seed != "__demo__")
+            .order_by(Idea.id.desc()).all())
+
+
+def has_competitor_data(ctx: Ctx) -> bool:
+    """True when Google sign-in exists, so competition and outlier numbers are real."""
+    return ctx.settings.client_secret.exists() and ctx.settings.token_path.exists()
+
+
 def add_manual_topic(ctx: Ctx, topic: str) -> Idea:
     """Let the owner type their own topic instead of using a suggestion."""
     topic = topic.strip()

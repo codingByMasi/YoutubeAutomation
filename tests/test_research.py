@@ -64,3 +64,35 @@ def test_approve_creates_video_once(ctx):
     v2 = r.approve(ctx, ideas[0].id)
     assert v1.id == v2.id and v1.stage == "approved" and ctx.session.query(Video).count() == 1
     assert ctx.session.get(Idea, ideas[0].id).status == "approved"
+
+
+def test_clean_topics_dedupes_and_drops_off_channel():
+    from studio.stages.discover import clean_topics
+    raw = ["how cruise ships make money", "how do cruise ships make money", "how does cruise ships make money",
+           "how to make money in cruise ship simulator", "how much money do cruise ship employees make",
+           "how to make money in cruise ship tycoon", "how cruises make money"]
+    assert clean_topics(raw, "cruise ships make money") == ["how cruise ships make money"]
+
+
+def test_auto_suggest_skips_known_and_scores_by_position(ctx):
+    import random
+
+    from studio.stages import discover
+    ctx.session.add(Idea(seed="x", topic="how netflix makes money"))
+    ctx.session.commit()
+    ideas = discover.auto_suggest(
+        ctx, count=3, rng=random.Random(1),
+        suggest=lambda q: [q, q + " in india", "game " + q + " simulator"])
+    topics = [i.topic.lower() for i in ideas]
+    assert len(ideas) == 3 and not any("simulator" in t for t in topics)
+    assert not any(discover.is_duplicate(t, [discover.key_tokens("how netflix makes money")]) for t in topics)
+    assert all(i.seed == "auto" and i.demand_score > 0 for i in ideas)
+
+
+def test_import_claude_ideas_json_and_lines(ctx):
+    from studio.stages import discover
+    got = discover.import_ideas(ctx, '{"topics":[{"topic":"How Zomato really makes money","why":"x"}]}')
+    assert [i.topic for i in got] == ["How Zomato really makes money"]
+    again = discover.import_ideas(ctx, "- how zomato makes money\n- Why IKEA is so cheap")
+    assert [i.topic for i in again] == ["Why IKEA is so cheap"]
+    assert "How Zomato really makes money" in discover.ideas_prompt(ctx)
