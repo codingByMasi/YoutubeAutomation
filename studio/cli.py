@@ -174,6 +174,44 @@ def demo(force: bool = FORCE) -> None:
     m.run(_ctx(), force=force)
 
 
+# ---------------- Kids mode (separate from the long-form pipeline) ----------------
+kids_app = typer.Typer(no_args_is_help=True, help="Kids mode: original nursery-rhyme and learning-song videos. "
+                       "Never uploads; finish with `kids checklist` and upload by hand.")
+app.add_typer(kids_app, name="kids")
+
+
+@kids_app.command("script")
+def kids_script(topic: str = typer.Argument(..., help="e.g. 'counting five little ducks'."),
+    force: bool = FORCE) -> None:
+    """Write the kids script prompt (exit 3), then validate Claude's answer into script.json."""
+    from studio.kids import script as m
+    d = m.run(_ctx(), topic, force=force)
+    typer.echo(f"Script ready: projects/kids_{d['slug']}/script.json ({len(d['scenes'])} scenes).")
+
+
+@kids_app.command("build")
+def kids_build(topic: str, force: bool = FORCE) -> None:
+    """Narrate and animate every scene into projects/kids_<slug>/final.mp4 (+ thumbnail.jpg)."""
+    from studio.kids import build as m
+    from studio.kids.script import slugify
+    typer.echo(f"Built {m.run(_ctx(), slugify(topic), force=force)}")
+
+
+@kids_app.command("checklist")
+def kids_checklist(topic: str) -> None:
+    """Show the Made for Kids checklist and save it next to the video."""
+    from studio.kids import checklist as m
+    from studio.kids.script import project_dir, slugify
+    typer.echo(m.render_text(m.run(project_dir(_ctx(), slugify(topic)))))
+
+
+@kids_app.command("demo")
+def kids_demo(force: bool = FORCE) -> None:
+    """Keyless dry run: build a sample counting-song video with silent narration."""
+    from studio.kids import demo as m
+    typer.echo(f"Built {m.run(_ctx(), force=force)}")
+
+
 def run() -> None:
     """Entry point that prints StudioErrors cleanly."""
     try:

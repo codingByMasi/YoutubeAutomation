@@ -1,0 +1,20 @@
+{
+  "title": "Five Little Ducks Count With Me",
+  "description": "An original counting song for ages 2 to 5. Count the ducks from one to five and sing along.",
+  "tags": ["counting for kids", "original kids song", "toddler learning"],
+  "kind": "counting",
+  "source": "original",
+  "source_note": "",
+  "scenes": [
+    {"kind": "verse", "lines": ["One little duck on the pond,", "splash, splash, splash!"],
+     "visual": {"background": "ocean", "motion": "bounce", "characters": ["duck"], "count": 1}},
+    {"kind": "verse", "lines": ["Two little ducks come along,", "quack, quack, quack!"],
+     "visual": {"background": "ocean", "motion": "bounce", "characters": ["duck"], "count": 2}},
+    {"kind": "chorus", "lines": ["Count with me, one, two, three,", "ducks are happy as can be!"],
+     "visual": {"background": "meadow", "motion": "sway", "characters": ["duck", "sun"], "count": 4}},
+    {"kind": "verse", "lines": ["Three, four, five little ducks,", "waddle, waddle, wave!"],
+     "visual": {"background": "meadow", "motion": "pop", "characters": ["duck"], "count": 5}},
+    {"kind": "chorus", "lines": ["Count with me, one, two, three,", "ducks are happy as can be!"],
+     "visual": {"background": "sky", "motion": "slide", "characters": ["duck", "star"], "count": 4}}
+  ]
+}

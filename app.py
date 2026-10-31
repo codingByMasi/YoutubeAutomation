@@ -18,7 +18,7 @@ from studio.web.growth_ui import page_grow_factory
 
 ROOT = Path(os.getenv("STUDIO_HOME") or Path(__file__).parent).resolve()
 PAGES = ["Home", "1. Topics", "2. Script", "3. Make the video", "4. Review and download",
-         "5. Grow the channel", "Settings"]
+         "5. Grow the channel", "Settings", "🧸 Kids mode"]
 
 st.set_page_config(page_title="YouTube Channel Studio", page_icon="🎬", layout="wide")
 
@@ -334,6 +334,12 @@ def page_settings() -> None:
              f"{ctx.quota.summary()['units']['used']} units.")
 
 
+def page_kids() -> None:
+    from studio.kids import page
+
+    page.render(ctx_for, show)
+
+
 page_grow = page_grow_factory(ctx_for, video_picker, show)
 
 
@@ -344,7 +350,7 @@ def main() -> None:
     try:
         {"Home": page_home, "1. Topics": page_topics, "2. Script": page_script, "3. Make the video": page_make,
          "4. Review and download": page_review, "5. Grow the channel": page_grow,
-         "Settings": page_settings}[page]()
+         "Settings": page_settings, "🧸 Kids mode": page_kids}[page]()
     except StudioError as exc:
         st.error(str(exc))
 

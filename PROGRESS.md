@@ -131,8 +131,27 @@ Record any choice made without asking the owner, with date and reason.
 | 2026-10-31 | `IMAGE_PROVIDER=auto` default | Commons needs no key, so photos work out of the box |
 | 2026-10-31 | Auto topic suggestions (`studio/stages/discover.py`) | "Suggest topics for me" button: picks fresh subjects, asks YouTube search suggestions, dedupes near-duplicates, drops off-channel (games, pay, jobs), skips anything already saved. Also a paste-to-Claude prompt route. Autocomplete-only demand is now 0-10 and competition shows n/a without Google sign-in. |
 
+## 2026-10-31: kids mode (nursery rhymes / learning songs)
+- Added `studio/kids/` (spec, script prompt, Pillow drawing, build, checklist, demo, Streamlit page), `kids` CLI group
+  and a "Kids mode" page. Main pipeline files only got the mode switch (cli.py group, app.py page entry).
+- Decisions: no DB rows for kids projects (folder `projects/kids_<slug>/`); never publishes (out of SPEC scope, so
+  upload is manual after `kids checklist`); fixed visual vocabulary so no paid art tools are needed;
+  narration is spoken, not sung (edge-tts cannot sing).
+- Tests: 21 new, all passing, 138 total; ruff clean. Not tested: real edge-tts voice (no network to Bing here),
+  the Streamlit page in a browser, music mixing with a real track, playback on YouTube.
+- Owner must: drop a royalty-free track in `assets/music/` if wanted; set Made for Kids on every upload.
+
 ## 2026-10-31: channel growth tools (page "5. Grow the channel")
 - New `studio/growth/` (profile, series, packs, seo, shorts_plan, factcheck, perf, monetize) plus `studio/web/growth_service.py` and `growth_ui.py`. All free, no LLM key; creative parts give a copy-paste prompt and a paste-back box. Data lives in `growth/*.json` and `projects/<id>/growth/*.json`.
 - Series planner (each video links to the next, outro and end-screen text, description line), calendar tab fills long slots with made videos then planned series topics, title/thumbnail pack (5 titles, 3 concepts, checklist-scored), SEO description/tags/chapters with source lines and photo credits, Shorts plan, fact/source checklist, performance advice from pasted CSV or quick form, Partner Program tracker with projected date and monetization checklist.
 - Decisions: the fact checklist locks the "Run the pre-publish checklist" button on page 4 (UI only; `review.run` and the typed-`yes` gates are unchanged). Partner Program thresholds (1,000 subs + 4,000 public watch hours, or 10M Shorts views in 90 days) were read from YouTube Help on 2026-10-31; re-check before relying on them. Hosted storage is temporary, so growth data is lost when a free host sleeps; run locally to keep it.
 - Owner to configure: channel profile answers on the Channel profile tab (defaults are used otherwise).
+
+## 2026-10-31: kids mode stage 2 (free quality upgrades)
+- Added `sprites.py` (SVG cast with blink and mouth sync, owner overrides in `assets/kids/characters/`), camera moves
+  in `draw.py`, `music.py` (original generated tune per title), `variety.py` (repetitive-content warning in the
+  checklist), 3 s minimum scene length. New deps: numpy, cairosvg (+ libcairo2 in packages.txt); both optional at run time.
+- Decisions: characters are generated flat-colour originals, not copies of any franchise; generated music is a
+  simple pentatonic tune, not a sung melody (still the biggest quality gap; see the roadmap).
+- Tests: 22 more (160 total) pass; ruff clean. Not tested: real edge-tts voice, Streamlit page in a browser, how the
+  music sounds to a child, hosted app with libcairo2, YouTube upload and Made for Kids behaviour.

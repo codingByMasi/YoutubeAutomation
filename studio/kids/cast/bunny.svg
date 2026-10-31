@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <title>bunny</title>
+  <ellipse cx="200" cy="372" rx="110" ry="14" fill="#000" opacity="0.12"/>
+  <ellipse cx="150" cy="55" rx="30" ry="85" fill="#f6f1ee"/><ellipse cx="150" cy="60" rx="14" ry="62" fill="#ffb3c6"/><ellipse cx="250" cy="55" rx="30" ry="85" fill="#f6f1ee"/><ellipse cx="250" cy="60" rx="14" ry="62" fill="#ffb3c6"/>
+  <ellipse cx="200" cy="275" rx="112" ry="92" fill="#f6f1ee"/>
+  <ellipse cx="200" cy="292" rx="70" ry="62" fill="#ffffff"/>
+  <circle cx="200" cy="165" r="95" fill="#f6f1ee"/>
+  
+  <circle cx="132" cy="190" r="17" fill="#ff9eb5" opacity="0.7"/>
+  <circle cx="268" cy="190" r="17" fill="#ff9eb5" opacity="0.7"/>
+  <g id="eyes-open">
+    <circle cx="163" cy="155" r="19" fill="#fff"/><circle cx="237" cy="155" r="19" fill="#fff"/>
+    <circle cx="167" cy="157" r="11" fill="#2b2b3d"/><circle cx="233" cy="157" r="11" fill="#2b2b3d"/>
+    <circle cx="171" cy="152" r="4" fill="#fff"/><circle cx="237" cy="152" r="4" fill="#fff"/>
+  </g>
+  <g id="eyes-closed">
+    <path d="M145 158 Q163 172 181 158" stroke="#2b2b3d" stroke-width="7" fill="none" stroke-linecap="round"/>
+    <path d="M219 158 Q237 172 255 158" stroke="#2b2b3d" stroke-width="7" fill="none" stroke-linecap="round"/>
+  </g>
+  <ellipse cx="200" cy="190" rx="12" ry="9" fill="#ff8fab"/>
+  <g id="mouth-closed"><path d="M172 214 Q200 238 228 214" stroke="#2b2b3d" stroke-width="7" fill="none" stroke-linecap="round"/></g>
+  <g id="mouth-open"><path d="M170 210 Q200 262 230 210 Z" fill="#2b2b3d"/><ellipse cx="200" cy="232" rx="14" ry="8" fill="#ff7a8a"/></g>
+</svg>
