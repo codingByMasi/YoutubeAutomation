@@ -12,10 +12,13 @@ from studio.errors import StudioError
 from studio.stages import research, review
 from studio.stages import script as script_stage
 from studio.stages.base import STAGES
+from studio.web import growth_service as gsvc
 from studio.web import service as svc
+from studio.web.growth_ui import page_grow_factory
 
 ROOT = Path(os.getenv("STUDIO_HOME") or Path(__file__).parent).resolve()
-PAGES = ["Home", "1. Topics", "2. Script", "3. Make the video", "4. Review and download", "Settings"]
+PAGES = ["Home", "1. Topics", "2. Script", "3. Make the video", "4. Review and download",
+         "5. Grow the channel", "Settings"]
 
 st.set_page_config(page_title="YouTube Channel Studio", page_icon="🎬", layout="wide")
 
@@ -260,9 +263,13 @@ def page_review() -> None:
                "which only works when the app runs on your own computer.")
     if v.stage not in ("thumbnailed", "reviewed", "scheduled", "live"):
         return
+    fc_ok = v.stage in ("reviewed", "scheduled", "live") or gsvc.fact_check_passed(ctx, v.id)
+    if not fc_ok:
+        st.warning("Finish the **fact and source checklist** first (5. Grow the channel, Fact check tab). "
+                   "It must be complete before you can approve.")
     thumb = st.radio("Thumbnail", [1, 2, 3], horizontal=True)
     typed = st.text_input("Type yes to approve this video for publishing", key=f"yes1{v.id}")
-    if st.button("Run the pre-publish checklist"):
+    if fc_ok and st.button("Run the pre-publish checklist"):
         res = svc.capture(review.run, svc.make_ctx(ROOT, lambda _p: typed), v.id, thumb=thumb)
         show(res, "Approved. You can now publish.")
     if v.stage == "reviewed":
@@ -308,13 +315,17 @@ def page_settings() -> None:
              f"{ctx.quota.summary()['units']['used']} units.")
 
 
+page_grow = page_grow_factory(ctx_for, video_picker, show)
+
+
 def main() -> None:
     gate()
     st.sidebar.title("🎬 Studio")
     page = st.sidebar.radio("Go to", PAGES, label_visibility="collapsed")
     try:
         {"Home": page_home, "1. Topics": page_topics, "2. Script": page_script, "3. Make the video": page_make,
-         "4. Review and download": page_review, "Settings": page_settings}[page]()
+         "4. Review and download": page_review, "5. Grow the channel": page_grow,
+         "Settings": page_settings}[page]()
     except StudioError as exc:
         st.error(str(exc))
 
