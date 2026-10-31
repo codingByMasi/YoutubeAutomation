@@ -190,9 +190,28 @@ def draw_lyrics(img: Image.Image, lines: list[str], active: int, font_file: str)
                stroke_width=max(2, base // 10), stroke_fill=INK)
 
 
+CAMERAS = ["zoom_in", "zoom_out", "pan_left", "pan_right"]
+
+
+def camera(img: Image.Image, progress: float, kind: str) -> Image.Image:
+    """Slow push-in, pull-out or pan over the scene art, so no shot ever sits still."""
+    w, h = img.size
+    z = {"zoom_in": 1.0 + 0.10 * progress, "zoom_out": 1.10 - 0.10 * progress}.get(kind, 1.08)
+    cw, ch = w / z, h / z
+    cx = w / 2
+    if kind == "pan_left":
+        cx = w / 2 + (0.5 - progress) * (w - cw)
+    elif kind == "pan_right":
+        cx = w / 2 - (0.5 - progress) * (w - cw)
+    x0 = min(max(cx - cw / 2, 0), w - cw)
+    y0 = (h - ch) / 2
+    return img.resize((w, h), Image.BILINEAR, box=(x0, y0, x0 + cw, y0 + ch))
+
+
 def render_frame(scene: dict, t: float, bg_img: Image.Image, lyric_idx: int, font_file: str,
-                 big_number: bool) -> Image.Image:
-    """One frame of a scene at time t seconds."""
+                 big_number: bool, sprites=None, narration: float = 0.0, progress: float = 0.0,
+                 cam: str = "") -> Image.Image:
+    """One frame of a scene at time t seconds. Stage 2 adds SVG sprites, blinking, mouth sync and camera."""
     img = bg_img.copy()
     w, h = img.size
     d = ImageDraw.Draw(img)
@@ -207,10 +226,21 @@ def render_frame(scene: dict, t: float, bg_img: Image.Image, lyric_idx: int, fon
         dx, dy, sc = motion(v["motion"], t, i, size)
         if sc <= 0.02:
             continue
-        draw_character(d, chars[i % len(chars)], x + dx, row_y + dy, size * sc, idx=i)
+        name = chars[i % len(chars)]
+        sprite = None
+        if sprites is not None:
+            from studio.kids.sprites import blink, talking
+
+            sprite = sprites.get(name, size * sc, blink(t, i), talking(t, i, narration))
+        if sprite is not None:
+            img.paste(sprite, (int(x + dx - sprite.width / 2), int(row_y + dy - sprite.height * 0.55)), sprite)
+        else:
+            draw_character(d, name, x + dx, row_y + dy, size * sc, idx=i)
     if big_number:
         shown = min(n, int(t / 0.45) + 1)
         d.text((w * 0.9, h * 0.12), str(shown), font=_font(font_file, int(h * 0.2)), anchor="mm",
                fill=(255, 235, 60), stroke_width=6, stroke_fill=INK)
+    if cam:
+        img = camera(img, progress, cam)
     draw_lyrics(img, scene["lines"], lyric_idx, font_file)
     return img

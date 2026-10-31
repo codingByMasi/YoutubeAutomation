@@ -65,6 +65,8 @@ def validate(data: dict) -> list[str]:
             p.append(f"{tag}: visual.background must be one of {BACKGROUNDS}.")
         if v.get("motion") not in MOTIONS:
             p.append(f"{tag}: visual.motion must be one of {MOTIONS}.")
+        if v.get("camera") not in (None, "zoom_in", "zoom_out", "pan_left", "pan_right"):
+            p.append(f"{tag}: visual.camera must be zoom_in, zoom_out, pan_left or pan_right if given.")
         chars = v.get("characters")
         if not isinstance(chars, list) or not chars or any(c not in CHARACTERS for c in chars):
             p.append(f"{tag}: visual.characters must be a non-empty list from {CHARACTERS}.")

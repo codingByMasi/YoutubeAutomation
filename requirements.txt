@@ -7,6 +7,8 @@ google-auth>=2.20
 edge-tts>=6.1
 Pillow>=10.0
 matplotlib>=3.8
+numpy>=1.26
+cairosvg>=2.7  # kids mode SVG characters (optional: falls back to code-drawn shapes)
 pytest>=8.0
 streamlit>=1.40
 # Optional extras (install only if you use them):

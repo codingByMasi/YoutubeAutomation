@@ -145,3 +145,12 @@ Record any choice made without asking the owner, with date and reason.
 - Series planner (each video links to the next, outro and end-screen text, description line), calendar tab fills long slots with made videos then planned series topics, title/thumbnail pack (5 titles, 3 concepts, checklist-scored), SEO description/tags/chapters with source lines and photo credits, Shorts plan, fact/source checklist, performance advice from pasted CSV or quick form, Partner Program tracker with projected date and monetization checklist.
 - Decisions: the fact checklist locks the "Run the pre-publish checklist" button on page 4 (UI only; `review.run` and the typed-`yes` gates are unchanged). Partner Program thresholds (1,000 subs + 4,000 public watch hours, or 10M Shorts views in 90 days) were read from YouTube Help on 2026-10-31; re-check before relying on them. Hosted storage is temporary, so growth data is lost when a free host sleeps; run locally to keep it.
 - Owner to configure: channel profile answers on the Channel profile tab (defaults are used otherwise).
+
+## 2026-10-31: kids mode stage 2 (free quality upgrades)
+- Added `sprites.py` (SVG cast with blink and mouth sync, owner overrides in `assets/kids/characters/`), camera moves
+  in `draw.py`, `music.py` (original generated tune per title), `variety.py` (repetitive-content warning in the
+  checklist), 3 s minimum scene length. New deps: numpy, cairosvg (+ libcairo2 in packages.txt); both optional at run time.
+- Decisions: characters are generated flat-colour originals, not copies of any franchise; generated music is a
+  simple pentatonic tune, not a sung melody (still the biggest quality gap; see the roadmap).
+- Tests: 22 more (160 total) pass; ruff clean. Not tested: real edge-tts voice, Streamlit page in a browser, how the
+  music sounds to a child, hosted app with libcairo2, YouTube upload and Made for Kids behaviour.

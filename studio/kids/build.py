@@ -12,14 +12,15 @@ from PIL import ImageDraw, ImageFont
 
 from studio.context import Ctx
 from studio.errors import StageError, StudioError
-from studio.kids import draw, spec
+from studio.kids import draw, music, spec
 from studio.kids.script import project_dir
+from studio.kids.sprites import SpriteBank
 from studio.providers.brand import font_path
 from studio.providers.tts import get_tts
 from studio.util import ffmpeg as ff
 
 KIDS_VOICE = "en-US-AnaNeural"  # edge-tts child-friendly voice; override with KIDS_TTS_VOICE
-MIN_SCENE_SECONDS = 4.0
+MIN_SCENE_SECONDS = 3.0
 TAIL = 0.6
 
 
@@ -46,7 +47,7 @@ def _scene_cmd(audio: Path, dur: float, w: int, h: int, fps: int, out: Path) -> 
 
 
 def render_scene(scene: dict, audio: Path, narration: float, out: Path, size: tuple[int, int], fps: int,
-                 font_file: str, counting: bool) -> None:
+                 font_file: str, counting: bool, sprites: SpriteBank | None = None, cam: str = "") -> None:
     """Draw every frame of one scene and pipe it into ffmpeg together with the narration."""
     w, h = size
     dur = scene_seconds(narration)
@@ -56,7 +57,8 @@ def render_scene(scene: dict, audio: Path, narration: float, out: Path, size: tu
     try:
         for f in range(round(dur * fps)):
             t = f / fps
-            frame = draw.render_frame(scene, t, bg, line_index(scene, t, narration), font_file, counting)
+            frame = draw.render_frame(scene, t, bg, line_index(scene, t, narration), font_file, counting,
+                                      sprites, narration, t / dur, cam)
             proc.stdin.write(frame.tobytes())
         proc.stdin.close()
         err = proc.stderr.read().decode(errors="replace")
@@ -99,6 +101,7 @@ def run(ctx: Ctx, slug: str, force: bool = False, size: tuple[int, int] = (1280,
     tts = get_tts(settings)
     font_file = font_path(ctx.settings.assets_dir)
     counting = data["kind"] == "counting"
+    sprites = SpriteBank(ctx.settings.assets_dir / "kids" / "characters")
     parts: list[Path] = []
     for i, scene in enumerate(data["scenes"], 1):
         audio, clip = d / f"scene{i:02d}.mp3", d / f"scene{i:02d}.mp4"
@@ -106,19 +109,18 @@ def run(ctx: Ctx, slug: str, force: bool = False, size: tuple[int, int] = (1280,
         if not audio.exists() or force:
             tts.synth(". ".join(scene["lines"]) + ".", audio)
         narr = ff.probe_duration(audio)
-        render_scene(scene, audio, narr, clip, size, fps, font_file, counting)
+        render_scene(scene, audio, narr, clip, size, fps, font_file, counting, sprites,
+                     scene.get("visual", {}).get("camera") or draw.CAMERAS[(i - 1) % len(draw.CAMERAS)])
         parts.append(clip)
     lst = ff.concat_list(parts, d / "scenes.txt")
     joined = d / "joined.mp4"
     ff.run(ff.concat_cmd(lst, joined), "joining kids scenes")
-    music = _music(ctx)
-    if music:
-        ff.run(["ffmpeg", "-y", "-i", str(joined), "-stream_loop", "-1", "-i", str(music), "-filter_complex",
-                "[1:a]volume=-22dB[m];[0:a][m]amix=inputs=2:duration=first:normalize=0[a]", "-map", "0:v",
-                "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-movflags", "+faststart", str(final)],
-               "mixing music")
-    else:
-        joined.replace(final)
+    track = _music(ctx)
+    if track is None:  # no track in assets/music: make an original tune from the title
+        track = music.render(data["title"], d / "music.wav")
+    ff.run(["ffmpeg", "-y", "-i", str(joined), "-stream_loop", "-1", "-i", str(track), "-filter_complex",
+            "[1:a]volume=-20dB[m];[0:a][m]amix=inputs=2:duration=first:normalize=0[a]", "-map", "0:v",
+            "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-movflags", "+faststart", str(final)], "mixing music")
     thumbnail(data, d / "thumbnail.jpg", font_file)
     return final
 

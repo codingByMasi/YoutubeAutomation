@@ -76,6 +76,13 @@ python -m studio.cli kids build  "counting five little ducks"   # projects/kids_
 python -m studio.cli kids checklist "counting five little ducks"  # Made for Kids checklist
 ```
 
+Stage 2 quality (all free): five original SVG characters (duck, bunny, cat, dog, bird) with blinking eyes and a
+talking mouth, slow zoom/pan camera moves, scenes from 3 seconds, and an original background tune generated
+from the title (or your own track in `assets/music/`). To change a character, drop `assets/kids/characters/<name>.svg`
+using the same four group ids (`eyes-open`, `eyes-closed`, `mouth-closed`, `mouth-open`); it overrides the built-in
+one. SVGs need `cairosvg` (on a server also `libcairo2`); without it the code-drawn shapes are used.
+`kids checklist` also warns when a video is too similar to earlier kids projects.
+
 Kids videos must be marked "Made for Kids" in YouTube Studio (no comments or personalised ads, lower RPM).
 Do not mass-produce near-identical videos: YouTube demonetises repetitive content.
 

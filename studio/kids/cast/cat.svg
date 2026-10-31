@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <title>cat</title>
+  <ellipse cx="200" cy="372" rx="110" ry="14" fill="#000" opacity="0.12"/>
+  <polygon points="110,120 120,40 175,90" fill="#ff9d4d"/><polygon points="122,108 128,65 160,92" fill="#ffb3c6"/><polygon points="290,120 280,40 225,90" fill="#ff9d4d"/><polygon points="278,108 272,65 240,92" fill="#ffb3c6"/>
+  <ellipse cx="200" cy="275" rx="112" ry="92" fill="#ff9d4d"/>
+  <ellipse cx="200" cy="292" rx="70" ry="62" fill="#ffe2c4"/>
+  <circle cx="200" cy="165" r="95" fill="#ff9d4d"/>
+  <path d="M170 125 L178 105 M200 120 L200 98 M230 125 L222 105" stroke="#e07a24" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="132" cy="190" r="17" fill="#ff9eb5" opacity="0.7"/>
+  <circle cx="268" cy="190" r="17" fill="#ff9eb5" opacity="0.7"/>
+  <g id="eyes-open">
+    <circle cx="163" cy="155" r="19" fill="#fff"/><circle cx="237" cy="155" r="19" fill="#fff"/>
+    <circle cx="167" cy="157" r="11" fill="#2b2b3d"/><circle cx="233" cy="157" r="11" fill="#2b2b3d"/>
+    <circle cx="171" cy="152" r="4" fill="#fff"/><circle cx="237" cy="152" r="4" fill="#fff"/>
+  </g>
+  <g id="eyes-closed">
+    <path d="M145 158 Q163 172 181 158" stroke="#2b2b3d" stroke-width="7" fill="none" stroke-linecap="round"/>
+    <path d="M219 158 Q237 172 255 158" stroke="#2b2b3d" stroke-width="7" fill="none" stroke-linecap="round"/>
+  </g>
+  <polygon points="188,184 212,184 200,198" fill="#ff7a93"/><path d="M120 200 L70 190 M120 212 L72 218 M280 200 L330 190 M280 212 L328 218" stroke="#2b2b3d" stroke-width="4" stroke-linecap="round"/>
+  <g id="mouth-closed"><path d="M172 214 Q200 238 228 214" stroke="#2b2b3d" stroke-width="7" fill="none" stroke-linecap="round"/></g>
+  <g id="mouth-open"><path d="M170 210 Q200 262 230 210 Z" fill="#2b2b3d"/><ellipse cx="200" cy="232" rx="14" ry="8" fill="#ff7a8a"/></g>
+</svg>

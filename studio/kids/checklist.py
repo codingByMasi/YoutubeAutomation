@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from studio.kids import spec
+from studio.kids import spec, variety
 
 # Manual items cannot be verified by code. Wording follows YouTube Help; re-read it before each upload
 # because policies change: https://support.google.com/youtube/answer/9527654 (Made for Kids),
@@ -29,7 +29,7 @@ MANUAL = [
 ]
 
 
-def auto_checks(data: dict, has_video: bool, has_thumb: bool) -> list[dict]:
+def auto_checks(data: dict, has_video: bool, has_thumb: bool, variety_warnings: list[str] | None = None) -> list[dict]:
     """Checks the code can do for itself."""
     problems = spec.validate(data)
     chorus = [s for s in data.get("scenes", []) if s.get("kind") == "chorus"]
@@ -39,6 +39,8 @@ def auto_checks(data: dict, has_video: bool, has_thumb: bool) -> list[dict]:
          "note": "no reference to existing kids' brands"},
         {"id": "source_declared", "ok": data.get("source") in spec.SOURCES, "note": f"source={data.get('source')}"},
         {"id": "repeated_chorus", "ok": len(chorus) >= 2, "note": f"{len(chorus)} chorus scenes"},
+        {"id": "variety", "ok": not variety_warnings,
+         "note": " ".join(variety_warnings or []) or "different from earlier videos"},
         {"id": "video_built", "ok": has_video, "note": "final.mp4 exists"},
         {"id": "thumbnail_built", "ok": has_thumb, "note": "thumbnail.jpg exists"},
     ]
@@ -47,7 +49,8 @@ def auto_checks(data: dict, has_video: bool, has_thumb: bool) -> list[dict]:
 def run(project: Path) -> dict:
     """Write and return made_for_kids_checklist.json for a kids project folder."""
     data = json.loads((project / "script.json").read_text(encoding="utf-8"))
-    auto = auto_checks(data, (project / "final.mp4").exists(), (project / "thumbnail.jpg").exists())
+    auto = auto_checks(data, (project / "final.mp4").exists(), (project / "thumbnail.jpg").exists(),
+                       variety.check(project, data))
     result = {"title": data["title"], "auto": auto,
               "manual": [{"id": k, "text": t, "done": False} for k, t in MANUAL],
               "ready_to_upload": all(a["ok"] for a in auto)}

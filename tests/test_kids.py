@@ -129,3 +129,104 @@ def test_checklist_never_publishes_and_flags_gaps(make_ctx, tmp_path: Path) -> N
     assert any(m["id"] == "audience" for m in r["manual"])
     assert "never uploads" in checklist.render_text(r)
     assert (tmp_path / "made_for_kids_checklist.json").exists()
+
+
+# ---------------- stage 2: SVG cast, camera, music, variety ----------------
+from studio.kids import music, sprites, variety  # noqa: E402
+
+needs_cairo = pytest.mark.skipif(not sprites.available(), reason="cairosvg/cairo not installed")
+
+
+def test_builtin_cast_has_all_state_groups() -> None:
+    files = sorted(sprites.BUILTIN.glob("*.svg"))
+    assert {f.stem for f in files} >= {"duck", "bunny", "cat", "dog", "bird"}
+    for f in files:
+        assert sprites.missing_groups(f.read_text()) == [], f.name
+
+
+def test_variant_keeps_one_eye_state_and_one_mouth_state() -> None:
+    svg = (sprites.BUILTIN / "cat.svg").read_text()
+    v = sprites.variant(svg, eyes_closed=True, mouth_open=False)
+    assert 'id="eyes-closed"' in v and 'id="eyes-open"' not in v
+    assert 'id="mouth-closed"' in v and 'id="mouth-open"' not in v
+
+
+def test_blink_and_talking_timing() -> None:
+    assert sprites.blink(0.05, 0) and not sprites.blink(1.0, 0)
+    assert sprites.talking(0.0, 0, 3.0) and not sprites.talking(0.0, 1, 3.0)
+    assert not sprites.talking(0.0, 0, 0.0)  # silent once the narration is over
+
+
+@needs_cairo
+def test_sprite_bank_renders_caches_and_falls_back(tmp_path: Path) -> None:
+    bank = sprites.SpriteBank(tmp_path)
+    a = bank.get("duck", 200)
+    assert a is not None and a.mode == "RGBA" and a.width == 200
+    assert bank.get("duck", 200) is a  # cached
+    assert bank.get("star", 200) is None  # no SVG: caller draws the code shape
+
+
+@needs_cairo
+def test_owner_svg_overrides_builtin_and_bad_svg_is_ignored(tmp_path: Path) -> None:
+    custom = (sprites.BUILTIN / "duck.svg").read_text().replace("#ffd93b", "#00ff00")
+    (tmp_path / "duck.svg").write_text(custom)
+    green = sprites.SpriteBank(tmp_path).get("duck", 120)
+    stock = sprites.SpriteBank(None).get("duck", 120)
+    assert green.getpixel((60, 28)) != stock.getpixel((60, 28))
+    (tmp_path / "cat.svg").write_text("<svg xmlns='http://www.w3.org/2000/svg'/>")  # missing groups
+    assert sprites.SpriteBank(tmp_path).get("cat", 120) is not None  # falls through to the built-in cat
+
+
+def test_camera_keeps_frame_size_for_every_move() -> None:
+    img = Image.new("RGB", (160, 90), "white")
+    for kind in draw.CAMERAS:
+        for p in (0.0, 0.5, 1.0):
+            assert draw.camera(img, p, kind).size == (160, 90)
+
+
+def test_music_is_valid_wav_original_per_title_and_deterministic(tmp_path: Path) -> None:
+    import wave
+
+    a = music.render("Five Ducks", tmp_path / "a.wav")
+    b = music.render("Five Ducks", tmp_path / "b.wav")
+    c = music.render("Seven Frogs", tmp_path / "c.wav")
+    with wave.open(str(a)) as w:
+        assert w.getframerate() == music.RATE and w.getnchannels() == 1 and w.getnframes() > music.RATE * 10
+    assert a.read_bytes() == b.read_bytes()
+    assert a.read_bytes() != c.read_bytes()
+
+
+def test_variety_flags_copies_and_repeated_cast() -> None:
+    first, copy_ = good(), good()
+    assert any("the same" in w for w in variety.compare(copy_, [first]))
+    other = good()
+    other["scenes"][0]["lines"] = ["Frogs hop on a log", "plop plop plop"]
+    for s in other["scenes"][1:]:
+        s["lines"] = ["Totally different words here", "nothing alike at all"]
+    assert variety.compare(other, [first]) == []
+    assert any("mass-produced" in w for w in variety.compare(other, [good(), good(), good()]))
+
+
+def test_checklist_includes_variety_against_sibling_projects(tmp_path: Path) -> None:
+    for name in ("kids_a", "kids_b"):
+        (tmp_path / name).mkdir()
+        (tmp_path / name / "script.json").write_text(json.dumps(good()))
+    r = checklist.run(tmp_path / "kids_b")
+    v = next(a for a in r["auto"] if a["id"] == "variety")
+    assert not v["ok"] and not r["ready_to_upload"]
+
+
+def test_invalid_camera_is_rejected() -> None:
+    d = good()
+    d["scenes"][0]["visual"]["camera"] = "spin"
+    assert any("camera" in p for p in spec.validate(d))
+
+
+def test_render_frame_with_sprites_and_camera_changes_pixels() -> None:
+    scene = good()["scenes"][0]
+    bg = draw.background("ocean", 320, 180)
+    font = build.font_path(None)
+    plain = draw.render_frame(scene, 1.0, bg, 0, font, False)
+    fancy = draw.render_frame(scene, 1.0, bg, 0, font, False, sprites.SpriteBank(None), 2.0, 0.5, "zoom_in")
+    assert plain.size == fancy.size == (320, 180)
+    assert plain.tobytes() != fancy.tobytes()
