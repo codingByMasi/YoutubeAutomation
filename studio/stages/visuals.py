@@ -10,6 +10,7 @@ from studio.context import Ctx
 from studio.models import Asset, Segment
 from studio.providers.charts import render_chart, source_line, text_card
 from studio.providers.footage import make_footage
+from studio.providers.images import make_images
 from studio.stages.base import get_video, run_stage
 from studio.stages.script import CHART_GAP_MAX, load_package, timeline, write_package
 from studio.stages.timing import shots_needed, split_segment
@@ -32,13 +33,13 @@ def chart_gaps(segs: list[dict]) -> list[str]:
     return warns
 
 
-def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET) -> None:
-    """stock: a footage provider with find(keywords, exclude); None means generated cards only."""
+def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET) -> None:
+    """stock / images: providers with find(keywords, exclude); None means not used. Both None: cards only."""
     s = ctx.session
     video = get_video(s, video_id)
 
     def work() -> None:
-        nonlocal stock
+        nonlocal stock, images
         if stock is UNSET:
             name, stock = make_footage(ctx.settings)
             if stock is None:
@@ -48,29 +49,40 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET) -> None:
                     fg=typer.colors.YELLOW)
             else:
                 typer.echo(f"Stock footage provider: {name}.")
+        if images is UNSET:
+            iname, images = make_images(ctx.settings)
+            typer.echo(f"Image sources: {iname}." if images else "Image search is off (IMAGE_PROVIDER=none).")
         out = ctx.settings.project_dir(video_id)
         clips_dir, charts_dir = out / "clips", out / "charts"
         clips_dir.mkdir(exist_ok=True)
         pkg = load_package(ctx, video_id)
-        s.query(Asset).filter(Asset.video_id == video_id, Asset.kind.in_(["clip", "card", "chart"])).delete()
+        s.query(Asset).filter(Asset.video_id == video_id, Asset.kind.in_(["clip", "image", "card", "chart"])).delete()
         rows = {r.position: r for r in s.query(Segment).filter_by(video_id=video_id)}
         used: set[int] = set()
+        used_img: set = set()
         fallbacks = 0
         for pos, seg in enumerate(pkg["segments"], 1):
             vis: dict = {}
             duration = float(seg.get("real_seconds") or seg["est_seconds"])
             bg_seconds, _ = split_segment(duration, bool(seg.get("chart_data")))
             found = []
-            for _ in range(max(1, shots_needed(bg_seconds))):
-                clip = stock.find(seg["visual_keywords"], used) if stock else None
-                if not clip:
-                    break
-                found.append(clip)
-                s.add(Asset(video_id=video_id, kind="clip", path=str(clip.path),
-                            source=f"{clip.provider}: {clip.author}".strip(), licence=clip.licence,
-                            attribution_url=clip.page_url))
+            for k in range(max(1, shots_needed(bg_seconds))):
+                # alternate video and photo so the picture type changes with every shot; fall back to the other
+                order = [("clip", stock, used), ("image", images, used_img)]
+                got = False
+                for kind, prov, seen in (order if k % 2 == 0 else order[::-1]):
+                    clip = prov.find(seg["visual_keywords"], seen) if prov else None
+                    if clip:
+                        got = True
+                        found.append((kind, clip))
+                        s.add(Asset(video_id=video_id, kind=kind, path=str(clip.path),
+                                    source=f"{clip.provider}: {clip.author}".strip(), licence=clip.licence,
+                                    attribution_url=clip.page_url))
+                        break
+                if not got:
+                    break  # nothing more to find for this segment
             if found:
-                vis.update(kind="clip", path=str(found[0].path), paths=[str(c.path) for c in found])
+                vis.update(kind=found[0][0], path=str(found[0][1].path), paths=[str(c.path) for _, c in found])
             else:
                 fallbacks += 1
                 log.info("No stock clip for segment %d (%s); using a generated card", pos, seg["visual_keywords"])
@@ -90,8 +102,9 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET) -> None:
                 rows[pos].clip_path = vis["path"]
         write_package(ctx, video_id, pkg)
         charts = sum(1 for g in pkg["segments"] if g.get("chart_data"))
-        clips = sum(len(g["visual"]["paths"]) for g in pkg["segments"] if g["visual"]["kind"] == "clip")
-        typer.echo(f"Visuals: {clips} stock clips, {fallbacks} segments on generated cards, "
+        shots = [(a.kind) for a in s.query(Asset).filter(Asset.video_id == video_id, Asset.kind.in_(["clip", "image"]))]
+        typer.echo(f"Visuals: {shots.count('clip')} stock clips, {shots.count('image')} photos, "
+                   f"{fallbacks} segments on generated cards, "
                    f"{charts} charts.")
         for w in chart_gaps(pkg["segments"]):
             typer.secho(f"warning: {w}", fg=typer.colors.YELLOW)

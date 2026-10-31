@@ -165,7 +165,8 @@ def run(ctx: Ctx, video_id: int, force: bool = False) -> list[Path]:
         texts = (pkg.get("thumbnail_texts") or ["", "", ""])[:3]
         spans = timeline(pkg["segments"])
         # a frame from the first stock-footage segment, else from the middle of the video
-        idx = next((i for i, g in enumerate(pkg["segments"]) if (g.get("visual") or {}).get("kind") == "clip"), None)
+        idx = next((i for i, g in enumerate(pkg["segments"])
+                    if (g.get("visual") or {}).get("kind") in ("clip", "image")), None)
         at = (spans[idx][0] + 1.0) if idx is not None else spans[-1][1] / 2
         clean = Path(pkg.get("build", {}).get("clean") or ctx.settings.project_dir(video_id) / "clean.mp4")
         frame = grab_frame(clean, at, out / "frame.png") if clean.exists() else None

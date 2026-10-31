@@ -2,7 +2,7 @@
 
 Claude Code: update this file at the end of every milestone and whenever you make a decision. Read it first in every new session.
 
-**Last updated:** 2026-10-28
+**Last updated:** 2026-10-31
 **Current milestone:** M8 done; next is the owner's setup and the first real video
 **Overall status:** Build complete. 93 tests pass (`pytest -q`), `ruff check .` is clean, and `demo` builds a playable 1080p MP4
 
@@ -119,3 +119,10 @@ Record any choice made without asking the owner, with date and reason.
 
 ## Session log
 - 2026-10-28: Built M0-M8 in one session. 93 tests pass, demo builds a 49 s sample MP4 with charts, captions, 3 thumbnails and 2 Shorts. Next: owner setup (above), then `research` -> first real video.
+
+## 2026-10-31: image search and no length caps
+- `studio/providers/images.py`: Pixabay photos + Wikimedia Commons (licence allow-list, author credit recorded); `visuals` alternates clip/photo shots, falls back to cards only if nothing is found.
+- Removed the 4-shot cap per segment and the 10-15 min length warning (now only warns under 5 min). Shorts stay 15-58 s (platform rule).
+- Photos are cropped to 16:9 before the slow zoom. CC BY credits are appended to the description (`Image credits`).
+- Untested live: Wikimedia/Pixabay image endpoints were blocked in the build sandbox (403), so the first real run is on the owner's machine. Image source failures are skipped, not fatal.
+| 2026-10-31 | `IMAGE_PROVIDER=auto` default | Commons needs no key, so photos work out of the box |

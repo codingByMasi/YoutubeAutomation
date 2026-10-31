@@ -14,8 +14,9 @@ from studio.db import init_db, make_engine
 from studio.util import retry
 
 ENV_KEYS = ["LLM_PROVIDER", "LLM_API_KEY", "LLM_MODEL", "CHANNEL_ID", "GOOGLE_CLIENT_SECRET_PATH",
-            "PEXELS_API_KEY", "PIXABAY_API_KEY", "FOOTAGE_PROVIDER", "ELEVENLABS_API_KEY", "TTS_PROVIDER", "TTS_VOICE",
-            "DAILY_QUOTA_LIMIT",            "QUOTA_SAFETY_MARGIN", "STUDIO_HOME"]
+            "PEXELS_API_KEY", "PIXABAY_API_KEY", "FOOTAGE_PROVIDER", "IMAGE_PROVIDER",
+            "ELEVENLABS_API_KEY", "TTS_PROVIDER", "TTS_VOICE", "DAILY_QUOTA_LIMIT",
+            "QUOTA_SAFETY_MARGIN", "STUDIO_HOME"]
 
 
 @pytest.fixture(autouse=True)
@@ -47,7 +48,7 @@ class Answers:
 @pytest.fixture
 def make_ctx(root: Path):
     def _make(**settings_kw) -> Ctx:
-        settings = Settings(root=root, tts_provider="silent", **settings_kw)
+        settings = Settings(root=root, tts_provider="silent", **{"image_provider": "none", **settings_kw})
         engine = make_engine(root / "studio.db")
         init_db(engine)
         session = sessionmaker(bind=engine, expire_on_commit=False, future=True)()

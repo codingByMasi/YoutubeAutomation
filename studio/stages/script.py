@@ -22,7 +22,8 @@ TITLE_COUNT = 15
 HOOK_MAX_SECONDS = 15
 BEAT_GAP_MAX = 45
 CHART_GAP_MAX = 90
-LENGTH_RANGE_MIN = (10, 15)
+LENGTH_RANGE_MIN = (10, 15)  # typical range for the prompt; only a too-short video is warned about
+MIN_WARN_MINUTES = 5          # no maximum length
 DEFAULT_BRIEF = "Business-model and economics explainers, English, faceless narration with charts."
 DEFAULT_STYLE = "Clear, curious, analytical, no hype. Show the money with a chart for every major figure."
 
@@ -136,9 +137,8 @@ def pacing_warnings(segs: list[dict], key: str = "est_seconds") -> list[str]:
     warns = []
     spans = timeline(segs, key)
     total = spans[-1][1] if spans else 0
-    lo, hi = LENGTH_RANGE_MIN
-    if not lo * 60 <= total <= hi * 60:
-        warns.append(f"total length {total / 60:.1f} min is outside {lo}-{hi} min")
+    if total < MIN_WARN_MINUTES * 60:
+        warns.append(f"total length {total / 60:.1f} min is under {MIN_WARN_MINUTES} min (no maximum is enforced)")
     for label, field, gap_max in (("retention beat", "beat", BEAT_GAP_MAX), ("chart", "chart_data", CHART_GAP_MAX)):
         last = 0.0
         for (start, _), seg in zip(spans, segs):

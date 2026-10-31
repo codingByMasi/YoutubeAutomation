@@ -237,3 +237,102 @@ def test_silent_tts_produces_measurable_audio(tmp_path):
     from studio.util.ffmpeg import probe_duration
     p = SilentTTS().synth("one two three four five", tmp_path / "a.mp3")
     assert probe_duration(p) == pytest.approx(2.0, abs=0.2)
+
+
+# ---------- image search ----------
+def _img_opener(calls, payload):
+    class Resp:
+        def __init__(self, b):
+            self.b = b
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self):
+            return self.b
+
+    def opener(req, timeout=0):
+        calls.append(req.full_url)
+        return Resp(json.dumps(payload).encode() if "api" in req.full_url else b"jpeg-bytes")
+    return opener
+
+
+def _commons_page(pid, lic, mime="image/jpeg", width=2400, **meta):
+    m = {"LicenseShortName": {"value": lic}, "Artist": {"value": '<a href="x">Jane  Doe</a>'}, **meta}
+    return {"pageid": pid, "index": pid, "imageinfo": [{"mime": mime, "width": width, "height": 1200,
+            "thumburl": f"https://upload.wikimedia.org/t{pid}.jpg", "url": "u",
+            "descriptionurl": f"https://commons.wikimedia.org/wiki/File:{pid}", "extmetadata": m}]}
+
+
+def test_commons_filters_licences_and_records_credit(tmp_path):
+    from studio.providers.images import Commons
+    pages = {"query": {"pages": {
+        "1": _commons_page(1, "CC BY-NC 4.0"), "2": _commons_page(2, "CC BY-ND 2.0"), "3": _commons_page(3, "Fair use"),
+        "4": _commons_page(4, "CC0", Restrictions={"value": "trademarked"}),
+        "5": _commons_page(5, "CC BY 4.0", width=640),
+        "6": _commons_page(6, "CC BY-SA 4.0", mime="image/svg+xml"), "7": _commons_page(7, "CC BY-SA 4.0")}}}
+    calls: list = []
+    c = Commons(tmp_path, opener=_img_opener(calls, pages))
+    used: set = set()
+    clip = c.find(["hotel lobby"], used)
+    assert clip.licence == "CC BY-SA 4.0 (Wikimedia Commons)" and clip.author == "Jane Doe"
+    assert clip.path.read_bytes() == b"jpeg-bytes" and clip.path.suffix == ".jpg"
+    assert clip.page_url.endswith("File:7") and used == {("commons", 7)}
+    assert c.find(["hotel lobby"], used) is None  # only one acceptable file, already used
+
+
+def test_pixabay_images_and_composite(tmp_path):
+    from studio.providers.images import Commons, ImageSearch, PixabayImages
+    hit = {"id": 5, "pageURL": "https://pixabay.com/photos/5/", "user": "bo", "user_id": 2, "largeImageURL": "https://cdn/5.jpg"}
+    calls: list = []
+    px = PixabayImages("K", tmp_path / "p", opener=_img_opener(calls, {"hits": [hit]}))
+    both = ImageSearch([px, Commons(tmp_path / "c", opener=_img_opener(calls, {}))])
+    used: set = set()
+    first = both.find(["coffee"], used)
+    assert first.provider == "Pixabay" and "image_type=photo" in calls[0] and "key=K" in calls[0]
+    assert both.find(["coffee"], used) is None  # Pixabay used up, Commons empty
+
+
+def test_make_images_selection(ctx):
+    from studio.providers.images import make_images
+    s = ctx.settings
+    assert make_images(s) == ("none", None)  # test ctx sets IMAGE_PROVIDER=none
+    s.image_provider = "auto"
+    assert make_images(s)[0] == "Wikimedia Commons"
+    s.pixabay_api_key = "k"
+    assert make_images(s)[0] == "Pixabay images, Wikimedia Commons"
+
+
+def test_visuals_mixes_clips_and_photos_without_shot_cap(ctx, tmp_path):
+    v = scripted_video(ctx)
+    voice.run(ctx, v.id, tts=FakeTTS(), measure=lambda p: 60.0)  # long segments: 10 shots each, past the old cap of 4
+
+    class Imgs:
+        n = 0
+
+        def find(self, keywords, exclude):
+            Imgs.n += 1
+            p = tmp_path / f"i{Imgs.n}.jpg"
+            p.write_bytes(b"x")
+            return StockClip(p, "https://commons.wikimedia.org/x", "Ann", "u", "CC BY 4.0 (Wikimedia Commons)",
+                             "Wikimedia Commons")
+    visuals.run(ctx, v.id, stock=FakeStock(tmp_path, hits=set(range(1, 999))), images=Imgs())
+    pkg = sc.load_package(ctx, v.id)
+    plain = [g for g in pkg["segments"] if not g.get("chart_data")]
+    assert plain and all(len(g["visual"]["paths"]) == 10 for g in plain)
+    kinds = {a.kind for a in ctx.session.query(Asset).filter_by(video_id=v.id)}
+    assert {"clip", "image"} <= kinds
+    assert all(a.licence for a in ctx.session.query(Asset).filter_by(video_id=v.id))
+
+
+def test_image_source_failure_is_skipped(tmp_path):
+    from studio.errors import StudioError
+    from studio.providers.images import ImageSearch
+
+    class Down:
+        def find(self, kw, ex):
+            raise StudioError("down", "network", "retry")
+    assert ImageSearch([Down()]).find(["x"], set()) is None

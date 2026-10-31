@@ -19,7 +19,8 @@ def test_split_segment_gives_chart_most_of_the_time():
 
 
 def test_shots_keep_each_under_six_seconds():
-    assert shots_needed(0) == 0 and shots_needed(5) == 1 and shots_needed(13) == 3 and shots_needed(100) == 4
+    assert shots_needed(0) == 0 and shots_needed(5) == 1 and shots_needed(13) == 3 and shots_needed(100) == 17
+    assert shots_needed(100, cap=4) == 4
 
 
 def test_plan_fills_duration_exactly_and_changes_picture_often():

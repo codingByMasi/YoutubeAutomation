@@ -64,7 +64,7 @@ def test_pacing_warnings_flag_gaps_and_length():
     segs = [{"est_seconds": 60, "beat": "question", "chart_data": {"x": 1}}] + \
            [{"est_seconds": 60, "beat": None, "chart_data": None}] * 3
     warns = "\n".join(sc.pacing_warnings(segs))
-    assert "outside 10-15 min" in warns and "retention beat" in warns and "chart" in warns
+    assert "under 5 min" in warns and "retention beat" in warns and "chart" in warns
 
 
 def test_timeline_prefers_real_seconds():
