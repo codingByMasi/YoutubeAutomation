@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import typer
@@ -46,25 +48,35 @@ def normalize_cmd(src: Path, out: Path, with_audio: bool) -> list[str]:
                   "-c:a", "aac", "-ar", "48000", "-ac", "2", str(out)]
 
 
+def workers() -> int:
+    """Parallel ffmpeg jobs (STUDIO_WORKERS, default 2; keep low on small hosts)."""
+    try:
+        return max(1, int(os.getenv("STUDIO_WORKERS", "2")))
+    except ValueError:
+        return 2
+
+
 def render_parts(segs: list[dict], work: Path) -> list[Path]:
-    """Render every planned part of every segment to a silent 1080p clip."""
-    parts: list[Path] = []
-    plans = []
+    """Render every planned part of every segment to a silent clip, several at a time, in order."""
+    jobs: list[tuple[Path, Path, float]] = []
     for pos, seg in enumerate(segs, 1):
         backgrounds, frames = visual_paths(seg)
-        plans.append((pos, plan_segment(float(seg.get("real_seconds") or seg["est_seconds"]), backgrounds, frames)))
-    total = sum(len(p) for _, p in plans)
-    with typer.progressbar(length=total, label="Rendering shots") as bar:
-        for pos, plan in plans:
-            for k, (src, secs) in enumerate(plan, 1):
-                out = work / f"seg_{pos:03d}_{k:02d}.mp4"
-                if src.suffix.lower() in IMAGE_EXT:
-                    ff.run(ff.image_cmd(src, secs, out, zoom="charts" not in src.parts), f"rendering {src.name}")
-                else:
-                    ff.run(ff.clip_cmd(src, secs, out), f"rendering {src.name}")
-                parts.append(out)
-                bar.update(1)
-    return parts
+        plan = plan_segment(float(seg.get("real_seconds") or seg["est_seconds"]), backgrounds, frames)
+        jobs += [(src, work / f"seg_{pos:03d}_{k:02d}.mp4", secs) for k, (src, secs) in enumerate(plan, 1)]
+
+    def render(job: tuple[Path, Path, float]) -> None:
+        src, out, secs = job
+        if src.suffix.lower() in IMAGE_EXT:
+            ff.run(ff.image_cmd(src, secs, out, zoom="charts" not in src.parts), f"rendering {src.name}")
+        else:
+            ff.run(ff.clip_cmd(src, secs, out), f"rendering {src.name}")
+
+    with typer.progressbar(length=len(jobs), label="Rendering shots") as bar, ThreadPoolExecutor(workers()) as pool:
+        futures = [pool.submit(render, j) for j in jobs]
+        for f in as_completed(futures):
+            f.result()  # re-raises the first failure
+            bar.update(1)
+    return [out for _, out, _ in jobs]
 
 
 def run(ctx: Ctx, video_id: int, force: bool = False) -> None:
@@ -110,7 +122,8 @@ def run(ctx: Ctx, video_id: int, force: bool = False) -> None:
         main = tmp / "main.mp4"
         ff.run(["ffmpeg", "-y", "-i", str(clean), "-vf",
                 f"subtitles='{ff._escape_sub(main_srt)}':force_style='{ff.SUB_STYLE}'",
-                "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p", "-c:a", "copy",
+                "-c:v", "libx264", "-preset", ff.profile().preset, "-crf", str(ff.profile().crf), "-pix_fmt", "yuv420p",
+                "-c:a", "copy",
                 "-movflags", "+faststart", str(main)], "burning captions")
 
         # 5. intro / outro
@@ -139,7 +152,8 @@ def run(ctx: Ctx, video_id: int, force: bool = False) -> None:
                         "duration": round(duration, 3), "music": str(music) if music else None,
                         "captions": caption_source}
         write_package(ctx, video_id, pkg)
-        typer.echo(f"Built {final} ({duration / 60:.1f} min, 1920x1080).")
+        p = ff.profile()
+        typer.echo(f"Built {final} ({duration / 60:.1f} min, {p.w}x{p.h}{', DRAFT quality' if p.draft else ''}).")
 
     r = run_stage(s, video, "built", work, force)
     typer.echo(r.message + (f" Next: thumbnail {video_id} (optional: shorts {video_id})" if r.ran else ""))

@@ -55,6 +55,11 @@ If you outgrow it, the same `app.py` runs on any small VM or container host (Ren
 
 The typed-yes rule still holds: approving and uploading each need you to type `yes` in the page.
 
+**Speed.** Tick **Fast draft** on the "Make the video" page for a 720p, 24 fps, fastest-encode build (several times
+faster). For the final cut, untick it and redo "Edit the video". Environment knobs (secrets or `.env`):
+`STUDIO_WORKERS` (parallel shot renders, default 2), `STUDIO_FFMPEG_THREADS` (x264 threads, default 2; lower on
+1 GB hosts), `STUDIO_DRAFT=1` (draft for every run). Skip Shorts unless you need them.
+
 ---
 
 ## 1. Requirements

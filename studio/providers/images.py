@@ -128,19 +128,26 @@ class Commons(_Base):
         return None
 
 
+MAX_SOURCE_FAILURES = 2
+
+
 class ImageSearch:
     """Try each image source in order for each keyword."""
 
     def __init__(self, sources: list) -> None:
         self.sources = sources
+        self.failures: dict[int, int] = {}
 
     def find(self, keywords: list[str], exclude: set | None = None) -> StockClip | None:
         exclude = exclude if exclude is not None else set()
         for kw in keywords:
             for src in self.sources:
+                if self.failures.get(id(src), 0) >= MAX_SOURCE_FAILURES:
+                    continue  # this source has been failing all run; retrying costs a minute per segment
                 try:
                     clip = src.find([kw], exclude)
                 except StudioError as e:  # one source being down must not stop the build
+                    self.failures[id(src)] = self.failures.get(id(src), 0) + 1
                     log.warning("Image source %s skipped: %s", type(src).__name__, e)
                     continue
                 if clip:

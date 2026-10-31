@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -14,8 +15,8 @@ SEARCH_URL = "https://api.pexels.com/v1/videos/search"
 LICENCE = "Pexels License (free for commercial use, no attribution required)"
 
 
-def pick_file(video: dict, max_width: int = 2560) -> dict | None:
-    """Best mp4 rendition: widest landscape file up to max_width, preferring >= 1920."""
+def pick_file(video: dict, max_width: int = 1920) -> dict | None:
+    """Best landscape mp4 rendition, widest up to max_width (1920: the video is 1080p)."""
     files = [f for f in video.get("video_files", []) if f.get("file_type") == "video/mp4" and f.get("width")]
     files = [f for f in files if f["width"] >= f.get("height", 0) and f["width"] <= max_width]
     return max(files, key=lambda f: (f["width"] >= 1920, f["width"]), default=None)
@@ -51,12 +52,13 @@ class Pexels:
             return None
         path = self.cache / f"{video['id']}_{f['width']}.mp4"
         if not path.exists():
-            def go() -> bytes:
-                req = urllib.request.Request(f["link"], headers={"User-Agent": "yt-studio/0.1"})
-                with self.open(req, timeout=120) as r:
-                    return r.read()
             tmp = path.with_suffix(".part")
-            tmp.write_bytes(with_retry(go, "Pexels download"))
+
+            def go() -> None:  # stream to disk: clips can be 100 MB and must not sit in memory
+                req = urllib.request.Request(f["link"], headers={"User-Agent": "yt-studio/0.1"})
+                with self.open(req, timeout=120) as r, tmp.open("wb") as out:
+                    shutil.copyfileobj(r, out, 1 << 20)
+            with_retry(go, "Pexels download")
             tmp.rename(path)
         user = video.get("user") or {}
         return StockClip(path, video.get("url", ""), user.get("name", ""), user.get("url", ""), LICENCE, "Pexels")

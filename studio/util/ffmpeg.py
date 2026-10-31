@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import json
+import os
 import platform
 import shutil
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 
 from studio.errors import StudioError
@@ -14,6 +16,26 @@ from studio.util.logging import get_logger
 log = get_logger("ffmpeg")
 W, H = 1920, 1080
 FPS = 30
+
+
+@dataclass(frozen=True)
+class Profile:
+    """Encoding settings. Draft mode (STUDIO_DRAFT=1) trades quality for speed: 720p, 24 fps, no zoom."""
+
+    w: int = W
+    h: int = H
+    fps: int = FPS
+    preset: str = "veryfast"
+    crf: int = 20
+    zoom: bool = True
+    draft: bool = False
+
+
+def profile() -> Profile:
+    """Current profile, read from the environment each call so the UI can switch it per run."""
+    if os.getenv("STUDIO_DRAFT", "").strip().lower() in ("1", "true", "yes"):
+        return Profile(w=1280, h=720, fps=24, preset="ultrafast", crf=28, zoom=False, draft=True)
+    return Profile()
 
 
 def install_hint() -> str:
@@ -33,10 +55,33 @@ def ensure_ffmpeg() -> None:
                               f"Install it: {install_hint()}")
 
 
+OOM_CODES = (-9, 137)  # SIGKILL: what the kernel sends when a container runs out of memory
+
+
+def low_memory_cmd(cmd: list[str]) -> list[str]:
+    """Cap x264 threads and lookahead so small hosts (e.g. 1 GB cloud apps) do not run out of memory.
+
+    STUDIO_FFMPEG_THREADS (default 2) sets the cap; 0 leaves ffmpeg's defaults.
+    """
+    try:
+        threads = int(os.getenv("STUDIO_FFMPEG_THREADS", "2"))
+    except ValueError:
+        threads = 2
+    if threads <= 0 or "libx264" not in cmd:
+        return cmd
+    return [*cmd[:-1], "-x264-params", f"threads={threads}:lookahead_threads=1:rc-lookahead=10", cmd[-1]]
+
+
 def run(cmd: list[str], what: str) -> None:
     """Run an ffmpeg command; on failure show the tail of stderr."""
+    cmd = low_memory_cmd(cmd)
     log.debug("ffmpeg: %s", " ".join(cmd))
     p = subprocess.run(cmd, capture_output=True, text=True)
+    if p.returncode in OOM_CODES:
+        raise StudioError(f"ffmpeg was killed while {what}.", "The host ran out of memory (exit code "
+                          f"{p.returncode}). Free hosting has about 1 GB of RAM.",
+                          "Run the app on your own computer for this video, or make it shorter, then re-run "
+                          "the step.")
     if p.returncode != 0:
         raise StudioError(f"ffmpeg failed while {what}.", p.stderr.strip()[-1200:],
                           "Check the input files exist and are valid media, then re-run with --force.")
@@ -61,24 +106,30 @@ def has_audio_stream(path: Path) -> bool:
 
 
 # ---------- builders ----------
-def _fit(w: int = W, h: int = H) -> str:
-    return f"scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1,fps={FPS},format=yuv420p"
+def _fit(w: int | None = None, h: int | None = None) -> str:
+    p = profile()
+    w, h = w or p.w, h or p.h
+    return f"scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1,fps={p.fps},format=yuv420p"
 
 
 def clip_cmd(src: Path, duration: float, out: Path, start: float = 0.0) -> list[str]:
     """Loop/trim a stock clip to `duration`, fill 1920x1080, no audio."""
     return ["ffmpeg", "-y", "-stream_loop", "-1", "-ss", f"{start:.3f}", "-i", str(src), "-t", f"{duration:.3f}",
-            "-vf", _fit(), "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", str(out)]
+            "-vf", _fit(), "-an", "-c:v", "libx264", "-preset", profile().preset, "-crf", str(profile().crf),
+            str(out)]
 
 
 def image_cmd(src: Path, duration: float, out: Path, zoom: bool = True) -> list[str]:
     """Still image to video with a slow push-in so the frame never looks frozen."""
-    frames = max(1, round(duration * FPS))
-    fill = f"scale={W * 2}:{H * 2}:force_original_aspect_ratio=increase,crop={W * 2}:{H * 2}"
-    vf = (f"{fill},zoompan=z='min(zoom+0.0006,1.08)':d={frames}:s={W}x{H}:fps={FPS},"
+    p = profile()
+    zoom = zoom and p.zoom
+    frames = max(1, round(duration * p.fps))
+    big_w, big_h = p.w * 3 // 2, p.h * 3 // 2  # 1.5x is enough headroom for the slow zoom and half the memory of 2x
+    fill = f"scale={big_w}:{big_h}:force_original_aspect_ratio=increase,crop={big_w}:{big_h}"
+    vf = (f"{fill},zoompan=z='min(zoom+0.0006,1.08)':d={frames}:s={p.w}x{p.h}:fps={p.fps},"
           "format=yuv420p" if zoom else _fit())
     return ["ffmpeg", "-y", "-loop", "1", "-i", str(src), "-t", f"{duration:.3f}", "-vf", vf,
-            "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-r", str(FPS), str(out)]
+            "-c:v", "libx264", "-preset", p.preset, "-crf", str(p.crf), "-r", str(p.fps), str(out)]
 
 
 def concat_list(paths: list[Path], list_file: Path) -> Path:
@@ -87,7 +138,9 @@ def concat_list(paths: list[Path], list_file: Path) -> Path:
 
 
 def concat_cmd(list_file: Path, out: Path, reencode: bool = False) -> list[str]:
-    codec = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-c:a", "aac"] if reencode else ["-c", "copy"]
+    p = profile()
+    codec = (["-c:v", "libx264", "-preset", p.preset, "-crf", str(p.crf), "-c:a", "aac"] if reencode
+             else ["-c", "copy"])
     return ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(list_file), *codec, str(out)]
 
 
@@ -108,9 +161,12 @@ def mix_cmd(video: Path, voice: Path, out: Path, music: Path | None, music_db: f
         cmd += ["-filter_complex", fc, "-map", "0:v", "-map", "[a]"]
     else:
         cmd += ["-map", "0:v", "-map", "1:a"]
-    return cmd + vf + ["-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p",
-                       "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-shortest", "-movflags", "+faststart",
-                       str(out)]
+    p = profile()
+    # Without subtitles the picture is already encoded: copy it instead of encoding the whole video again.
+    video_codec = (["-c:v", "libx264", "-preset", p.preset, "-crf", str(p.crf), "-pix_fmt", "yuv420p"] if subtitles
+                   else ["-c:v", "copy"])
+    return cmd + vf + [*video_codec, "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-shortest",
+                       "-movflags", "+faststart", str(out)]
 
 
 SUB_STYLE = "FontName=DejaVu Sans,FontSize=16,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1," \
