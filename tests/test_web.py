@@ -142,3 +142,38 @@ def test_failing_image_source_is_dropped_after_two_failures():
     for _ in range(5):
         assert s.find(["a"], set()) is None
     assert len(calls) == 2
+
+
+def test_browser_issues_and_preview_cmd(tmp_path):
+    from studio.util import ffmpeg as ff
+
+    good = {"video": {"codec_name": "h264", "pix_fmt": "yuv420p"}, "audio": {"codec_name": "aac"}}
+    assert ff.browser_issues(good) == []
+    bad = {"video": {"codec_name": "hevc", "pix_fmt": "yuv444p"}, "audio": {"codec_name": "mp3"}}
+    assert len(ff.browser_issues(bad)) == 3 and ff.browser_issues({})
+    cmd = ff.preview_cmd(tmp_path / "f.mp4", tmp_path / "p.mp4")
+    assert "+faststart" in cmd and "yuv420p" in cmd and "scale=-2:480" in cmd[cmd.index("-vf") + 1]
+
+
+def test_ensure_preview_builds_once_and_rebuilds_when_stale(make_ctx, monkeypatch):
+    from studio.util import ffmpeg as ff
+
+    ctx = make_ctx()
+    _, video = _approved(ctx)
+    d = ctx.settings.project_dir(video.id)
+    assert svc.ensure_preview(ctx, video.id) is None  # nothing built yet
+    (d / "final.mp4").write_bytes(b"x")
+    calls = []
+    monkeypatch.setattr(ff, "ensure_ffmpeg", lambda: None)
+    def fake_run(cmd, what):
+        calls.append(1)
+        Path(cmd[-1]).write_bytes(b"p")
+
+    monkeypatch.setattr(ff, "run", fake_run)
+    p = svc.ensure_preview(ctx, video.id)
+    assert p.name == "preview.mp4" and p.exists() and len(calls) == 1
+    svc.ensure_preview(ctx, video.id)
+    assert len(calls) == 1  # cached
+    os.utime(d / "final.mp4", (p.stat().st_mtime + 10,) * 2)
+    svc.ensure_preview(ctx, video.id)
+    assert len(calls) == 2  # final changed, preview rebuilt

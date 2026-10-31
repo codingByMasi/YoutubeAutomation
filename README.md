@@ -62,6 +62,37 @@ faster). For the final cut, untick it and redo "Edit the video". Environment kno
 
 ---
 
+## Kids mode (nursery rhymes and learning songs)
+
+A separate mode for short, original sing-along videos (counting, colours, animals, bedtime). It draws simple
+animated characters with Pillow, narrates with a free child-friendly edge-tts voice (`KIDS_TTS_VOICE`
+overrides it) and burns in big lyric captions. It does **not** copy any existing channel and it **never
+uploads**. In the web app pick **🧸 Kids mode**; on the command line:
+
+```
+python -m studio.cli kids demo                  # keyless dry run, silent narration
+python -m studio.cli kids script "counting five little ducks"   # writes the prompt, exit 3
+python -m studio.cli kids build  "counting five little ducks"   # projects/kids_<slug>/final.mp4
+python -m studio.cli kids checklist "counting five little ducks"  # Made for Kids checklist
+```
+
+Stage 2 quality (all free): five original SVG characters (duck, bunny, cat, dog, bird) with blinking eyes and a
+talking mouth, slow zoom/pan camera moves, scenes from 3 seconds, and an original background tune generated
+from the title (or your own track in `assets/music/`). To change a character, drop `assets/kids/characters/<name>.svg`
+using the same four group ids (`eyes-open`, `eyes-closed`, `mouth-closed`, `mouth-open`); it overrides the built-in
+one. SVGs need `cairosvg` (on a server also `libcairo2`); without it the code-drawn shapes are used.
+`kids checklist` also warns when a video is too similar to earlier kids projects.
+
+Kids videos must be marked "Made for Kids" in YouTube Studio (no comments or personalised ads, lower RPM).
+Do not mass-produce near-identical videos: YouTube demonetises repetitive content.
+
+### Growing the channel (page 5)
+The **5. Grow the channel** page has tabs for: channel profile, series/playlists (each video points to the next), a
+content calendar, 5 titles + 3 thumbnail concepts per video (scored by a checklist), description/tags/chapters with
+sources and photo credits, a Shorts plan, a fact and source checklist (must be complete before approval on page 4),
+pasting YouTube Studio numbers for next-script advice, and a Partner Program tracker with a monetization checklist.
+Where Claude's writing helps, copy the shown prompt into Claude and paste the JSON answer back. No API key needed.
+
 ## 1. Requirements
 
 - Python 3.11+

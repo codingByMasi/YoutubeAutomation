@@ -258,6 +258,29 @@ def zip_outputs(ctx: Ctx, video_id: int) -> bytes:
     return buf.getvalue()
 
 
+def ensure_preview(ctx: Ctx, video_id: int) -> Path | None:
+    """Small browser-safe preview next to final.mp4 (built once, rebuilt if the video changed)."""
+    from studio.util import ffmpeg as ff
+
+    d = ctx.settings.project_dir(video_id)
+    final, prev = d / "final.mp4", d / "preview.mp4"
+    if not final.exists():
+        return None
+    if not prev.exists() or prev.stat().st_mtime < final.stat().st_mtime:
+        ff.ensure_ffmpeg()
+        tmp = d / "preview.part.mp4"
+        ff.run(ff.preview_cmd(final, tmp), "making the preview")
+        tmp.replace(prev)
+    return prev
+
+
+def playback_issues(path: Path) -> list[str]:
+    """Why the browser may not play `path`; empty if it looks fine."""
+    from studio.util import ffmpeg as ff
+
+    return ff.browser_issues(ff.stream_info(path))
+
+
 def stage_progress(stage: str) -> float:
     """0..1 position of a stage in the pipeline."""
     return STAGES.index(stage) / (len(STAGES) - 1)

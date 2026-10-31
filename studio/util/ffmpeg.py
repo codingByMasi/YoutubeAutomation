@@ -105,6 +105,42 @@ def has_audio_stream(path: Path) -> bool:
     return bool(p.stdout.strip())
 
 
+def stream_info(path: Path) -> dict:
+    """First video and audio stream facts (codec, pix_fmt, profile) from ffprobe; {} if unreadable."""
+    p = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=codec_type,codec_name,pix_fmt,profile",
+                        "-of", "json", str(path)], capture_output=True, text=True)
+    try:
+        streams = json.loads(p.stdout).get("streams", [])
+    except json.JSONDecodeError:
+        return {}
+    out: dict = {}
+    for st in streams:
+        out.setdefault(st.get("codec_type", "?"), st)
+    return out
+
+
+def browser_issues(info: dict) -> list[str]:
+    """Reasons a browser may refuse to play a file: it needs H.264 + yuv420p video and AAC audio."""
+    if not info.get("video"):
+        return ["The file has no readable video stream."]
+    issues = []
+    v, a = info["video"], info.get("audio")
+    if v.get("codec_name") != "h264":
+        issues.append(f"video codec is {v.get('codec_name')}, browsers need h264")
+    if v.get("pix_fmt") != "yuv420p":
+        issues.append(f"pixel format is {v.get('pix_fmt')}, browsers need yuv420p")
+    if a and a.get("codec_name") != "aac":
+        issues.append(f"audio codec is {a.get('codec_name')}, browsers need aac")
+    return issues
+
+
+def preview_cmd(src: Path, out: Path) -> list[str]:
+    """Small 480p H.264/AAC copy that every browser plays, with the index at the front for instant start."""
+    return ["ffmpeg", "-y", "-i", str(src), "-vf", "scale=-2:480", "-c:v", "libx264", "-preset", "ultrafast",
+            "-crf", "30", "-pix_fmt", "yuv420p", "-profile:v", "main", "-c:a", "aac", "-b:a", "96k", "-ac", "2",
+            "-movflags", "+faststart", str(out)]
+
+
 # ---------- builders ----------
 def _fit(w: int | None = None, h: int | None = None) -> str:
     p = profile()
@@ -191,7 +227,8 @@ def concat_list(paths: list[Path], list_file: Path) -> Path:
 
 def concat_cmd(list_file: Path, out: Path, reencode: bool = False) -> list[str]:
     p = profile()
-    codec = (["-c:v", "libx264", "-preset", p.preset, "-crf", str(p.crf), "-c:a", "aac"] if reencode
+    codec = (["-c:v", "libx264", "-preset", p.preset, "-crf", str(p.crf), "-pix_fmt", "yuv420p",
+              "-c:a", "aac", "-movflags", "+faststart"] if reencode
              else ["-c", "copy"])
     return ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(list_file), *codec, str(out)]
 

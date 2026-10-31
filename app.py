@@ -13,10 +13,13 @@ from studio.stages import research, review
 from studio.stages import script as script_stage
 from studio.stages import story as story_stage
 from studio.stages.base import STAGES
+from studio.web import growth_service as gsvc
 from studio.web import service as svc
+from studio.web.growth_ui import page_grow_factory
 
 ROOT = Path(os.getenv("STUDIO_HOME") or Path(__file__).parent).resolve()
-PAGES = ["Home", "1. Topics", "2. Script", "3. Make the video", "4. Review and download", "Settings"]
+PAGES = ["Home", "1. Topics", "2. Script", "3. Make the video", "4. Review and download",
+         "5. Grow the channel", "Settings", "🧸 Kids mode"]
 
 st.set_page_config(page_title="YouTube Channel Studio", page_icon="🎬", layout="wide")
 
@@ -256,6 +259,25 @@ def page_make() -> None:
                 show(svc.run_stage_by_name(ctx, redo, v.id, force=True, draft=draft))
 
 
+def show_player(ctx, video_id: int, final: Path) -> None:
+    """Play a small 480p browser-safe preview; if that fails, say why and point to the download."""
+    try:
+        issues = svc.playback_issues(final)
+        if issues:
+            st.warning("The full-quality file may not play in a browser (" + "; ".join(issues) + "). "
+                       "The preview below is converted so it plays; the download is unchanged.")
+        with st.spinner("Preparing a preview (a short wait the first time)..."):
+            prev = svc.ensure_preview(ctx, video_id)
+        if prev is not None:
+            st.video(str(prev))
+            st.caption("This is a small 480p preview. Download below for full quality.")
+    except StudioError as exc:
+        st.error(f"Preview failed. You can still download the video below.\n\n{exc}")
+    except Exception as exc:  # noqa: BLE001 - never let a preview problem hide the downloads
+        st.error(f"The preview player could not start ({type(exc).__name__}: {exc}). "
+                 "Download the video below and play it on your computer.")
+
+
 def page_review() -> None:
     ctx = ctx_for()
     st.header("4. Review and download")
@@ -265,7 +287,7 @@ def page_review() -> None:
         return
     files = svc.project_files(ctx, v.id)
     if files["video"]:
-        st.video(str(files["video"][0]))
+        show_player(ctx, v.id, files["video"][0])
     else:
         st.info("The video is not built yet. See **3. Make the video**.")
     cols = st.columns(3)
@@ -285,9 +307,13 @@ def page_review() -> None:
                "which only works when the app runs on your own computer.")
     if v.stage not in ("thumbnailed", "reviewed", "scheduled", "live"):
         return
+    fc_ok = v.stage in ("reviewed", "scheduled", "live") or gsvc.fact_check_passed(ctx, v.id)
+    if not fc_ok:
+        st.warning("Finish the **fact and source checklist** first (5. Grow the channel, Fact check tab). "
+                   "It must be complete before you can approve.")
     thumb = st.radio("Thumbnail", [1, 2, 3], horizontal=True)
     typed = st.text_input("Type yes to approve this video for publishing", key=f"yes1{v.id}")
-    if st.button("Run the pre-publish checklist"):
+    if fc_ok and st.button("Run the pre-publish checklist"):
         res = svc.capture(review.run, svc.make_ctx(ROOT, lambda _p: typed), v.id, thumb=thumb)
         show(res, "Approved. You can now publish.")
     if v.stage == "reviewed":
@@ -333,13 +359,23 @@ def page_settings() -> None:
              f"{ctx.quota.summary()['units']['used']} units.")
 
 
+def page_kids() -> None:
+    from studio.kids import page
+
+    page.render(ctx_for, show)
+
+
+page_grow = page_grow_factory(ctx_for, video_picker, show)
+
+
 def main() -> None:
     gate()
     st.sidebar.title("🎬 Studio")
     page = st.sidebar.radio("Go to", PAGES, label_visibility="collapsed")
     try:
         {"Home": page_home, "1. Topics": page_topics, "2. Script": page_script, "3. Make the video": page_make,
-         "4. Review and download": page_review, "Settings": page_settings}[page]()
+         "4. Review and download": page_review, "5. Grow the channel": page_grow,
+         "Settings": page_settings, "🧸 Kids mode": page_kids}[page]()
     except StudioError as exc:
         st.error(str(exc))
 
