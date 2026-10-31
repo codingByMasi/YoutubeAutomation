@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import typer
 
 from studio.context import Ctx
 from studio.errors import StageError
-from studio.providers.whisper import script_cues, to_srt
+from studio.providers import captions
 from studio.stages.base import get_video, stage_index
 from studio.stages.script import load_package, timeline, write_package
 from studio.stages.timing import pick_short_windows
@@ -37,15 +38,18 @@ def run(ctx: Ctx, video_id: int, count: int = 3, force: bool = False) -> list[Pa
         raise StageError("Could not find 2 Shorts-length runs (15-58 s) in this video.",
                          "Segments are too long or the video is too short.",
                          "Split long segments in script.json, or cut Shorts by hand from clean.mp4.")
-    cues = script_cues(spans, [g["narration"] for g in segs])
+    words_file = ctx.settings.project_dir(video_id) / "words.json"  # word times saved by `build`
+    saved = json.loads(words_file.read_text(encoding="utf-8")) if words_file.exists() else None
+    words = [tuple(w) for w in saved["words"]] if saved else captions.words_from_script(
+        spans, [g["narration"] for g in segs])
+    style = captions.CaptionStyle(1080, 1920, shorts=True)
     clean = Path(pkg.get("build", {}).get("clean") or ctx.settings.project_dir(video_id) / "clean.mp4")
     made, info = [], []
     for n, (i, j) in enumerate(windows, 1):
         start, end = spans[i][0], spans[j][1]
-        srt = out / f"short_{n}.srt"
-        srt.write_text(to_srt(cues, window=(start, end)), encoding="utf-8")
+        ass = captions.write_ass(out / f"short_{n}.ass", words, style, window=(start, end))
         dest = out / f"short_{n}.mp4"
-        ff.run(ff.vertical_cmd(clean, start, end - start, dest, srt), f"cutting Short {n}")
+        ff.run(ff.vertical_cmd(clean, start, end - start, dest, ass), f"cutting Short {n}")
         made.append(dest)
         info.append({"file": str(dest), "start": round(start, 2), "end": round(end, 2),
                      "segments": [i + 1, j + 1], "chapter": segs[i].get("chapter", "")})

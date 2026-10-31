@@ -129,3 +129,39 @@ Record any choice made without asking the owner, with date and reason.
 - Untested live: Wikimedia/Pixabay image endpoints were blocked in the build sandbox (403), so the first real run is on the owner's machine. Image source failures are skipped, not fatal.
 | 2026-10-31 | `IMAGE_PROVIDER=auto` default | Commons needs no key, so photos work out of the box |
 | 2026-10-31 | Auto topic suggestions (`studio/stages/discover.py`) | "Suggest topics for me" button: picks fresh subjects, asks YouTube search suggestions, dedupes near-duplicates, drops off-channel (games, pay, jobs), skips anything already saved. Also a paste-to-Claude prompt route. Autocomplete-only demand is now 0-10 and competition shows n/a without Google sign-in. |
+
+## 2026-10-31: quality pass (story first, then picture and sound)
+Owner feedback on the first real video: weak story, weak editing, broken images, viewers drop off. Changes:
+
+**Story (priority)**
+- `studio/prompts/hooks.md`: hook formula library and curiosity devices, injected into every story prompt.
+- `outline <idea_id>` (optional, before `script`): retention outline with 3 hook options, 3-5 open loops with plant and
+  payoff beats, a 10-18 beat sheet (a non-explain beat at least every 40 s), ending with callback, takeaway, CTA
+  question and next video. Validated; the saved outline is added to the script prompt automatically.
+- Script prompt rewritten: hook formulas, storytelling arc, open loops, pattern interrupts every 20-40 s, spoken
+  style rules, callback ending with a specific CTA, segments 8-30 s, new `hook_type` and `open_loop` fields.
+- `critique <video_id>` (optional, before `voice`): scored 10-point checklist plus a full rewrite. Rewrite is validated
+  with the normal script rules, applied as a new script version, original kept as `script.original.json`.
+- `qa <video_id>` and the `script`/`build` stages print a story and visuals report (weak hook opener, missing open
+  loops, no CTA, long sentences, beat gaps, plain cards, repeated pictures). Never blocks. Saved as `qa.json`.
+- Streamlit "2. Script" page has outline and critique blocks (copy request, paste answer back).
+
+**Picture and sound**
+- Quality gate for every photo and clip (`util/media_check.py`): readable, at least 1280x720, landscape, not flat
+  or blurry, not a near-duplicate (perceptual hash). Bad candidates are skipped and the next one is tried.
+- Image relevance: Pixabay hits ranked by tag overlap with the keywords; Commons results need title overlap and
+  are dropped when named logo/map/flag/diagram/etc.
+- Editing: shots 5 s max (3 s in the hook), varied Ken Burns moves centred on the frame (the old zoom drifted to the
+  top-left), blurred-backdrop fit for boxy photos, cross-dissolves inside a segment, one colour grade.
+- Word-by-word highlighted captions (ASS) and chapter banners; Shorts use the same style.
+- Generated royalty-free music bed (own work, licence recorded) unless `assets/music` has a track; sidechain ducking
+  under the voice; whoosh, impact and pop effects on cuts, reveals and chart steps; loudness normalised to -16 LUFS.
+
+**Decisions**
+- Outline and critique are not pipeline stages (stage table unchanged) so existing videos keep working.
+- Critique refuses after `voice`: a rewrite changes the narration, so the voice would be stale.
+- Music is synthesized with numpy rather than downloaded: no licence risk, no network.
+
+**Not tested live**: edge-tts, Pixabay/Pexels/Commons and YouTube calls (this container's proxy blocks them), and
+real Claude answers to the new prompts. Rendering was checked with synthetic photos and clips and the keyless demo.
+Music and effects were checked for level and clipping, not by ear: listen once and tell us if the music is too busy.

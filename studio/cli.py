@@ -46,6 +46,20 @@ def approve_idea(idea_id: int = typer.Argument(..., help="Idea id from the resea
 
 # ---------------- Production ----------------
 @app.command()
+def outline(idea_id: int = typer.Argument(..., help="Approved idea id."), force: bool = FORCE) -> None:
+    """Retention outline before the script: hook options, open loops, beat sheet, ending."""
+    from studio.stages import story as m
+    m.run_outline(_ctx(), idea_id, force=force)
+
+
+@app.command()
+def critique(video_id: int, force: bool = FORCE) -> None:
+    """Scored checklist review of the script plus a rewrite (before `voice`). Original is kept."""
+    from studio.stages import story as m
+    m.run_critique(_ctx(), video_id, force=force)
+
+
+@app.command()
 def script(idea_id: int = typer.Argument(..., help="Approved idea id."), force: bool = FORCE) -> None:
     """Generate 15 titles, the full script, and the segment list (script.md + script.json)."""
     from studio.stages import script as m
@@ -71,6 +85,13 @@ def build(video_id: int, force: bool = FORCE) -> None:
     """Assemble the final 1080p MP4 with captions, music, intro and outro."""
     from studio.stages import build as m
     m.run(_ctx(), video_id, force=force)
+
+
+@app.command()
+def qa(video_id: int) -> None:
+    """Flag weak hooks, flat pacing, repeated or missing pictures and a weak ending (read-only)."""
+    from studio.stages import qa as m
+    m.run(_ctx(), video_id)
 
 
 @app.command()

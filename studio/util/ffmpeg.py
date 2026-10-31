@@ -112,24 +112,76 @@ def _fit(w: int | None = None, h: int | None = None) -> str:
     return f"scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1,fps={p.fps},format=yuv420p"
 
 
+GRADE = "eq=contrast=1.05:saturation=1.08:gamma=0.98"  # one gentle look so mixed stock sources feel like one film
+BLUR_BELOW_ASPECT = 1.5  # photos narrower than this keep their whole frame on a blurred backdrop instead of a hard crop
+MOTIONS = ("in", "pan_right", "out", "pan_left", "in_top")  # cycled shot by shot so no two neighbours move alike
+XFADE_SECONDS = 0.3
+
+
 def clip_cmd(src: Path, duration: float, out: Path, start: float = 0.0) -> list[str]:
-    """Loop/trim a stock clip to `duration`, fill 1920x1080, no audio."""
+    """Loop/trim a stock clip to `duration`, fill the frame, no audio."""
     return ["ffmpeg", "-y", "-stream_loop", "-1", "-ss", f"{start:.3f}", "-i", str(src), "-t", f"{duration:.3f}",
-            "-vf", _fit(), "-an", "-c:v", "libx264", "-preset", profile().preset, "-crf", str(profile().crf),
-            str(out)]
+            "-vf", f"{_fit()},{GRADE}", "-an", "-c:v", "libx264", "-preset", profile().preset,
+            "-crf", str(profile().crf), str(out)]
 
 
-def image_cmd(src: Path, duration: float, out: Path, zoom: bool = True) -> list[str]:
-    """Still image to video with a slow push-in so the frame never looks frozen."""
+def motion_exprs(motion: str, frames: int) -> tuple[str, str, str]:
+    """zoompan (z, x, y) expressions for a camera move that runs smoothly over `frames` frames."""
+    n = max(frames - 1, 1)
+    cx, cy = "iw/2-(iw/zoom/2)", "ih/2-(ih/zoom/2)"
+    return {
+        "in": (f"1+0.10*on/{n}", cx, cy),
+        "out": (f"1.10-0.10*on/{n}", cx, cy),
+        "pan_right": ("1.10", f"(iw-iw/zoom)*on/{n}", cy),
+        "pan_left": ("1.10", f"(iw-iw/zoom)*(1-on/{n})", cy),
+        "in_top": (f"1+0.12*on/{n}", cx, "(ih-ih/zoom)*0.25"),
+    }.get(motion, (f"1+0.10*on/{n}", cx, cy))
+
+
+def image_cmd(src: Path, duration: float, out: Path, zoom: bool = True, motion: int = 0,
+              aspect: float | None = None) -> list[str]:
+    """Still image to video with a camera move (Ken Burns) so the frame never looks frozen.
+
+    `motion` picks the move from MOTIONS (cycled by the caller). `aspect` (width/height of the photo): if it is
+    not wide enough for a clean crop, the whole photo is shown over a blurred copy of itself.
+    """
     p = profile()
     zoom = zoom and p.zoom
     frames = max(1, round(duration * p.fps))
-    big_w, big_h = p.w * 3 // 2, p.h * 3 // 2  # 1.5x is enough headroom for the slow zoom and half the memory of 2x
-    fill = f"scale={big_w}:{big_h}:force_original_aspect_ratio=increase,crop={big_w}:{big_h}"
-    vf = (f"{fill},zoompan=z='min(zoom+0.0006,1.08)':d={frames}:s={p.w}x{p.h}:fps={p.fps},"
-          "format=yuv420p" if zoom else _fit())
+    big_w, big_h = p.w * 3 // 2, p.h * 3 // 2  # 1.5x is enough headroom for the move and half the memory of 2x
+    if aspect is not None and aspect < BLUR_BELOW_ASPECT:
+        fill = (f"split[a][b];[a]scale={big_w}:{big_h}:force_original_aspect_ratio=increase,crop={big_w}:{big_h},"
+                f"boxblur=40:4[bg];[b]scale={big_w}:{big_h}:force_original_aspect_ratio=decrease[fg];"
+                "[bg][fg]overlay=(W-w)/2:(H-h)/2")
+    else:
+        fill = f"scale={big_w}:{big_h}:force_original_aspect_ratio=increase,crop={big_w}:{big_h}"
+    if zoom:
+        z, x, y = motion_exprs(MOTIONS[motion % len(MOTIONS)], frames)
+        vf = f"{fill},zoompan=z='{z}':x='{x}':y='{y}':d={frames}:s={p.w}x{p.h}:fps={p.fps},{GRADE},format=yuv420p"
+    else:
+        vf = f"{_fit()},{GRADE}"
     return ["ffmpeg", "-y", "-loop", "1", "-i", str(src), "-t", f"{duration:.3f}", "-vf", vf,
             "-c:v", "libx264", "-preset", p.preset, "-crf", str(p.crf), "-r", str(p.fps), str(out)]
+
+
+def xfade_cmd(parts: list[Path], durations: list[float], out: Path, fade: float = XFADE_SECONDS) -> list[str]:
+    """Join shots with cross-dissolves. Every part except the last must have been rendered `fade` seconds
+    longer than its slot in `durations`; the overlap then eats exactly that extra, so the total stays put."""
+    if len(parts) != len(durations) or len(parts) < 2:
+        raise ValueError("xfade needs matching parts/durations and at least two shots")
+    fade = min(fade, min(durations) / 2)
+    cmd = ["ffmpeg", "-y"]
+    for part in parts:
+        cmd += ["-i", str(part)]
+    chain, offset, prev = [], 0.0, "[0:v]"
+    for k in range(1, len(parts)):
+        offset += durations[k - 1]
+        label = f"[x{k}]" if k < len(parts) - 1 else "[v]"
+        chain.append(f"{prev}[{k}:v]xfade=transition=fade:duration={fade:.3f}:offset={offset:.3f}{label}")
+        prev = label
+    p = profile()
+    return cmd + ["-filter_complex", ";".join(chain), "-map", "[v]", "-c:v", "libx264", "-preset", p.preset,
+                  "-crf", str(p.crf), "-pix_fmt", "yuv420p", str(out)]
 
 
 def concat_list(paths: list[Path], list_file: Path) -> Path:
@@ -149,18 +201,61 @@ def audio_concat_cmd(list_file: Path, out: Path) -> list[str]:
             "-c:a", "pcm_s16le", str(out)]
 
 
+def sfx_filters(events: list[tuple[str, float]], first_input: int) -> tuple[list[str], list[str]]:
+    """(inputs, filter lines) placing each sound effect at its time. `events` are (kind, seconds); inputs are
+    ordered by sorted kind starting at ffmpeg input index `first_input`; the mixed result is labelled [sfx]."""
+    kinds = sorted({k for k, _ in events})
+    lines, labels = [], []
+    for ki, kind in enumerate(kinds):
+        times = sorted(t for k, t in events if k == kind)
+        outs = [f"[{kind}{n}]" for n in range(len(times))]
+        lines.append(f"[{first_input + ki}:a]asplit={len(times)}{''.join(outs)}" if len(times) > 1
+                     else f"[{first_input + ki}:a]anull{outs[0]}")
+        for lab, at in zip(outs, times):
+            ms = max(0, round(at * 1000))
+            lines.append(f"{lab}adelay={ms}:all=1,volume={SFX_DB.get(kind, -12)}dB[d_{lab[1:-1]}]")
+            labels.append(f"[d_{lab[1:-1]}]")
+    lines.append(f"{''.join(labels)}amix=inputs={len(labels)}:duration=longest:dropout_transition=0:normalize=0[sfx]")
+    return kinds, lines
+
+
+SFX_DB = {"whoosh": -14, "pop": -17, "hit": -12}
+LOUDNORM = "loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000"  # YouTube's reference loudness is about -14 LUFS
+
+
 def mix_cmd(video: Path, voice: Path, out: Path, music: Path | None, music_db: float = -20.0,
-            subtitles: Path | None = None) -> list[str]:
-    """Mux narration (and optional looped music `music_db` under it) onto the video; burn subtitles."""
+            subtitles: Path | None = None, sfx: dict[str, Path] | None = None,
+            sfx_events: list[tuple[str, float]] | None = None, total: float | None = None) -> list[str]:
+    """Mux narration onto the video, with looped music ducked under the voice, optional sound effects at
+    given times, loudness-normalised. Burns subtitles when given (re-encodes the picture)."""
     cmd = ["ffmpeg", "-y", "-i", str(video), "-i", str(voice)]
-    vf = ["-vf", f"subtitles='{_escape_sub(subtitles)}':force_style='{SUB_STYLE}'"] if subtitles else []
+    vf = ["-vf", _sub_filter(subtitles)] if subtitles else []
+    events = [e for e in (sfx_events or []) if sfx and e[0] in sfx]
     if music:
         cmd += ["-stream_loop", "-1", "-i", str(music)]
-        fc = (f"[2:a]volume={music_db}dB[m];[1:a][m]amix=inputs=2:duration=first:dropout_transition=0:"
-              "normalize=0[a]")
-        cmd += ["-filter_complex", fc, "-map", "0:v", "-map", "[a]"]
+    kinds: list[str] = []
+    if events:
+        kinds = sorted({k for k, _ in events})
+        for k in kinds:
+            cmd += ["-i", str(sfx[k])]
+    if music or events:
+        fade_out = f",afade=t=out:st={max(total - 3.0, 0):.2f}:d=3" if total else ""
+        parts = []
+        mix_in = ["[1:a]"]
+        if music:
+            parts += ["[1:a]asplit=2[vo][vk]",
+                      f"[2:a]volume={music_db}dB,afade=t=in:d=1.5{fade_out}[m0]",
+                      "[m0][vk]sidechaincompress=threshold=0.015:ratio=8:attack=15:release=400:makeup=1[md]"]
+            mix_in = ["[vo]", "[md]"]
+        if events:
+            _, lines = sfx_filters(events, 3 if music else 2)
+            parts += lines
+            mix_in.append("[sfx]")
+        parts.append(f"{''.join(mix_in)}amix=inputs={len(mix_in)}:duration=first:dropout_transition=0:"
+                     f"normalize=0,{LOUDNORM}[a]")
+        cmd += ["-filter_complex", ";".join(parts), "-map", "0:v", "-map", "[a]"]
     else:
-        cmd += ["-map", "0:v", "-map", "1:a"]
+        cmd += ["-af", LOUDNORM, "-map", "0:v", "-map", "1:a"]
     p = profile()
     # Without subtitles the picture is already encoded: copy it instead of encoding the whole video again.
     video_codec = (["-c:v", "libx264", "-preset", p.preset, "-crf", str(p.crf), "-pix_fmt", "yuv420p"] if subtitles
@@ -173,6 +268,13 @@ SUB_STYLE = "FontName=DejaVu Sans,FontSize=16,PrimaryColour=&H00FFFFFF,OutlineCo
             "Outline=2,Shadow=0,MarginV=30"
 
 
+def _sub_filter(path: Path) -> str:
+    """ffmpeg filter that burns a .ass (styled) or .srt subtitle file."""
+    if Path(path).suffix.lower() == ".ass":
+        return f"ass='{_escape_sub(path)}'"
+    return f"subtitles='{_escape_sub(path)}':force_style='{SUB_STYLE}'"
+
+
 def _escape_sub(path: Path | None) -> str:
     return str(Path(path).resolve()).replace("\\", "/").replace(":", r"\:").replace("'", r"\'") if path else ""
 
@@ -181,7 +283,9 @@ def vertical_cmd(src: Path, start: float, duration: float, out: Path, subtitles:
     """Cut a 9:16 1080x1920 Short: blurred fill background with the 16:9 frame centred."""
     fc = ("[0:v]split=2[bg][fg];[bg]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,"
           "boxblur=20:2[b];[fg]scale=1080:-2[f];[b][f]overlay=(W-w)/2:(H-h)/2,setsar=1")
-    if subtitles:
+    if subtitles and Path(subtitles).suffix.lower() == ".ass":
+        fc += f",ass='{_escape_sub(subtitles)}'"
+    elif subtitles:
         fc += f",subtitles='{_escape_sub(subtitles)}':force_style='{SUB_STYLE},FontSize=12,MarginV=55'"
     fc += "[v]"
     return ["ffmpeg", "-y", "-ss", f"{start:.3f}", "-i", str(src), "-t", f"{duration:.3f}", "-filter_complex", fc,

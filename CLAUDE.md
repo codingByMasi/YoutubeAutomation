@@ -62,5 +62,8 @@ When asked to answer one:
 3. Write ONLY the JSON object to the matching `<task>.response.json`.
 4. Re-run the command; it validates the answer and prints any problems to fix.
 
+Story tasks use the same flow: `outline` (retention outline) and `critique` (score the script on the 10-point
+checklist, then return the full rewritten package in `revised`). Read `studio/prompts/hooks.md` first.
+
 ## Token discipline
 Prefer one consolidated pass per milestone. Do not re-read whole files unnecessarily; read only the section you need.

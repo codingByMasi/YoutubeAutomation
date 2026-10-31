@@ -220,6 +220,18 @@ def submit_script(ctx: Ctx, idea_id: int, video_id: int, pasted: str) -> Outcome
     return res
 
 
+def submit_task(ctx: Ctx, video_id: int, task: str, pasted: str, fn: Callable[..., object], *args) -> Outcome:
+    """Save a pasted answer for an optional task (outline, critique) and run it; a bad answer is removed."""
+    try:
+        rf = save_response(ctx, video_id, pasted, task)
+    except StudioError as exc:
+        return Outcome(False, "", str(exc))
+    res = capture(fn, ctx, *args)
+    if not res.ok and rf.exists():
+        rf.unlink()
+    return res
+
+
 def project_files(ctx: Ctx, video_id: int) -> dict[str, list[Path]]:
     """Downloadable outputs for a video, grouped."""
     d = ctx.settings.project_dir(video_id)

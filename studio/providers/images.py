@@ -25,6 +25,27 @@ OK_LICENCE = re.compile(r"^(public domain|pd\b|cc0|cc[ -]by(?![ -](nc|nd))(?:[ -
 NEEDS_CREDIT = re.compile(r"^cc[ -]by", re.I)
 
 
+STOP = {"a", "an", "the", "of", "in", "on", "at", "and", "or", "for", "to", "with", "view", "photo", "image", "stock"}
+# Commons is full-text search: it returns maps, logos, scans and posters that look broken as video backgrounds.
+JUNK_NAME = re.compile(r"\b(logo|map|flag|diagram|chart|icon|coat of arms|poster|scan|stamp|screenshot|"
+                       r"signature|banner|infographic|template|svg|cover|portrait of)\b", re.I)
+
+
+def words(text: str) -> set[str]:
+    """Lower-case content words (3+ letters, light plural stemming) for relevance matching."""
+    out = set()
+    for w in re.findall(r"[a-z]{3,}", (text or "").lower()):
+        if w not in STOP:
+            out.add(w[:-1] if w.endswith("s") and len(w) > 3 else w)
+    return out
+
+
+def relevance(keyword: str, candidate_text: str) -> float:
+    """Share of the keyword's content words found in the candidate's tags/title (0..1)."""
+    want = words(keyword)
+    return len(want & words(candidate_text)) / len(want) if want else 0.0
+
+
 def _strip_html(text: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", text or "")).strip()
 
@@ -85,9 +106,10 @@ class PixabayImages(_Base):
     def find(self, keywords: list[str], exclude: set | None = None) -> StockClip | None:
         exclude = exclude if exclude is not None else set()
         for kw in keywords:
-            for h in self.search(kw):
+            ranked = sorted(self.search(kw), key=lambda h: -relevance(kw, h.get("tags", "")))
+            for h in ranked:
                 key = ("pixabay", h["id"])
-                if key in exclude or not h.get("largeImageURL"):
+                if key in exclude or not h.get("largeImageURL") or relevance(kw, h.get("tags", "")) < MIN_RELEVANCE:
                     continue
                 path = self._save(f"{h['id']}.jpg", h["largeImageURL"], "Pixabay image download")
                 exclude.add(key)
@@ -115,8 +137,11 @@ class Commons(_Base):
                 info = (page.get("imageinfo") or [{}])[0]
                 key = ("commons", page.get("pageid"))
                 lic = commons_licence_ok(info.get("extmetadata") or {})
+                title = page.get("title", "")
+                w, h = info.get("width", 0), info.get("height", 0)
                 if (key in exclude or not lic or info.get("mime") not in ("image/jpeg", "image/png")
-                        or info.get("width", 0) < 1280 or info.get("width", 0) < info.get("height", 0)):
+                        or w < 1280 or h < 720 or not 1.25 <= w / max(h, 1) <= 2.4
+                        or JUNK_NAME.search(title) or relevance(kw, title) < MIN_RELEVANCE):
                     continue
                 url = info.get("thumburl") or info["url"]
                 ext = ".png" if info["mime"] == "image/png" else ".jpg"
@@ -128,6 +153,7 @@ class Commons(_Base):
         return None
 
 
+MIN_RELEVANCE = 0.34  # at least a third of the keyword's words must appear in the tags/title
 MAX_SOURCE_FAILURES = 2
 
 
