@@ -2,6 +2,7 @@
 .env
 token.json
 client_secret.json
+.streamlit/secrets.toml
 *.client_secret.json
 
 # Runtime data

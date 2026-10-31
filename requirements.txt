@@ -8,6 +8,7 @@ edge-tts>=6.1
 Pillow>=10.0
 matplotlib>=3.8
 pytest>=8.0
+streamlit>=1.40
 # Optional extras (install only if you use them):
 # faster-whisper>=1.0   # word-accurate captions; without it captions come from the script text
 # anthropic>=0.40       # LLM_PROVIDER=anthropic

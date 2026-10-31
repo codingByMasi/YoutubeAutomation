@@ -13,6 +13,50 @@ Full design: see `SPEC.md`. Build progress: see `PROGRESS.md`.
 
 ---
 
+## Web app (no code needed)
+
+Everything above also runs from a browser app built with Streamlit: pick a topic, copy the script request into
+Claude and paste the answer back, click once to make the video, then watch and download it.
+
+**Run on Windows** (PowerShell in this folder; needs Python 3.11+ and ffmpeg on PATH):
+
+```
+py -3.11 -m venv .venv
+.venv\Scripts\pip install -r requirements.txt
+.venv\Scripts\python -m streamlit run app.py
+```
+
+Or double-click `run_app.bat`. It opens http://localhost:8501. On macOS/Linux: `streamlit run app.py`.
+
+**Deploy on Streamlit Community Cloud** (free):
+
+1. Push this repo to GitHub, then go to share.streamlit.io, click **Create app**, pick the repo and branch,
+   and set **Main file path** to `app.py`. `requirements.txt` and `packages.txt` (installs ffmpeg) are picked up.
+2. Under **Advanced settings -> Secrets** paste the lines from `.streamlit/secrets.toml.example`. Set `APP_PASSWORD`
+   so strangers cannot use your keys. Add `PIXABAY_API_KEY` for stock footage and photos (optional; without keys the
+   studio uses Wikimedia Commons photos and generated cards).
+3. Deploy. Free hosting has about 1 GB RAM and temporary disk, so **download each video from step 4 before the app
+   sleeps**. Long videos build slowly there; for long videos run the app locally.
+
+**What works where**
+
+| Feature | Local | Streamlit Cloud |
+|---|---|---|
+| Topic suggestions | yes, plus outlier signals if signed in to Google | suggestions only |
+| Script via paste-in | yes | yes |
+| Voice, visuals, edit, thumbnails, Shorts | yes | yes (slower, temporary storage) |
+| Watch and download | yes | yes |
+| Review gate and YouTube upload | yes (needs `client_secret.json`) | no: download and upload by hand |
+
+**Why not Vercel?** Vercel runs short serverless functions with a hard time limit, a small bundle size and no
+persistent disk. Video work (ffmpeg, TTS, many downloads, minutes to hours of rendering) does not fit, and Streamlit
+cannot run there. Streamlit Community Cloud runs a normal Python process with ffmpeg, so it is the supported choice.
+If you outgrow it, the same `app.py` runs on any small VM or container host (Render, Fly.io, Railway).
+
+The typed-yes rule still holds: approving and uploading each need you to type `yes` in the page.
+
+---
+
 ## 1. Requirements
 
 - Python 3.11+
