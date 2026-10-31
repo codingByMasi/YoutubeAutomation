@@ -165,7 +165,7 @@ Record any choice made without asking the owner, with date and reason.
   4.2; no image textures and 1280x720 at 24 fps to suit a 4 GB GPU; the script avoids importing `studio` so it runs
   in Blender's bundled Python regardless of the system Python (3.11 or 3.12). The long-form (non-kids) pipeline is
   not changed: economics charts and diagrams gain nothing from 3D.
-- Tests: 13 new (173 total) pass; ruff clean. The scene script was also run for real through the `bpy` module with
+- Tests: 11 new (173 total) pass; ruff clean. The scene script was also run for real through the `bpy` module with
   the Cycles CPU engine and the output frames were inspected.
 - Not tested: Eevee rendering (no GPU/OpenGL in the build sandbox), the `blender` executable on Windows 11, the RTX
   A1000's render speed and memory use, and the engine id on Blender 4.2-4.5 (`BLENDER_EEVEE_NEXT`; Blender 5.x uses
