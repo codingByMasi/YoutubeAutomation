@@ -254,6 +254,9 @@ python -m studio.cli run-all "how cruise lines make money"
 | `script <idea_id>` | Generate titles, script, and segment list (via a prompt file Claude Code answers) |
 | `voice <video_id>` | Generate narration audio per segment |
 | `visuals <video_id>` | Fetch stock clips per segment, record licences |
+| `outline <idea_id>` | Optional: retention outline (hooks, open loops, beat sheet) before the script |
+| `critique <video_id>` | Optional: scored review and rewrite of the script, before `voice` |
+| `qa <video_id>` | Report weak hooks, pacing, repeated or missing pictures (read-only) |
 | `build <video_id>` | Assemble the final MP4 with captions and music |
 | `shorts <video_id>` | Cut vertical Shorts from the video |
 | `thumbnail <video_id>` | Generate 3 thumbnail variants |

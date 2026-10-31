@@ -9,6 +9,12 @@ You are writing a complete YouTube video package for a faceless, narrated explai
 # Style guide (from SPEC.md section 9)
 {style}
 
+# Hook formula library
+{hooks}
+
+# Retention outline (follow it: its hook, open loops, beat order, ending and sources)
+{outline}
+
 # Hard rules
 - Original analysis only. Do not copy or closely paraphrase any existing video, script or article.
   Explain the money flow in your own structure, with your own examples and comparisons.
@@ -17,22 +23,44 @@ You are writing a complete YouTube video package for a faceless, narrated explai
 - Banned phrases anywhere: {banned}.
 - Titles: exactly 15, each under 70 characters, one clear promise, no ALL-CAPS words longer than
   3 letters, no claims the video cannot back up. Mark exactly one `"is_pick": true`.
-- Segment 1 is the hook: at most 15 seconds, states the problem and the payoff. No "subscribe first".
-- Follow the 7-part structure: hook, product/customer, money in, costs, clever trick or weak point,
-  takeaway, call to action. Use the `chapter` field to name each part (short, viewer-facing).
-- A retention beat (`question`, `reveal`, `example`, or `pattern_break`) at least every 30-45 seconds.
+- Segment 1 is the hook: at most 15 seconds (about 35 words). No greeting, no channel intro, no "in this
+  video", no "subscribe first". The first sentence is 12 words or fewer and lands a specific number, a
+  contradiction, or a question the viewer cannot answer yet. Then state the payoff ("by the end you will know ...").
+  Pick ONE hook formula and record it in `hook_type`:
+  `number_stakes` ("A $300 ticket is the cheapest thing you will pay for. Here is where the other $1,400 goes."),
+  `contradiction` ("The most profitable part of this business is the part it gives away."),
+  `hidden_answer` (a question whose answer is the video), `cold_open` (start mid-scene, explain after).
+- Storytelling arc, in order: hook; the familiar situation and what is at stake; the money flow in 2-4 steps,
+  each with a surprising figure; the complication or weak point; the payoff that answers the hook; a one-sentence
+  takeaway; the call to action. Use the `chapter` field to name each part (short, viewer-facing).
+- Open loops: in the first 60 seconds plant at least two teasers that are paid off later ("The third source is
+  the one nobody notices", "And that is not even where the real profit hides"). Each payoff should plant the
+  next teaser. Describe each teaser in the segment's `open_loop` field (empty string if none).
+- Pattern interrupt (`question`, `reveal`, `example`, or `pattern_break`) in `beat` at least every 20-40
+  seconds: ask the viewer something, drop a number, flip an assumption ("but here is the catch"), use a
+  comparison they can picture, or tell a 1-2 sentence anecdote. Never two flat explanatory segments in a row.
+- Spoken style: write for the ear. Sentences of 18 words or fewer, contractions, plain words, "you". One idea
+  per sentence. Say the number BEFORE the chart shows it, then say what it means in everyday terms. No filler
+  ("basically", "let's dive in", "without further ado"), no list of five things in one breath.
+- Ending: the last segment pays off the hook in one sentence (call back to its first line), then a specific
+  call to action tied to this topic: ask one concrete question to answer in the comments and name what the
+  next video covers. A generic "like and subscribe" alone is not enough.
 - A chart, diagram or number card (`chart_data`) at least every 60-90 seconds, and for every major figure.
 - Typical total length is {min_minutes}-{max_minutes} minutes at about 150 spoken words per minute; go longer if the
   topic needs it. There is no maximum length: never cut the money flow short to fit.
-  `est_seconds` = words / 2.5. Keep each segment 15-60 seconds so visuals change often.
-- `visual_keywords`: 3-6 plain search terms describing the setting. They are searched as stock video AND as
-  photos (Pixabay, Wikimedia Commons), so include concrete nouns (places, objects, buildings), not brand logos.
+  `est_seconds` = words / 2.5. Keep each segment 8-30 seconds so the picture changes often (hook: 15 at most).
+- `visual_keywords`: 4-6 plain search terms, most specific first. They are searched as stock video AND as
+  photos (Pixabay, Wikimedia Commons), and results are filtered by how many keyword words match the photo's
+  tags. Use concrete, photographable nouns (places, objects, people at work), 2-3 words each, mixing wide and
+  close-up shots ("cruise ship deck", "casino slot machines", "restaurant kitchen"). Avoid abstract terms
+  ("economy", "profit"), logos and brand names.
 - Set `synthetic_media` true only if the video would show realistic AI-generated people, places or events.
 
 # Output: one JSON object with exactly these keys
 {{
   "topic": "string",
   "originality_note": "1-2 sentences: what this video adds that others do not",
+  "hook_type": "number_stakes | contradiction | hidden_answer | cold_open",
   "sensitive_topic": true,
   "synthetic_media": false,
   "titles": [{{"text": "How Cruise Lines Make Money", "style": "how-x-makes-money", "is_pick": true}}],
@@ -47,6 +75,7 @@ You are writing a complete YouTube video package for a faceless, narrated explai
       "visual_keywords": ["cruise ship at sea", "ship deck"],
       "est_seconds": 12,
       "beat": "question",
+      "open_loop": "Promises to reveal where the other $1,400 goes",
       "chart_data": null
     }},
     {{

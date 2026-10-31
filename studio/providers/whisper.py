@@ -40,27 +40,36 @@ def script_cues(spans: list[tuple[float, float]], narrations: list[str]) -> list
     return cues
 
 
+def cues_from_words(words: list[tuple[float, float, str]]) -> list[Cue]:
+    """Subtitle-sized cues (SRT for upload) from per-word times."""
+    cues: list[Cue] = []
+    cur: list = []
+    for w in words:
+        cur.append(w)
+        text = " ".join(x[2] for x in cur)
+        if len(cur) >= MAX_WORDS or len(text) > MAX_CHARS or w[2].endswith((".", "?", "!")):
+            cues.append((cur[0][0], cur[-1][1], text))
+            cur = []
+    if cur:
+        cues.append((cur[0][0], cur[-1][1], " ".join(x[2] for x in cur)))
+    return cues
+
+
 def whisper_cues(audio: Path, model_size: str = "small") -> list[Cue] | None:
     """Word-timed cues from faster-whisper, or None if it is not installed."""
+    words = whisper_words(audio, model_size)
+    return None if words is None else cues_from_words(words)
+
+
+def whisper_words(audio: Path, model_size: str = "small") -> list[tuple[float, float, str]] | None:
+    """Per-word (start, end, text) from faster-whisper, or None if it is not installed."""
     try:
         from faster_whisper import WhisperModel
     except ImportError:
         return None
-    log.info("Transcribing %s with faster-whisper (%s)", audio, model_size)
     model = WhisperModel(model_size, device="auto", compute_type="int8")
     segments, _ = model.transcribe(str(audio), word_timestamps=True, language="en")
-    cues: list[Cue] = []
-    words = [w for s in segments for w in (s.words or [])]
-    cur: list = []
-    for w in words:
-        cur.append(w)
-        text = "".join(x.word for x in cur).strip()
-        if len(cur) >= MAX_WORDS or len(text) > MAX_CHARS or w.word.strip().endswith((".", "?", "!")):
-            cues.append((cur[0].start, cur[-1].end, text))
-            cur = []
-    if cur:
-        cues.append((cur[0].start, cur[-1].end, "".join(x.word for x in cur).strip()))
-    return cues
+    return [(w.start, w.end, w.word.strip()) for s in segments for w in (s.words or []) if w.word.strip()]
 
 
 def ts(seconds: float) -> str:

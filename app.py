@@ -11,6 +11,7 @@ import streamlit as st
 from studio.errors import StudioError
 from studio.stages import research, review
 from studio.stages import script as script_stage
+from studio.stages import story as story_stage
 from studio.stages.base import STAGES
 from studio.web import growth_service as gsvc
 from studio.web import service as svc
@@ -162,6 +163,23 @@ def page_topics() -> None:
             st.rerun()
 
 
+def task_block(ctx, v, title: str, help_text: str, task: str, fn, arg: int) -> None:
+    """Request-for-Claude / paste-answer-back block for an optional story step (outline, critique)."""
+    with st.expander(title):
+        st.write(help_text)
+        if st.button("Write the request", key=f"req_{task}{v.id}"):
+            show(svc.capture(fn, ctx, arg))
+        prompt = svc.read_prompt(ctx, v.id, task)
+        if prompt:
+            st.code(prompt, language="markdown", wrap_lines=True)
+            pasted = st.text_area("Claude's answer (JSON)", height=240, key=f"ans_{task}{v.id}")
+            if st.button("Save and apply", key=f"save_{task}{v.id}"):
+                res = svc.submit_task(ctx, v.id, task, pasted, fn, arg)
+                show(res, "Done.")
+                if res.ok:
+                    st.rerun()
+
+
 def page_script() -> None:
     ctx = ctx_for()
     st.header("2. Script")
@@ -177,7 +195,14 @@ def page_script() -> None:
         if sd.exists():
             with st.expander("Read the script"):
                 st.markdown(sd.read_text(encoding="utf-8"))
+        task_block(ctx, v, "Improve the story: scored review and rewrite (recommended)",
+                   "Claude scores the script on hook, stakes, open loops, pacing, concreteness, clarity, arc and "
+                   "ending, then rewrites it. Do this before the voiceover.", "critique", story_stage.run_critique,
+                   v.id)
         return
+    task_block(ctx, v, "Step 0 (recommended): plan the story first",
+               "A retention outline: hook options, open loops, beat sheet and ending. It is added to the script "
+               "request automatically.", "outline", story_stage.run_outline, v.idea_id)
     if st.button("Step 1: write the request for Claude"):
         show(svc.capture(script_stage.run, ctx, v.idea_id))
     prompt = svc.read_prompt(ctx, v.id)

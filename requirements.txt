@@ -6,6 +6,7 @@ google-auth-oauthlib>=1.2
 google-auth>=2.20
 edge-tts>=6.1
 Pillow>=10.0
+numpy>=1.26
 matplotlib>=3.8
 numpy>=1.26
 cairosvg>=2.7  # kids mode SVG characters (optional: falls back to code-drawn shapes)

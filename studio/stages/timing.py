@@ -5,7 +5,8 @@ from __future__ import annotations
 import math
 from pathlib import Path
 
-SHOT_MAX = 6.0          # seconds before the picture must change
+SHOT_MAX = 5.0          # seconds before the picture must change (retention: a new image every 3-5 s)
+HOOK_SHOT_MAX = 3.0     # the first segment (the hook) cuts faster to hold the viewer in the first 15 s
 CHART_LEAD_MAX = 5.0    # stock footage shown before a chart takes over
 
 
@@ -19,15 +20,21 @@ def split_segment(duration: float, has_chart: bool) -> tuple[float, float]:
     return lead, duration - lead
 
 
-def shots_needed(bg_seconds: float, cap: int | None = None) -> int:
-    """How many distinct background shots keep each one at or under SHOT_MAX seconds (no cap by default)."""
+def shot_max_for(position: int) -> float:
+    """Longest allowed shot for the segment at 1-based `position`: the hook cuts faster than the rest."""
+    return HOOK_SHOT_MAX if position == 1 else SHOT_MAX
+
+
+def shots_needed(bg_seconds: float, cap: int | None = None, shot_max: float = SHOT_MAX) -> int:
+    """How many distinct background shots keep each one at or under `shot_max` seconds (no cap by default)."""
     if bg_seconds <= 0:
         return 0
-    n = max(1, math.ceil(bg_seconds / SHOT_MAX))
+    n = max(1, math.ceil(bg_seconds / shot_max))
     return n if cap is None else min(cap, n)
 
 
-def plan_segment(duration: float, backgrounds: list[Path], chart_frames: list[Path]) -> list[tuple[Path, float]]:
+def plan_segment(duration: float, backgrounds: list[Path], chart_frames: list[Path],
+                 shot_max: float = SHOT_MAX) -> list[tuple[Path, float]]:
     """Ordered (visual, seconds) parts that exactly fill `duration`.
 
     Background shots come first (cycled if there are fewer files than shots), then chart frames
@@ -37,7 +44,7 @@ def plan_segment(duration: float, backgrounds: list[Path], chart_frames: list[Pa
     if not backgrounds:
         bg_s, chart_s = 0.0, duration
     parts: list[tuple[Path, float]] = []
-    n = max(1, math.ceil(bg_s / SHOT_MAX)) if bg_s > 0 else 0
+    n = max(1, math.ceil(bg_s / shot_max)) if bg_s > 0 else 0
     parts += [(backgrounds[i % len(backgrounds)], bg_s / n) for i in range(n)]
     if chart_frames and chart_s > 0:
         parts += [(f, chart_s / len(chart_frames)) for f in chart_frames]

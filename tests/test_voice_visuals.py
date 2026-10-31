@@ -71,6 +71,15 @@ def test_voice_refuses_before_script(ctx):
         voice.run(ctx, v.id, tts=FakeTTS(), measure=lambda p: 1)
 
 
+@pytest.fixture(autouse=True)
+def fake_media_gate(monkeypatch, request):
+    """These tests use placeholder bytes as media; the real gate has its own tests in test_media_quality.py."""
+    if "real_gate" in request.keywords:
+        return
+    monkeypatch.setattr(visuals, "check_media", lambda path, kind: [])
+    monkeypatch.setattr(visuals, "media_hash", lambda path, kind: None)
+
+
 class FakeStock:
     def __init__(self, tmp: Path, hits: set[int]):
         self.tmp, self.hits, self.n = tmp, hits, 0
@@ -263,7 +272,8 @@ def _img_opener(calls, payload):
 
 def _commons_page(pid, lic, mime="image/jpeg", width=2400, **meta):
     m = {"LicenseShortName": {"value": lic}, "Artist": {"value": '<a href="x">Jane  Doe</a>'}, **meta}
-    return {"pageid": pid, "index": pid, "imageinfo": [{"mime": mime, "width": width, "height": 1200,
+    return {"pageid": pid, "index": pid, "title": f"File:Hotel lobby {pid}.jpg",
+            "imageinfo": [{"mime": mime, "width": width, "height": 1200,
             "thumburl": f"https://upload.wikimedia.org/t{pid}.jpg", "url": "u",
             "descriptionurl": f"https://commons.wikimedia.org/wiki/File:{pid}", "extmetadata": m}]}
 
@@ -287,7 +297,8 @@ def test_commons_filters_licences_and_records_credit(tmp_path):
 
 def test_pixabay_images_and_composite(tmp_path):
     from studio.providers.images import Commons, ImageSearch, PixabayImages
-    hit = {"id": 5, "pageURL": "https://pixabay.com/photos/5/", "user": "bo", "user_id": 2, "largeImageURL": "https://cdn/5.jpg"}
+    hit = {"id": 5, "pageURL": "https://pixabay.com/photos/5/", "user": "bo", "user_id": 2, "largeImageURL": "https://cdn/5.jpg",
+           "tags": "coffee, cup"}
     calls: list = []
     px = PixabayImages("K", tmp_path / "p", opener=_img_opener(calls, {"hits": [hit]}))
     both = ImageSearch([px, Commons(tmp_path / "c", opener=_img_opener(calls, {}))])
@@ -309,7 +320,7 @@ def test_make_images_selection(ctx):
 
 def test_visuals_mixes_clips_and_photos_without_shot_cap(ctx, tmp_path):
     v = scripted_video(ctx)
-    voice.run(ctx, v.id, tts=FakeTTS(), measure=lambda p: 60.0)  # long segments: 10 shots each, past the old cap of 4
+    voice.run(ctx, v.id, tts=FakeTTS(), measure=lambda p: 60.0)  # long segments: many shots each, past the old cap of 4
 
     class Imgs:
         n = 0
@@ -322,8 +333,9 @@ def test_visuals_mixes_clips_and_photos_without_shot_cap(ctx, tmp_path):
                              "Wikimedia Commons")
     visuals.run(ctx, v.id, stock=FakeStock(tmp_path, hits=set(range(1, 999))), images=Imgs())
     pkg = sc.load_package(ctx, v.id)
-    plain = [g for g in pkg["segments"] if not g.get("chart_data")]
-    assert plain and all(len(g["visual"]["paths"]) == 10 for g in plain)
+    plain = [(i, g) for i, g in enumerate(pkg["segments"], 1) if not g.get("chart_data")]
+    # 60 s of background: one shot per 5 s, or per 3 s in the hook (segment 1)
+    assert plain and all(len(g["visual"]["paths"]) == (20 if i == 1 else 12) for i, g in plain)
     kinds = {a.kind for a in ctx.session.query(Asset).filter_by(video_id=v.id)}
     assert {"clip", "image"} <= kinds
     assert all(a.licence for a in ctx.session.query(Asset).filter_by(video_id=v.id))

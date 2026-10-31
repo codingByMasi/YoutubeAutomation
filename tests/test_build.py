@@ -18,9 +18,12 @@ def test_split_segment_gives_chart_most_of_the_time():
     assert bg == 5 and chart == 25
 
 
-def test_shots_keep_each_under_six_seconds():
-    assert shots_needed(0) == 0 and shots_needed(5) == 1 and shots_needed(13) == 3 and shots_needed(100) == 17
+def test_shots_keep_each_under_five_seconds_and_hook_cuts_faster():
+    assert shots_needed(0) == 0 and shots_needed(5) == 1 and shots_needed(13) == 3 and shots_needed(100) == 20
     assert shots_needed(100, cap=4) == 4
+    from studio.stages.timing import shot_max_for
+    assert shot_max_for(1) == 3.0 and shot_max_for(2) == 5.0
+    assert shots_needed(12, shot_max=shot_max_for(1)) == 4
 
 
 def test_plan_fills_duration_exactly_and_changes_picture_often():
@@ -29,7 +32,7 @@ def test_plan_fills_duration_exactly_and_changes_picture_often():
     assert [p.name for p, _ in plan] == ["a.mp4", "c1.png", "c2.png", "c3.png"]
     plan = plan_segment(20, [P("a.mp4"), P("b.mp4")], [])
     assert [p.name for p, _ in plan] == ["a.mp4", "b.mp4", "a.mp4", "b.mp4"]
-    assert all(s <= 6 for _, s in plan) and sum(s for _, s in plan) == pytest.approx(20)
+    assert all(s <= 5 for _, s in plan) and sum(s for _, s in plan) == pytest.approx(20)
     assert plan_segment(10, [], [P("c.png")]) == [(P("c.png"), 10)]
 
 
@@ -63,10 +66,10 @@ def test_ffmpeg_command_construction(tmp_path):
     assert any("scale=1920:1080" in c for c in cmd)
     mix = ff.mix_cmd(P("v.mp4"), P("n.wav"), P("o.mp4"), P("m.mp3"), -20.0, P("s.srt"))
     fc = mix[mix.index("-filter_complex") + 1]
-    assert "volume=-20.0dB" in fc and "amix" in fc
+    assert "volume=-20.0dB" in fc and "amix" in fc and "sidechaincompress" in fc and "loudnorm" in fc
     assert any(c.startswith("subtitles=") for c in mix) and "-shortest" in mix
     nomusic = ff.mix_cmd(P("v.mp4"), P("n.wav"), P("o.mp4"), None)
-    assert "-filter_complex" not in nomusic and "1:a" in nomusic
+    assert "-filter_complex" not in nomusic and "1:a" in nomusic and "loudnorm" in " ".join(nomusic)
     vert = ff.vertical_cmd(P("c.mp4"), 10, 30, P("s.mp4"), None)
     assert "1080:1920" in vert[vert.index("-filter_complex") + 1]
     assert "anullsrc" in " ".join(normalize_cmd(P("i.mp4"), P("o.mp4"), with_audio=False))

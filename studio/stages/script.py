@@ -20,7 +20,7 @@ BEATS = {"question", "reveal", "example", "pattern_break"}
 TITLE_MAX = 70
 TITLE_COUNT = 15
 HOOK_MAX_SECONDS = 15
-BEAT_GAP_MAX = 45
+BEAT_GAP_MAX = 40
 CHART_GAP_MAX = 90
 LENGTH_RANGE_MIN = (10, 15)  # typical range for the prompt; only a too-short video is warned about
 MIN_WARN_MINUTES = 5          # no maximum length
@@ -161,12 +161,21 @@ def _spec_section(root: Path, number: int, default: str) -> str:
     return m.group(1).strip() if m else default
 
 
-def build_prompt(root: Path, topic: str) -> str:
-    template = (Path(__file__).parent.parent / "prompts" / "script.md").read_text(encoding="utf-8")
+NO_OUTLINE = "(No outline was made for this video: design the hook, open loops and beat order yourself.)"
+
+
+def prompt_text(name: str) -> str:
+    """Text of studio/prompts/<name>.md."""
+    return (Path(__file__).parent.parent / "prompts" / f"{name}.md").read_text(encoding="utf-8")
+
+
+def build_prompt(root: Path, topic: str, outline: dict | None = None) -> str:
     lo, hi = LENGTH_RANGE_MIN
-    return template.format(topic=topic, brief=_spec_section(root, 1, DEFAULT_BRIEF),
-                           style=_spec_section(root, 9, DEFAULT_STYLE),
-                           banned=", ".join(f'"{p}"' for p in BANNED_PHRASES), min_minutes=lo, max_minutes=hi)
+    return prompt_text("script").format(
+        topic=topic, brief=_spec_section(root, 1, DEFAULT_BRIEF), style=_spec_section(root, 9, DEFAULT_STYLE),
+        banned=", ".join(f'"{p}"' for p in BANNED_PHRASES), min_minutes=lo, max_minutes=hi,
+        hooks=prompt_text("hooks"),
+        outline=json.dumps(outline, indent=2, ensure_ascii=False) if outline else NO_OUTLINE)
 
 
 # ---------- outputs ----------
@@ -237,11 +246,16 @@ def run(ctx: Ctx, idea_id: int, force: bool = False) -> Video:
     topic = ctx.session.get(Idea, idea_id).topic
 
     def work() -> None:
-        d = ask_json(ctx.settings, ctx.settings.project_dir(video.id), "script",
-                     build_prompt(ctx.settings.root, topic), validate=validate_package, force=False)
+        from studio.stages.qa import quality_report
+        from studio.stages.story import load_outline
+        out_dir = ctx.settings.project_dir(video.id)
+        d = ask_json(ctx.settings, out_dir, "script",
+                     build_prompt(ctx.settings.root, topic, load_outline(out_dir)),
+                     validate=validate_package, force=False)
         save_package(ctx, video, d)
-        for w in pacing_warnings(d["segments"]):
+        for w in quality_report(d)["warnings"]:
             typer.secho(f"warning: {w}", fg=typer.colors.YELLOW)
+        typer.echo(f"Tip: run `critique {video.id}` for a scored review and rewrite before voicing.")
 
     if force:
         # A forced re-run asks for a fresh answer: archive the old one so it is not silently reused.
