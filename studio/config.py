@@ -14,6 +14,7 @@ API_LLM_PROVIDERS = {"anthropic", "openai", "gemini"}
 LLM_PROVIDERS = {"claude_code"} | API_LLM_PROVIDERS
 TTS_PROVIDERS = {"edge", "eleven", "silent"}
 FOOTAGE_PROVIDERS = {"auto", "pexels", "pixabay", "none"}
+IMAGE_PROVIDERS = {"auto", "pixabay", "commons", "none"}
 
 # Which settings each command needs. Used to name the command in missing-key messages.
 COMMAND_REQUIREMENTS: dict[str, tuple[str, ...]] = {
@@ -37,6 +38,7 @@ class Settings:
     pexels_api_key: str = ""
     pixabay_api_key: str = ""
     footage_provider: str = "auto"
+    image_provider: str = "auto"
     elevenlabs_api_key: str = ""
     tts_provider: str = "edge"
     tts_voice: str = "en-US-AndrewNeural"
@@ -113,6 +115,7 @@ def load_settings(root: Path | None = None) -> Settings:
         pexels_api_key=os.getenv("PEXELS_API_KEY", "").strip(),
         pixabay_api_key=os.getenv("PIXABAY_API_KEY", "").strip(),
         footage_provider=(os.getenv("FOOTAGE_PROVIDER") or "auto").strip().lower(),
+        image_provider=(os.getenv("IMAGE_PROVIDER") or "auto").strip().lower(),
         elevenlabs_api_key=os.getenv("ELEVENLABS_API_KEY", "").strip(),
         tts_provider=(os.getenv("TTS_PROVIDER") or "edge").strip().lower(),
         tts_voice=(os.getenv("TTS_VOICE") or "en-US-AndrewNeural").strip(),
@@ -136,6 +139,12 @@ def load_settings(root: Path | None = None) -> Settings:
             f"FOOTAGE_PROVIDER={s.footage_provider!r} is not supported.",
             f"Supported: {', '.join(sorted(FOOTAGE_PROVIDERS))}.",
             "Set FOOTAGE_PROVIDER=auto (use whichever key is set) or none (generated cards only) in .env.",
+        )
+    if s.image_provider not in IMAGE_PROVIDERS:
+        raise ConfigError(
+            f"IMAGE_PROVIDER={s.image_provider!r} is not supported.",
+            f"Supported: {', '.join(sorted(IMAGE_PROVIDERS))}.",
+            "Set IMAGE_PROVIDER=auto (Pixabay if keyed, then Wikimedia Commons) or none in .env.",
         )
     if s.quota_safety_margin >= s.daily_quota_limit:
         raise ConfigError(

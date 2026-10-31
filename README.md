@@ -50,6 +50,7 @@ Note on uploads: YouTube may force videos uploaded through API projects that hav
 
 1. **LLM provider (optional):** not needed. By default Claude Code answers prompt files. Only if you want fully hands-off runs, set `LLM_PROVIDER` to `anthropic`, `openai` or `gemini`, add `LLM_API_KEY` and `LLM_MODEL`, and `pip install` that provider's package.
 2. **Stock footage (optional):** Pexels has paused new API keys, so use **Pixabay**: sign up (free) at pixabay.com, open https://pixabay.com/api/docs/ while logged in, copy your key and put it in `.env` as `PIXABAY_API_KEY=...`. Pixabay's content licence allows commercial use (including monetized YouTube) with no attribution required; the licence is still recorded per clip. With no key, `visuals` still works: it uses generated cards, charts and number cards and says so. `FOOTAGE_PROVIDER` picks the source: `auto` (default: Pexels key if set, else Pixabay key, else none), `pexels`, `pixabay` or `none`. Existing Pexels keys keep working.
+   **Photos:** `visuals` also searches still images (Pixabay photos if keyed, plus Wikimedia Commons with no key) and mixes them with clips, slowly zooming each photo. `IMAGE_PROVIDER=auto|pixabay|commons|none` controls this. Commons files are used only under public domain, CC0, CC BY or CC BY-SA, and the required credits go into the video description automatically.
 3. **ElevenLabs (optional):** only if you want higher-quality voices than the free edge-tts default.
 
 ## 5. Configure `.env`

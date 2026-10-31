@@ -19,9 +19,12 @@ def split_segment(duration: float, has_chart: bool) -> tuple[float, float]:
     return lead, duration - lead
 
 
-def shots_needed(bg_seconds: float, cap: int = 4) -> int:
-    """How many distinct background shots keep each one at or under SHOT_MAX seconds."""
-    return 0 if bg_seconds <= 0 else min(cap, max(1, math.ceil(bg_seconds / SHOT_MAX)))
+def shots_needed(bg_seconds: float, cap: int | None = None) -> int:
+    """How many distinct background shots keep each one at or under SHOT_MAX seconds (no cap by default)."""
+    if bg_seconds <= 0:
+        return 0
+    n = max(1, math.ceil(bg_seconds / SHOT_MAX))
+    return n if cap is None else min(cap, n)
 
 
 def plan_segment(duration: float, backgrounds: list[Path], chart_frames: list[Path]) -> list[tuple[Path, float]]:

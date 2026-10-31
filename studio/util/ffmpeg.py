@@ -74,7 +74,8 @@ def clip_cmd(src: Path, duration: float, out: Path, start: float = 0.0) -> list[
 def image_cmd(src: Path, duration: float, out: Path, zoom: bool = True) -> list[str]:
     """Still image to video with a slow push-in so the frame never looks frozen."""
     frames = max(1, round(duration * FPS))
-    vf = (f"scale={W * 2}:{H * 2},zoompan=z='min(zoom+0.0006,1.08)':d={frames}:s={W}x{H}:fps={FPS},"
+    fill = f"scale={W * 2}:{H * 2}:force_original_aspect_ratio=increase,crop={W * 2}:{H * 2}"
+    vf = (f"{fill},zoompan=z='min(zoom+0.0006,1.08)':d={frames}:s={W}x{H}:fps={FPS},"
           "format=yuv420p" if zoom else _fit())
     return ["ffmpeg", "-y", "-loop", "1", "-i", str(src), "-t", f"{duration:.3f}", "-vf", vf,
             "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-r", str(FPS), str(out)]

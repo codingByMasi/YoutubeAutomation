@@ -90,7 +90,7 @@ class Asset(Base):
     __tablename__ = "assets"
     id: Mapped[int] = mapped_column(primary_key=True)
     video_id: Mapped[int] = mapped_column(ForeignKey("videos.id"))
-    kind: Mapped[str] = mapped_column(String(30))  # clip | card | chart | music | font | intro | outro
+    kind: Mapped[str] = mapped_column(String(30))  # clip | image | card | chart | music | font | intro | outro
     path: Mapped[str] = mapped_column(String(500))
     source: Mapped[str] = mapped_column(String(300), default="")
     licence: Mapped[str] = mapped_column(String(200), default="unknown")

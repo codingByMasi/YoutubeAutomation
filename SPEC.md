@@ -116,7 +116,7 @@ Script rules: a 15-second hook; a retention beat (question, reveal, example, or 
 
 ### 4.3 Voice and visuals
 - `voice <video_id>`: synthesize narration per segment; measure real durations and update segment timings.
-- `visuals <video_id>`: for each segment fetch matching stock clips by keyword from the configured footage provider (fallback: generated cards; with no provider or key, cards and charts only, with a clear message); cache; record attribution and licence info in `assets`.
+- `visuals <video_id>`: for each segment fetch matching stock clips by keyword from the configured footage provider (fallback: generated cards; with no provider or key, cards and charts only, with a clear message); cache; record attribution and licence info in `assets`. It also searches photos (Pixabay photos if keyed, then Wikimedia Commons, which needs no key) and alternates video and photo shots; only public domain, CC0, CC BY and CC BY-SA Commons files are used, and CC BY credits are added to the description. There is no maximum video length and no cap on shots per segment (a new shot at least every 6 s).
   - Segments that contain numbers (revenue splits, margins, prices, growth) must also produce a chart, diagram, or number card via `providers/charts.py`, driven by a `chart_data` field in `script.json` (type, labels, values, unit). Target at least one chart or diagram every 60-90 seconds.
   - Every number in `chart_data` must have a source URL or note in `script.json`; `review` fails if a chart has no source.
 

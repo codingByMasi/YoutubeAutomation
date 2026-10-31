@@ -22,9 +22,11 @@ You are writing a complete YouTube video package for a faceless, narrated explai
   takeaway, call to action. Use the `chapter` field to name each part (short, viewer-facing).
 - A retention beat (`question`, `reveal`, `example`, or `pattern_break`) at least every 30-45 seconds.
 - A chart, diagram or number card (`chart_data`) at least every 60-90 seconds, and for every major figure.
-- Target total length {min_minutes}-{max_minutes} minutes at about 150 spoken words per minute.
+- Typical total length is {min_minutes}-{max_minutes} minutes at about 150 spoken words per minute; go longer if the
+  topic needs it. There is no maximum length: never cut the money flow short to fit.
   `est_seconds` = words / 2.5. Keep each segment 15-60 seconds so visuals change often.
-- `visual_keywords`: 2-4 plain stock-footage search terms describing the setting (not brands' logos).
+- `visual_keywords`: 3-6 plain search terms describing the setting. They are searched as stock video AND as
+  photos (Pixabay, Wikimedia Commons), so include concrete nouns (places, objects, buildings), not brand logos.
 - Set `synthetic_media` true only if the video would show realistic AI-generated people, places or events.
 
 # Output: one JSON object with exactly these keys

@@ -66,9 +66,14 @@ def build_description(pkg: dict, chaps: list[tuple[float, str]], licences: list[
     if pkg.get("sources"):
         parts.append("Sources\n" + "\n".join(f"- {s.get('title', '')}: {s['url_or_note']}" for s in pkg["sources"]))
     parts.append(DISCLAIMER)
-    for name, site in (("Pexels", "https://www.pexels.com"), ("Pixabay", "https://pixabay.com")):
+    for name, site in (("Pexels", "https://www.pexels.com"), ("Pixabay", "https://pixabay.com"),
+                       ("Wikimedia Commons", "https://commons.wikimedia.org")):
         if any(name in lic["licence"] for lic in licences):
-            parts.append(f"Stock footage from {name} ({site}).")
+            parts.append(f"Stock media from {name} ({site}).")
+    credits = sorted({f"- {lic['source'].split(': ', 1)[-1]}, {lic['licence']}: {lic['attribution_url']}"
+                      for lic in licences if lic["kind"] == "image" and lic["licence"].upper().startswith("CC BY")})
+    if credits:
+        parts.append("Image credits\n" + "\n".join(credits[:40]))
     return "\n\n".join(p for p in parts if p)
 
 
