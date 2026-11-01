@@ -153,6 +153,23 @@ def test_windows_launcher_is_complete_and_crlf():
     assert (REPO / "run_app.sh").read_text().startswith("#!/usr/bin/env bash")
 
 
+def test_launchers_pre_answer_streamlit_email_prompt():
+    bat = (REPO / "run_app.bat").read_text()
+    sh = (REPO / "run_app.sh").read_text()
+    for text in (bat, sh):
+        assert "credentials.toml" in text and "[general]" in text and 'email = ""' in text
+        assert "STREAMLIT_BROWSER_GATHER_USAGE_STATS=false" in text
+    # the credentials file must be written before streamlit starts
+    assert bat.index("credentials.toml") < bat.index("streamlit run")
+    assert sh.index("credentials.toml") < sh.index("streamlit run")
+
+
+def test_launchers_have_friendly_failure_messages():
+    bat = (REPO / "run_app.bat").read_text()
+    assert ":pipfail" in bat and "internet" in bat and "winget" in bat
+    assert "LLM_PROVIDER=claude_code" in bat
+
+
 # ---------- Streamlit smoke ----------
 def _app(root, monkeypatch):
     pytest.importorskip("streamlit")

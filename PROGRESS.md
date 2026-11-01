@@ -290,3 +290,5 @@ Music and effects were checked for level and clipping, not by ear: listen once a
   narration, the Streamlit controls in a browser.
 - Owner must: install Blender 4.2+ for 3D (see "Optional 3D renderer"), then try a history video with `production scene <id> <n> 3d`.
 
+
+- 2026-11-01: Launchers (`run_app.bat`/`run_app.sh`) pre-write `~/.streamlit/credentials.toml` (empty email) so Streamlit's first-run email prompt never blocks; friendlier errors for Python, pip, winget/ffmpeg; `.env` created even without `.env.example`.
