@@ -15,7 +15,7 @@ from pathlib import Path
 
 from studio import scope
 from studio.context import Ctx, build_ctx
-from studio.errors import InvalidAnswer, PendingLLMResponse, StudioError
+from studio.errors import LOCKED_HELP, InvalidAnswer, PendingLLMResponse, StudioError, is_locked_error
 from studio.llm import prompt_paths
 from studio.models import Idea, Title, Video
 from studio.stages.base import STAGES
@@ -62,6 +62,13 @@ def make_ctx(root: Path, confirm: Callable[[str], str] | None = None) -> Ctx:
     return ctx
 
 
+def _rollback_ctxs(args: tuple, kwargs: dict) -> None:
+    """Roll back the session of any Ctx passed to a captured step."""
+    for a in (*args, *kwargs.values()):
+        if isinstance(a, Ctx):
+            a.session.rollback()
+
+
 def capture(fn: Callable[..., object], *args, **kwargs) -> Outcome:
     """Run a stage, capturing everything it prints. StudioErrors become readable messages."""
     out, err = io.StringIO(), io.StringIO()
@@ -73,8 +80,12 @@ def capture(fn: Callable[..., object], *args, **kwargs) -> Outcome:
         except InvalidAnswer as exc:
             return Outcome(False, out.getvalue() + err.getvalue(), str(exc), problems=list(exc.problems))
         except StudioError as exc:
+            _rollback_ctxs(args, kwargs)
             return Outcome(False, out.getvalue() + err.getvalue(), str(exc))
         except Exception as exc:  # noqa: BLE001 - the web app must show a message, never a traceback
+            _rollback_ctxs(args, kwargs)  # a failed flush must not poison the shared session
+            if is_locked_error(exc):
+                return Outcome(False, out.getvalue() + err.getvalue(), LOCKED_HELP)
             return Outcome(False, out.getvalue() + err.getvalue(),
                            f"Something unexpected went wrong: {type(exc).__name__}: {exc}\n"
                            "Why: the answer or the video files are not in the shape this step expects.\n"
@@ -93,6 +104,8 @@ def outcome_from_process(returncode: int, output: str) -> Outcome:
         return Outcome(False, output, "The step was killed because the host ran out of memory.\n"
                        "Why: free cloud hosting has about 1 GB of RAM and video editing needs more.\n"
                        "Next: run the app on your own computer (README, Web app), or make a shorter video.")
+    if is_locked_error(Exception(output)):
+        return Outcome(False, output, LOCKED_HELP)
     tail = output.strip()[-1500:] or "no output"
     return Outcome(False, output, f"The step failed (exit code {returncode}).\n{tail}")
 

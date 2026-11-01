@@ -382,3 +382,9 @@ Music and effects were checked for level and clipping, not by ear: listen once a
 ## Decision: sources in the description, not on screen
 Charts, scene cards and 3D scenes no longer draw "Source: ..." footers. Sources are still required and validated
 in `script.json`, and the generated YouTube description lists every source under "Sources" (`build_description`).
+
+## Database lock hardening (2026-11-01)
+- SQLite now opens in WAL mode with a 30 s busy timeout (`studio/db.py`).
+- Pictures step collects assets in memory and writes them in one short transaction (no write lock during downloads/Blender).
+- `Ctx.close()`; the web app closes every context at the end of each rerun and rolls back sessions after failed steps.
+- "database is locked" gets a plain message (app and CLI subprocess output), plus tools to find/stop other Studio processes and clear stale journal files (`studio/util/dblock.py`, needs `psutil`: run `pip install -r requirements.txt`).

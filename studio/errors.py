@@ -54,3 +54,15 @@ class RequestRejected(StudioError):
     def __init__(self, what: str, code: int, why: str = "", next_step: str = "") -> None:
         super().__init__(what, why, next_step)
         self.code = code
+
+
+LOCKED_HELP = ("The database is busy: another copy of the app or a running step is using it.\n"
+               "Why: SQLite lets one program write at a time and the wait ran out.\n"
+               "Next: close other Studio windows (and any extra run_app.bat / streamlit window), "
+               "wait a few seconds, then try again. Nothing was lost.")
+
+
+def is_locked_error(exc: BaseException) -> bool:
+    """True for SQLite 'database is locked' / 'busy' errors (also when wrapped by SQLAlchemy)."""
+    msg = str(exc).lower()
+    return "database is locked" in msg or "database table is locked" in msg or "database is busy" in msg

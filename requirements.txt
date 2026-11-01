@@ -17,3 +17,4 @@ streamlit>=1.40
 # anthropic>=0.40       # LLM_PROVIDER=anthropic
 # openai>=1.40          # LLM_PROVIDER=openai
 # google-genai>=1.0     # LLM_PROVIDER=gemini
+psutil>=5.9
