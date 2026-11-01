@@ -382,3 +382,14 @@ Music and effects were checked for level and clipping, not by ear: listen once a
 ## Decision: sources in the description, not on screen
 Charts, scene cards and 3D scenes no longer draw "Source: ..." footers. Sources are still required and validated
 in `script.json`, and the generated YouTube description lists every source under "Sources" (`build_description`).
+
+## 2026-11-01 In-app fix buttons on errors
+- `studio/web/remedies.py` (pure, tested) classifies an error message into a plain title plus fix actions; `studio/web/remedy_ui.py`
+  `error_panel` renders it with buttons. Used by `show()` in app.py (all Make-video runs), the page-level error catch, the wizard
+  critique/quality boxes and pasted-answer failures.
+- Errors with buttons: database locked (Release lock and retry), key rejected 401/403 (Test my keys, Open Setup, Retry), out of memory
+  (Retry as quick draft), missing ffmpeg/Blender (Open Setup, check again), Google sign-in missing (Open Setup), network (Retry),
+  failed step / unknown (Retry, Reset this step and run again, report to send for help with secrets masked).
+  Invalid pasted answers keep their existing plain list + copy-able fix request.
+- Decision: "release lock" flushes the SQLite log and checks a write works; it never breaks a lock held by a running step, it says to wait.
+- Not tested: the Streamlit buttons in a browser. Layered on main so it can merge with the database-lock thread's change.

@@ -11,7 +11,7 @@ from studio.stages import qa, research
 from studio.stages import script as script_stage
 from studio.stages import story as story_stage
 from studio.stages.base import STAGES
-from studio.web import handoff_ui, publish_ui
+from studio.web import handoff_ui, publish_ui, remedy_ui
 from studio.web import service as svc
 from studio.web import setup_service as setup
 from studio.web import wizard_service as wiz
@@ -52,7 +52,8 @@ def _critique_box(ctx, v) -> None:
     if st.button("Write the review request", key=f"wz_creq{v.id}"):
         show_local = svc.capture(story_stage.run_critique, ctx, v.id)
         if show_local.error and not show_local.pending:
-            st.error(show_local.error)
+            remedy_ui.error_panel(show_local.error, key=f"wz_crq{v.id}", ctx=ctx,
+                                  retry=lambda: svc.capture(story_stage.run_critique, ctx, v.id))
         prompt = svc.read_prompt(ctx, v.id, "critique")
     if prompt:
         st.code(prompt, language="markdown", wrap_lines=True)
@@ -88,7 +89,8 @@ def _qa_panel(ctx, v) -> None:
     if st.button("Check script quality", key=f"wz_qa{v.id}"):
         res = svc.capture(qa.run, ctx, v.id)
         if not res.ok:
-            st.error(res.error)
+            remedy_ui.error_panel(res.error, key=f"wz_qaerr{v.id}", ctx=ctx,
+                                  retry=lambda: svc.capture(qa.run, ctx, v.id))
     if f.exists():
         rep = json.loads(f.read_text(encoding="utf-8"))
         msg = f"Quality score {rep['score']}/100 for {rep['minutes']} min."

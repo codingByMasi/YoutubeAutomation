@@ -62,8 +62,10 @@ def apply_answer(ctx, video_id: int, task: str, pasted: str, fn, args: tuple, id
     if res.problems:
         show_problems(res)
         return False
-    st.error("❌ Could not apply this answer, so nothing was saved.\n\n" + (res.error or "Unknown problem."))
-    if res.log.strip():
-        with st.expander("Details"):
-            st.code(res.log)
+    from studio.web import remedy_ui
+
+    remedy_ui.error_panel("Could not apply this answer, so nothing was saved.\n\n" + (res.error or "Unknown problem."),
+                          key=f"apply_{task}_{video_id}", ctx=ctx, log=res.log,
+                          retry=lambda: svc.submit_task(ctx, video_id, task, pasted, fn, *args)
+                          if task != "script" else svc.submit_script(ctx, idea_id, video_id, pasted))
     return False
