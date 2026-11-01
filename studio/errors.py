@@ -46,3 +46,11 @@ class PendingLLMResponse(StudioError):
     """A prompt file was written and is waiting for an answer (claude_code provider)."""
 
     exit_code = 3
+
+
+class RequestRejected(StudioError):
+    """A web service answered with a non-retryable HTTP error (for example 401 for a bad API key)."""
+
+    def __init__(self, what: str, code: int, why: str = "", next_step: str = "") -> None:
+        super().__init__(what, why, next_step)
+        self.code = code

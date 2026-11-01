@@ -187,7 +187,9 @@ def make_images(settings) -> tuple[str, ImageSearch | None]:
     cache = settings.assets_dir / "cache"
     srcs, names = [], []
     if choice in ("auto", "pixabay") and settings.pixabay_api_key:
-        srcs.append(PixabayImages(settings.pixabay_api_key, cache / "pixabay_img"))
+        from studio.providers.guard import Guarded
+        srcs.append(Guarded(PixabayImages(settings.pixabay_api_key, cache / "pixabay_img"),
+                            "Pixabay photos", "PIXABAY_API_KEY"))
         names.append("Pixabay images")
     if choice in ("auto", "commons"):
         srcs.append(Commons(cache / "commons"))

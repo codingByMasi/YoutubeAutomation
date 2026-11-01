@@ -325,3 +325,11 @@ Music and effects were checked for level and clipping, not by ear: listen once a
 ## Beat normalisation on every path (2026-11-01)
 - `validate_package` now normalises segment `beat` values itself (so script, critique, quality gate and web paths all accept `explain` etc.). Unknown words become `null` (plain explanation); many more synonyms map to the nearest allowed beat. Script/critique prompts state the allowed beats and that the outline's `explain` device is `null`.
 - If an old checkout still shows "beat 'explain' not in [...]": run `git pull origin main`, restart the app/launcher.
+## 2026-11-01: stock key errors no longer crash the build
+- Cause: a Pixabay HTTP 401 (bad key) was re-raised raw by `with_retry`, and nothing caught it.
+- Fix: `with_retry` now raises `RequestRejected` for non-retryable HTTP errors; `studio/providers/guard.py` wraps stock video and
+  photo providers so a rejected/failing service is skipped with a yellow notice naming the service, likely cause and the exact
+  variable, and the build continues with generated visuals.
+- `.env` keys are cleaned (quotes, spaces, BOM); `PIXABAY_KEY`/`PIXABAY` etc. are accepted as misspellings of `PIXABAY_API_KEY`.
+- Setup page > Footage has a "Test my footage key" button (`doctor.test_footage_keys`). Tests: `tests/test_key_errors.py`.
+- Owner must: use `PIXABAY_API_KEY=yourkey` in `.env`, no quotes or spaces.
