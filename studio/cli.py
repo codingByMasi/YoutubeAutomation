@@ -303,6 +303,7 @@ def channels_add(name: str = typer.Argument(..., help="Channel name."),
                  youtube_channel_id: str = typer.Option(None, "--youtube-channel-id"),
                  type_: str = typer.Option(None, "--type", help="business, history, kids or general."),
                  renderer: str = typer.Option(None, help="2d or blender (3D); blank = default."),
+                 scene_style: str = typer.Option(None, "--scene-style", help="2d, 3d or mixed; blank = type default."),
                  music: str = typer.Option(None, help="generated or none."),
                  music_mood: str = typer.Option(None, "--music-mood", help="minor or major."),
                  tts_provider: str = typer.Option(None, "--tts-provider", help="edge, eleven or silent."),
@@ -310,7 +311,8 @@ def channels_add(name: str = typer.Argument(..., help="Channel name."),
     """Add a channel profile."""
     from studio.growth import channels
     fields = _fields(None, niche, description, posts_per_week, voice, language, audience, youtube_channel_id,
-                     type_, renderer=renderer, music=music, music_mood=music_mood, tts_provider=tts_provider)
+                     type_, renderer=renderer, scene_style=scene_style, music=music, music_mood=music_mood,
+                     tts_provider=tts_provider)
     cid = channels.add(_channels_root(), name, activate=activate, **fields)
     typer.echo(f"Added channel '{cid}'" + (" and made it active." if activate else "."))
 
@@ -324,13 +326,15 @@ def channels_edit(channel_id: str = typer.Argument(None, help="Channel id (defau
                   youtube_channel_id: str = typer.Option(None, "--youtube-channel-id"),
                   type_: str = typer.Option(None, "--type", help="business, history, kids or general."),
                   renderer: str = typer.Option(None, help="2d or blender (3D); blank = default."),
+                  scene_style: str = typer.Option(None, "--scene-style", help="2d, 3d or mixed; blank = type default."),
                   music: str = typer.Option(None, help="generated or none."),
                   music_mood: str = typer.Option(None, "--music-mood", help="minor or major."),
                   tts_provider: str = typer.Option(None, "--tts-provider", help="edge, eleven or silent.")) -> None:
     """Change fields on a channel."""
     from studio.growth import channels
     fields = _fields(name, niche, description, posts_per_week, voice, language, audience, youtube_channel_id,
-                     type_, renderer=renderer, music=music, music_mood=music_mood, tts_provider=tts_provider)
+                     type_, renderer=renderer, scene_style=scene_style, music=music, music_mood=music_mood,
+                     tts_provider=tts_provider)
     channels.update(_channels_root(), channel_id, **fields)
     typer.echo("Saved.")
 
@@ -445,6 +449,7 @@ def production_show(video_id: int = typer.Argument(None, help="Video id; omit fo
 
 @production_app.command("set")
 def production_set(video_id: int, renderer: str = typer.Option(None, help="2d or blender."),
+                   scene_style: str = typer.Option(None, "--scene-style", help="2d, 3d or mixed for this video."),
                    voice: str = typer.Option(None, help="TTS voice name."),
                    music: str = typer.Option(None, help="generated or none."),
                    music_mood: str = typer.Option(None, "--music-mood", help="minor or major."),
@@ -452,9 +457,21 @@ def production_set(video_id: int, renderer: str = typer.Option(None, help="2d or
     """Override settings for one video. A blank value ('') clears that override."""
     from studio import production
     from studio.config import load_settings
-    production.set_video(load_settings(), video_id, renderer=renderer, voice=voice, music=music,
+    production.set_video(load_settings(), video_id, renderer=renderer, scene_style=scene_style, voice=voice,
+                         music=music,
                          music_mood=music_mood, tts_provider=tts_provider)
     typer.echo(production.describe(load_settings(), video_id))
+
+
+@production_app.command("scene")
+def production_scene(video_id: int, segment: int = typer.Argument(..., help="Segment number (1-based)."),
+                     style: str = typer.Argument("", help="2d, 3d, or blank to follow the video again.")) -> None:
+    """Draw one segment's scene in 2D or 3D whatever the video's style is. Re-run `visuals --force` afterwards."""
+    from studio import production
+    from studio.config import load_settings
+    production.set_segment_style(load_settings(), video_id, segment, style)
+    typer.echo(production.describe(load_settings(), video_id))
+    typer.echo(f"Re-run: visuals {video_id} --force, then build {video_id} --force.")
 
 
 @production_app.command("reset")

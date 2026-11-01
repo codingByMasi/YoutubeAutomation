@@ -198,3 +198,25 @@ def test_setup_page_lists_every_section(root, monkeypatch):
     labels = " ".join(e.label for e in at.expander)
     for title in ("Video tools", "Script writer", "Narration voice", "Google client file", "Sign in to Google"):
         assert title in labels
+
+
+def test_wizard_make_step_offers_scene_style(root, monkeypatch):
+    from studio.web.service import make_ctx
+
+    ctx = make_ctx(root)
+    v = research.approve(ctx, svc.add_manual_topic(ctx, "how Costco makes money").id)
+    v.stage = "scripted"
+    ctx.session.commit()
+    at = _app(root, monkeypatch)
+    at.sidebar.radio[0].set_value("🎬 Make a video").run()
+    assert not at.exception
+    assert any("Step 3" in s.value for s in at.subheader)
+    assert any("Scenes: 3D or 2D" in sb.label for sb in at.selectbox)
+    assert any(b.key == "wz_make" for b in at.button)
+
+
+def test_setup_links_to_data_page(root, monkeypatch):
+    at = _app(root, monkeypatch)
+    at.sidebar.radio[0].set_value("Setup").run()
+    next(b for b in at.button if b.key == "setup_data").click().run()
+    assert not at.exception and at.sidebar.radio[0].value == "Data"

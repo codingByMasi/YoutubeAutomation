@@ -267,3 +267,26 @@ Music and effects were checked for level and clipping, not by ear: listen once a
 - Not tested live: real YouTube Analytics API responses and metric availability (mocked), the Google sign-in browser flow with two accounts,
   Eevee rendering and the Windows `blender` executable for the title card, the Streamlit Sign-in button in a real browser.
 - Owner must: run `channels sign-in <id>` once per channel (add your accounts as test users on the OAuth consent screen).
+
+## Persistent storage and hosting (2026-11-01)
+- `studio/storage/data.py` (usage, zip export/import, confirmed deletes), `studio/storage/sync.py` (folder/GitHub/S3 backup,
+  autosave, restore on empty disk, secret files from env), `studio/web/data_ui.py` (Data page), `HOSTING.md`, `Dockerfile`.
+- Decisions: one data dir = `STUDIO_HOME`; backups exclude media and secrets; GitHub backend refuses public repos;
+  every delete needs the exact word DELETE. Not tested live: GitHub/S3 calls, Docker build, Hugging Face deploy.
+
+
+## 3D and 2D scenes for narrated channels (2026-11-01)
+- New `studio/scenes/`: scene kinds `timeline`, `map`, `artifact`, `chart3d` (optional `scene` on a script segment, validated, documented
+  in `prompts/script.md`), `plan()` rules, 2D versions (`render2d.py`), Blender clips (`render3d.py`, `stage.py`), and the Blender scene
+  builders in `blender/scene_script.py` (`kind: "scene"`).
+- Style `scene_style` = 2d | 3d | mixed, resolved segment > video > channel > type (history/business mixed, general/kids 2d), shown in
+  `production show`; per-segment picks in `production.json` (`segment_styles`). CLI `--scene-style`, `production scene`; app Channels page,
+  per-video box and per-segment pickers. Narrated 3D title intro now follows it (`production.wants_blender`).
+- Decisions: 3D scenes are one continuous 15 fps / 1280x720 clip per segment (max 30 s, then it loops); a missing or failing Blender falls back
+  to the 2D version per scene with a note; maps are schematic (x, y in 0-1), not real geography; an explicit `renderer 2d` beats the type's
+  3D default but not an explicit `scene_style`.
+- Tests: new `tests/test_scenes.py`; all scene kinds were also rendered for real through `bpy` (Cycles CPU) and the frames inspected.
+- Not tested live: Eevee on the RTX A1000 and render speed, the Windows `blender` executable, how scenes look at full length with real
+  narration, the Streamlit controls in a browser.
+- Owner must: install Blender 4.2+ for 3D (see "Optional 3D renderer"), then try a history video with `production scene <id> <n> 3d`.
+

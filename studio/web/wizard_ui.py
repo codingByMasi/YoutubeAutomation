@@ -115,7 +115,7 @@ def _voice_picker(ctx, v) -> None:
     st.caption("Hear samples on the Setup page. Saved for this channel.")
 
 
-def step_make(ctx, v, show) -> None:
+def step_make(ctx, v, show, production_box=None) -> None:
     st.subheader("Step 3 · Make the video")
     nxt = svc.next_produce_stage(v)
     if v.stage == "scripted":
@@ -127,6 +127,8 @@ def step_make(ctx, v, show) -> None:
             if sd.exists():
                 st.markdown(sd.read_text(encoding="utf-8"))
         _voice_picker(ctx, v)
+        if production_box:
+            production_box(ctx, v.id)  # 2D/3D/mixed scenes, renderer, voice and music for this video
         _qa_panel(ctx, v)
     draft = st.checkbox("Fast draft (720p, quicker) to check the story first", key="wz_draft")
     labels = [f"{'✅' if STAGES.index(v.stage) > STAGES.index(d) else '⬜'} {svc.STAGE_LABEL[s]}"
@@ -168,7 +170,7 @@ def step_publish(ctx, v, show) -> None:
         st.button("Start another video", on_click=_set_video, args=(None,), key="wz_again")
 
 
-def render(ctx_for, show, show_player) -> None:
+def render(ctx_for, show, show_player, production_box=None) -> None:
     """Draw the wizard page."""
     ctx = ctx_for()
     prof = channels.get(ctx.settings.root)
@@ -196,5 +198,5 @@ def render(ctx_for, show, show_player) -> None:
         c1.write(f"**#{v.id}** {svc.video_title(ctx, v)}")
         c2.button("Start a different video", on_click=_set_video, args=(None,), key="wz_new")
     {"topic": lambda: step_topic(ctx, show), "script": lambda: step_script(ctx, v, show),
-     "make": lambda: step_make(ctx, v, show), "review": lambda: step_review(ctx, v, show, show_player),
+     "make": lambda: step_make(ctx, v, show, production_box), "review": lambda: step_review(ctx, v, show, show_player),
      "publish": lambda: step_publish(ctx, v, show)}[step]()

@@ -53,6 +53,9 @@ Or double-click `run_app.bat`. It opens http://localhost:8501. On macOS/Linux: `
 3. Deploy. Free hosting has about 1 GB RAM and temporary disk, so **download each video from step 4 before the app
    sleeps**. Long videos build slowly there; for long videos run the app locally.
 
+**Where to host for free and keep your data:** see [HOSTING.md](HOSTING.md). All data lives in one folder
+(`STUDIO_HOME`); the **Data** page exports, imports and deletes it, and `STORAGE_BACKEND` adds an automatic backup.
+
 **What works where**
 
 | Feature | Local | Streamlit Cloud |
@@ -149,6 +152,33 @@ Windows setup (one time):
 Notes: the vocal is time-stretched to the video length (within x0.75 to x1.5; a note says if it was not enough, then
 change the tempo in OpenUtau). A 4 GB GPU is not needed for classic voicebanks; DiffSinger voicebanks run on CPU
 (slower) or GPU. Disclose AI/synthetic voices in YouTube's "altered content" setting where it applies.
+
+### 3D or 2D scenes for narrated channels (history, business, general)
+Every narrated video can have animated scenes, drawn either as **3D (Blender)** or as **2D motion graphics**. You choose
+per channel, per video and per scene; the more specific choice wins (scene > video > channel > channel type).
+
+| Style | What you get |
+|---|---|
+| `2d` | Scenes are 2D motion graphics (steps appear one by one). Bar/line charts stay normal 2D charts. |
+| `3d` | Scenes are 3D, and every bar/line chart becomes a 3D chart too (source line kept on screen). |
+| `mixed` | Scenes are 3D, plain charts stay 2D. |
+
+Defaults by channel type: history and business `mixed`, general and kids `2d`. If Blender is missing or a render fails,
+that scene is drawn in 2D and a note says so (nothing breaks). An explicit `renderer 2d` on a channel or video also
+turns the type's 3D default off.
+
+Scene kinds (an optional `scene` on any script segment; the script prompt explains it to Claude): `timeline`
+(milestones along a line, the camera flies along it), `map` (schematic route between places, not real geography),
+`artifact` (one object turning on a pedestal: coin, column, vase, box) and `chart3d` (bars rising in 3D).
+Timelines and 3D charts need `source_ids`.
+
+Where to choose:
+- App: **Channels** page ("Scenes: 3D or 2D"), and on page 3 the "Look and sound for this video" box, which also lists
+  every scene/chart segment with its own 2D/3D picker.
+- CLI: `channels add|edit --scene-style 2d|3d|mixed`, `production set <video> --scene-style ...`,
+  `production scene <video> <segment> 2d|3d`. Then `visuals <video> --force` and `build <video> --force`.
+- 3D uses 1280x720 at 15 fps with flat colours and no textures, so it is light on a 4 GB graphics card (RTX A1000).
+  A 3D title intro is added when the style is `3d`/`mixed` or the renderer is `blender`.
 
 ### Growing the channel (page 5)
 The **5. Grow the channel** page has tabs for: channel profile, series/playlists (each video points to the next), a

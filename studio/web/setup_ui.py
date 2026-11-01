@@ -10,6 +10,7 @@ import streamlit as st
 from studio.errors import StudioError
 from studio.growth import channels
 from studio.manage import doctor
+from studio.web import handoff_ui
 from studio.web import setup_service as setup
 
 ICON = {doctor.OK: "✅", doctor.WARN: "🟡", doctor.FAIL: "🔴"}
@@ -166,5 +167,7 @@ def render(ctx_for, show) -> None:
                 handlers[action](ctx)
     with st.expander("🎨 Picture style (2D or 3D)"):
         _renderer(ctx)
+    st.caption("Back up or restore your channels and videos on the **Data** page.")
+    st.button("Open the Data page", on_click=handoff_ui.goto, args=("Data",), key="setup_data")
     with st.expander("Plain-text report"):
         st.code(doctor.render(all_checks))
