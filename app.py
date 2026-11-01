@@ -230,7 +230,7 @@ def page_script() -> None:
 
 
 SCENE_LABELS = {"": "(follow channel)", "2d": "2D motion graphics", "3d": "3D (Blender)",
-                "mixed": "Mixed (3D scenes, 2D charts)"}
+                "mixed": "Mixed (3D scenes and bar/line charts, other charts 2D)"}
 
 
 def _segment_style_inputs(ctx, video_id: int) -> dict[int, str]:
@@ -254,13 +254,38 @@ def _segment_style_inputs(ctx, video_id: int) -> dict[int, str]:
     return out
 
 
+def _renderer_status(ctx, video_id: int) -> None:
+    """Green/yellow banner: will this video be 3D, and if not, why (before and after the picture step)."""
+    from studio import render_report
+    from studio.stages.script import load_package
+
+    try:
+        segs = load_package(ctx, video_id)["segments"]
+    except Exception:
+        segs = []
+    pre = render_report.preflight(ctx.settings, video_id, segs)
+    done = render_report.load(ctx.settings, video_id)
+    rep = done or pre
+    head = (f"Last picture step used: **{done['verdict']}**" if done
+            else f"This video would be drawn in: **{pre['verdict']}**")
+    (st.success if rep["verdict"] == "3D" and not rep["notes"] else st.warning)(head)
+    for n in rep["notes"]:
+        st.caption(f"⚠ {n}")
+    if pre["blender"]:
+        st.caption(f"Blender found: {pre['blender']}")
+    else:
+        st.caption("Blender not found. 3D needs Blender 4.2+ on your PC (README: Optional 3D renderer). "
+                   "Charts and scenes still move in 2D.")
+
+
 def _production_box(ctx, video_id: int) -> None:
     """Per-video renderer, voice and music (blank = follow the channel and its type)."""
     from studio import production
     from studio.growth import channel_types
 
-    with st.expander("Look and sound for this video (3D, voice, music)"):
+    with st.expander("Look and sound for this video (3D, voice, music)", expanded=True):
         st.code(production.describe(ctx.settings, video_id))
+        _renderer_status(ctx, video_id)
         cur = production.video_overrides(ctx.settings, video_id)
         with st.form(f"prod_{video_id}"):
             vals = {"renderer": st.selectbox("Picture renderer", channel_types.CHOICES["renderer"],

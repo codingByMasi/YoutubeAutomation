@@ -125,8 +125,8 @@ def test_draft_profile_and_copy_mix(monkeypatch, tmp_path):
     assert burn[burn.index("-c:v") + 1] == "libx264"
     monkeypatch.setenv("STUDIO_DRAFT", "1")
     p = ff.profile()
-    assert (p.w, p.h, p.preset, p.zoom) == (1280, 720, "ultrafast", False)
-    assert "zoompan" not in " ".join(ff.image_cmd(tmp_path / "i.jpg", 5, tmp_path / "o.mp4"))
+    assert (p.w, p.h, p.preset, p.zoom) == (1280, 720, "ultrafast", True)
+    assert "zoompan" in " ".join(ff.image_cmd(tmp_path / "i.jpg", 5, tmp_path / "o.mp4"))  # draft keeps camera moves
     assert "scale=1280:720" in " ".join(ff.clip_cmd(tmp_path / "c.mp4", 5, tmp_path / "o.mp4"))
 
 

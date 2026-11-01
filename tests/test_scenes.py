@@ -49,7 +49,7 @@ def test_scene_own_style_is_beaten_only_by_the_segment_override():
 
 
 @pytest.mark.parametrize("style,override,drawn", [
-    ("3d", "", True), ("mixed", "", False), ("2d", "", False), ("mixed", "3d", True), ("3d", "2d", False)])
+    ("3d", "", True), ("mixed", "", True), ("2d", "", False), ("mixed", "3d", True), ("3d", "2d", False)])
 def test_bar_and_line_charts_become_3d_only_when_asked(style, override, drawn):
     seg = {"chart_data": BAR}
     pl = scenes.plan(seg, style, override)

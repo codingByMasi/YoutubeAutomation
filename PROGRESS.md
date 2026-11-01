@@ -311,3 +311,13 @@ Music and effects were checked for level and clipping, not by ear: listen once a
   become readable messages instead of tracebacks.
 - Note: the app has paste-back boxes for script, outline, critique, series ideas, title pack and kids script; there are no
   separate research, fact-check or thumbnail answer boxes (fact-check is a tick-list).
+
+## 2026-11-01 Fix: finance video came out as plain images
+- Causes: business default `mixed` kept bar/line charts 2D and only segments with a script `scene` went 3D, so a script without
+  scenes was fully 2D; draft mode switched camera moves off; charts were static step images; captions were 7.4% of frame height;
+  a missing Blender only printed a note.
+- Added: `studio/render_report.py` (preflight + `render_report.json`, yellow warning in CLI and app banner); `mixed` now also turns
+  bar/line charts into 3D charts; `studio/providers/chart_anim.py` (bars rise, lines draw, key numbers count up, played by `build`);
+  draft keeps camera moves; opening segment uses a 2x camera move; captions 0.074 -> 0.048 of height. README: Windows Blender steps.
+- Already existed and unchanged: music ducking, whoosh/pop/hit SFX, keyword-highlight captions, hook shot limit, story/quality gate, thumbnails.
+- Owner must: install Blender 4.2+ for real 3D; try a full (non-draft) build. Not tested: Blender render, full-length build look.

@@ -123,6 +123,21 @@ Windows setup (one time):
 Scenes are 24 fps, 1280x720, flat colours (no image textures) and use the same script, narration and captions as 2D.
 Blender is used for the pictures only; the Pexels/Pixabay stages and the main (non-kids) pipeline are unchanged.
 
+### 3D for narrated channels (business, history) on Windows
+If a finished video looks like moving photos and flat charts, 3D was not used. The app now says so: on **3. Make the video**
+the "Look and sound for this video" box shows whether the video would be 3D or 2D and why (Blender missing, scene style 2D,
+or a script with nothing to draw in 3D). `projects/<id>/render_report.json` records what the picture step actually did.
+
+Plain steps:
+1. Download Blender 4.2 LTS or newer from blender.org and install it with the defaults (Windows installer).
+2. Restart `run_app.bat`. The box should say "Blender found". If not, add `BLENDER_PATH=C:\Program Files\Blender Foundation\Blender 4.2\blender.exe`
+   to `.env` (use your real folder).
+3. In the same box set **Scenes: 3D or 2D** to *Mixed* or *3D* (business and history channels default to Mixed) and save.
+4. Run the picture step again with "force" (CLI: `python -m studio.cli visuals <id> --force`). Bar and line charts become 3D charts;
+   timelines, maps and artifacts need the script to contain a `scene`.
+Without Blender, charts still animate (bars rise, lines draw, key numbers count up), photos get camera moves, and the opening
+shot gets a bigger push-in. Captions are now smaller (about 5% of the frame height).
+
 ### Optional sung melody (OpenUtau, your PC only)
 Kids songs normally use the narrator plus an original background tune. If you want the words actually *sung*, the
 `kids sing` step writes a melody and lyrics for OpenUtau (free, open source) and the build mixes the vocal you export.

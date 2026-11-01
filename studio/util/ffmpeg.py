@@ -20,7 +20,7 @@ FPS = 30
 
 @dataclass(frozen=True)
 class Profile:
-    """Encoding settings. Draft mode (STUDIO_DRAFT=1) trades quality for speed: 720p, 24 fps, no zoom."""
+    """Encoding settings. Draft mode (STUDIO_DRAFT=1): 720p, 24 fps, fast encode; camera moves stay on."""
 
     w: int = W
     h: int = H
@@ -34,7 +34,7 @@ class Profile:
 def profile() -> Profile:
     """Current profile, read from the environment each call so the UI can switch it per run."""
     if os.getenv("STUDIO_DRAFT", "").strip().lower() in ("1", "true", "yes"):
-        return Profile(w=1280, h=720, fps=24, preset="ultrafast", crf=28, zoom=False, draft=True)
+        return Profile(w=1280, h=720, fps=24, preset="ultrafast", crf=28, zoom=True, draft=True)
     return Profile()
 
 
@@ -161,21 +161,22 @@ def clip_cmd(src: Path, duration: float, out: Path, start: float = 0.0) -> list[
             "-crf", str(profile().crf), str(out)]
 
 
-def motion_exprs(motion: str, frames: int) -> tuple[str, str, str]:
+def motion_exprs(motion: str, frames: int, punch: float = 1.0) -> tuple[str, str, str]:
     """zoompan (z, x, y) expressions for a camera move that runs smoothly over `frames` frames."""
     n = max(frames - 1, 1)
     cx, cy = "iw/2-(iw/zoom/2)", "ih/2-(ih/zoom/2)"
+    a, b = 0.10 * punch, 0.12 * punch  # `punch` > 1 makes the move bigger (used for the opening hook)
     return {
-        "in": (f"1+0.10*on/{n}", cx, cy),
-        "out": (f"1.10-0.10*on/{n}", cx, cy),
-        "pan_right": ("1.10", f"(iw-iw/zoom)*on/{n}", cy),
-        "pan_left": ("1.10", f"(iw-iw/zoom)*(1-on/{n})", cy),
-        "in_top": (f"1+0.12*on/{n}", cx, "(ih-ih/zoom)*0.25"),
-    }.get(motion, (f"1+0.10*on/{n}", cx, cy))
+        "in": (f"1+{a}*on/{n}", cx, cy),
+        "out": (f"{1 + a}-{a}*on/{n}", cx, cy),
+        "pan_right": (f"{1 + a}", f"(iw-iw/zoom)*on/{n}", cy),
+        "pan_left": (f"{1 + a}", f"(iw-iw/zoom)*(1-on/{n})", cy),
+        "in_top": (f"1+{b}*on/{n}", cx, "(ih-ih/zoom)*0.25"),
+    }.get(motion, (f"1+{a}*on/{n}", cx, cy))
 
 
 def image_cmd(src: Path, duration: float, out: Path, zoom: bool = True, motion: int = 0,
-              aspect: float | None = None) -> list[str]:
+              aspect: float | None = None, punch: float = 1.0) -> list[str]:
     """Still image to video with a camera move (Ken Burns) so the frame never looks frozen.
 
     `motion` picks the move from MOTIONS (cycled by the caller). `aspect` (width/height of the photo): if it is
@@ -192,11 +193,21 @@ def image_cmd(src: Path, duration: float, out: Path, zoom: bool = True, motion: 
     else:
         fill = f"scale={big_w}:{big_h}:force_original_aspect_ratio=increase,crop={big_w}:{big_h}"
     if zoom:
-        z, x, y = motion_exprs(MOTIONS[motion % len(MOTIONS)], frames)
+        z, x, y = motion_exprs(MOTIONS[motion % len(MOTIONS)], frames, punch)
         vf = f"{fill},zoompan=z='{z}':x='{x}':y='{y}':d={frames}:s={p.w}x{p.h}:fps={p.fps},{GRADE},format=yuv420p"
     else:
         vf = f"{_fit()},{GRADE}"
     return ["ffmpeg", "-y", "-loop", "1", "-i", str(src), "-t", f"{duration:.3f}", "-vf", vf,
+            "-c:v", "libx264", "-preset", p.preset, "-crf", str(p.crf), "-r", str(p.fps), str(out)]
+
+
+def chart_anim_cmd(anim: Path, still: Path, duration: float, out: Path) -> list[str]:
+    """A chart step: the short grow animation, then the finished chart held until `duration` is used up."""
+    p = profile()
+    fit = (f"scale={p.w}:{p.h}:force_original_aspect_ratio=decrease,pad={p.w}:{p.h}:(ow-iw)/2:(oh-ih)/2,"
+           f"setsar=1,fps={p.fps},format=yuv420p")
+    return ["ffmpeg", "-y", "-i", str(anim), "-loop", "1", "-i", str(still), "-t", f"{duration:.3f}",
+            "-filter_complex", f"[0:v]{fit}[a];[1:v]{fit}[b];[a][b]concat=n=2:v=1:a=0[v]", "-map", "[v]",
             "-c:v", "libx264", "-preset", p.preset, "-crf", str(p.crf), "-r", str(p.fps), str(out)]
 
 

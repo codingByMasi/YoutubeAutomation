@@ -86,8 +86,9 @@ def chart_items(seg: dict) -> list[dict]:
 def plan(seg: dict, style: str, override: str = "") -> dict | None:
     """What to draw for a segment: {"scene": {...}, "mode": "2d" | "3d"}, or None for the normal visuals.
 
-    style:    the video's/channel's choice. "2d": scenes are drawn as 2D motion graphics. "3d": scenes are 3D and every
-              bar/line chart becomes a 3D chart too. "mixed": scenes are 3D, plain charts stay 2D.
+    style:    the video's/channel's choice. "2d": scenes are drawn as 2D motion graphics. "3d" and "mixed": scenes are
+              3D and every bar/line chart becomes a 3D chart too (so a script with no scenes still gets 3D);
+              pie, flow and number charts stay 2D.
     override: this segment's own choice ("2d" or "3d"); it also beats the scene's own `style`.
     A chart3d scene in 2D mode needs nothing extra: the regular 2D chart is its equivalent.
     """
@@ -95,7 +96,7 @@ def plan(seg: dict, style: str, override: str = "") -> dict | None:
     seg_style = override or (scene or {}).get("style", "")
     if scene is None:
         items = chart_items(seg)
-        if not items or not (seg_style == "3d" or (not seg_style and style == "3d")):
+        if not items or not (seg_style == "3d" or (not seg_style and style in ("3d", "mixed"))):
             return None
         scene = {"kind": "chart3d", "title": (seg.get("chart_data") or {}).get("title", "")}
     scene = dict(scene)

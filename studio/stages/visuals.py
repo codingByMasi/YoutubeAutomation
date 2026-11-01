@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import typer
@@ -9,7 +10,7 @@ import typer
 from studio import scenes
 from studio.context import Ctx
 from studio.models import Asset, Segment
-from studio.providers import brand
+from studio.providers import brand, chart_anim
 from studio.providers.charts import render_chart, source_line, text_card
 from studio.providers.footage import make_footage
 from studio.providers.images import make_images
@@ -115,6 +116,7 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
         hashes: list[int] = []
         rejected: list[str] = []
         fallbacks = 0
+        animated = 0
         blender = render3d.Blender3D(ctx.settings.blender_path)
         scene_counts: dict[str, int] = {}
         for pos, seg in enumerate(pkg["segments"], 1):
@@ -150,6 +152,10 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
             if seg.get("chart_data"):
                 frames = render_chart(seg["chart_data"], pkg["sources"], charts_dir, f"seg_{pos:03d}")
                 vis["chart_frames"] = [str(f) for f in frames]
+                if os.getenv("STUDIO_NO_CHART_ANIM", "") not in ("1", "true", "yes"):
+                    foot = source_line(seg["chart_data"], pkg["sources"])
+                    anims = chart_anim.animate(seg["chart_data"], frames, foot, charts_dir)
+                    animated += len(anims)
                 for f in frames:
                     s.add(Asset(video_id=video_id, kind="chart", path=str(f),
                                 source=source_line(seg["chart_data"], pkg["sources"]), licence=OWN_LICENCE))
@@ -183,6 +189,16 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
                    f"{charts} charts.")
         if scene_counts:
             typer.echo("Scenes: " + ", ".join(f"{n} in {m.upper()}" for m, n in sorted(scene_counts.items())) + ".")
+        from studio import render_report
+        rep = render_report.preflight(ctx.settings, video_id, pkg["segments"])
+        rep["scenes"], rep["animated_charts"] = scene_counts, animated
+        fell = [p for p, g in enumerate(pkg["segments"], 1) if (g["visual"].get("scene") or {}).get("fell_back")]
+        if fell:
+            rep["notes"].append(f"Segments {fell} were meant to be 3D but fell back to 2D (see the messages above).")
+        rep["verdict"] = "3D" if scene_counts.get("3d", 0) else "2D"
+        render_report.save(ctx.settings, video_id, rep)
+        for line in render_report.summary(rep):
+            typer.secho(line, fg=typer.colors.YELLOW if rep["notes"] else typer.colors.GREEN)
         for w in chart_gaps(pkg["segments"]):
             typer.secho(f"warning: {w}", fg=typer.colors.YELLOW)
 
