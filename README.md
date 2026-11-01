@@ -1,5 +1,7 @@
 # YouTube Channel Studio
 
+[![CI](https://github.com/codingByMasi/YoutubeAutomation/actions/workflows/ci.yml/badge.svg)](https://github.com/codingByMasi/YoutubeAutomation/actions/workflows/ci.yml)
+
 A command-line studio that runs a faceless YouTube channel from topic research to published video to ongoing management, with a human approval gate before anything goes public.
 
 ```
@@ -143,6 +145,34 @@ pasting YouTube Studio numbers for next-script advice, and a Partner Program tra
 Where Claude's writing helps, copy the shown prompt into Claude and paste the JSON answer back. No API key needed.
 
 See [FIRST_VIDEO.md](FIRST_VIDEO.md) for the step-by-step first-video checklist (accounts, keys, exact commands).
+
+## Multiple channels: types, sign-in, analytics and production look
+
+Each channel profile has a **type**: `business` (economics explainers), `history` (history and education), `kids`
+(nursery rhymes, uses Kids mode and Made for Kids) or `general`. The type sets sensible defaults (niche, audience,
+prompt guidance, topic phrasing, music mood, thumbnail and chart colours, Made for Kids on upload) and you can
+override everything. Different types run side by side.
+
+```
+python -m studio.cli channels types
+python -m studio.cli channels add "Tiny Tunes" --type kids --renderer blender --music none
+python -m studio.cli channels sign-in tiny-tunes     # its own Google login, saved to tokens/tiny-tunes.json
+python -m studio.cli channels stats tiny-tunes --days 28          # one channel's page
+python -m studio.cli channels compare --from 2026-10-01 --to 2026-10-31   # all channels side by side
+python -m studio.cli channels stats --demo                         # labelled SAMPLE data if not signed in
+```
+
+- The `default` channel keeps using `token.json`; every other channel has `tokens/<id>.json` (git-ignored).
+  On sign-in, pick the YouTube channel when Google asks; its id is saved on the profile and a different one is rejected.
+- Analytics (app page **📊 Analytics**, or the commands above): views, watch hours, net subscribers, average view
+  duration and percent viewed (retention), top videos, change versus the previous period of the same length, a
+  date-range filter, and a side-by-side table. Channels not signed in show a note, or sample data only if you ask.
+- **Look and sound per channel and per video**: renderer (`2d` or `blender`), voice, TTS provider, music
+  (`generated` or `none`, your own track in `assets/music` still wins) and mood. Set them on a channel
+  (`channels edit --renderer ...`, or the Channels page) or on one video (`production set 7 --renderer blender`,
+  or the "Look and sound" box on page 3). `production show [video]` explains where each value comes from.
+  Blender gives kids channels 3D scenes and narrated channels a 3D title intro (only when you have no
+  `assets/intro` clip); without Blender everything falls back to 2D with a printed note.
 
 ## 1. Requirements
 

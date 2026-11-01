@@ -231,3 +231,21 @@ Music and effects were checked for level and clipping, not by ear: listen once a
 - Not tested: OpenUtau itself (does it open the `.ustx`/launch argument cleanly, is the phonemizer id valid in the
   current release), any voicebank, how the sung result sounds, Windows paths. Owner must: install OpenUtau + a
   voicebank, check its licence, export once and report what happens.
+
+
+## Multi-channel types, analytics and per-channel production settings (2026-11-01)
+- Channel `type` (business, history, kids, general) in `studio/growth/channel_types.py`: drives prompt guidance, topic phrasing,
+  music mood, colours, pipeline mode (kids vs narrated) and `selfDeclaredMadeForKids` on upload. Each channel has its own
+  token (`tokens/<id>.json`; `default` keeps `token.json`) and `channels sign-in` records the YouTube channel id.
+- Analytics: `studio/manage/multi_analytics.py` + `channels stats|compare` + app page "📊 Analytics" (per channel, all-channels overview,
+  side-by-side table, date range, previous-period change, top videos, retention = average % viewed). Not-signed-in channels show a note,
+  or labelled SAMPLE data with `--demo`.
+- Production settings (`studio/production.py`): renderer, voice, tts provider, music, mood, colours resolved video > channel > type > `.env`;
+  CLI `production show|set|reset`, `channels add|edit --renderer/--music/--music-mood/--tts-provider`, app Channels page and per-video box.
+  Narrated videos get an optional Blender 3D title intro (`blender/title_card.py`); kids builds honour music none and the channel voice.
+- Decisions: 3D for narrated channels is a title intro only (economics charts and diagrams gain nothing from 3D scenes); the app's Sign in
+  button only works when the app runs on your own computer. Analytics for Made for Kids videos may be limited by YouTube.
+- Tests: new files `test_multi_analytics.py` and `test_production.py`; 259 tests pass and ruff is clean. The Blender title scene was rendered for real through `bpy` (Cycles CPU).
+- Not tested live: real YouTube Analytics API responses and metric availability (mocked), the Google sign-in browser flow with two accounts,
+  Eevee rendering and the Windows `blender` executable for the title card, the Streamlit Sign-in button in a real browser.
+- Owner must: run `channels sign-in <id>` once per channel (add your accounts as test users on the OAuth consent screen).

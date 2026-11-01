@@ -126,6 +126,41 @@ def pick_engine(sc, requested):
     return ids[0]
 
 
+def _hex(h):
+    h = h.lstrip("#")
+    lin = lambda v: (v / 255) ** 2.2  # noqa: E731 - rough sRGB to linear
+    return tuple(lin(int(h[i:i + 2], 16)) for i in (0, 2, 4))
+
+
+def build_title(cfg):
+    """A 3D extruded title floating over a plain backdrop, with a slow camera push. For narrated channels."""
+    sc = bpy.context.scene
+    sc.world = bpy.data.worlds.new("w")
+    sc.world.use_nodes = True
+    sc.world.node_tree.nodes["Background"].inputs[0].default_value = (*_hex(cfg["bg"]), 1)
+    curve = bpy.data.curves.new("title", "FONT")
+    curve.body = cfg["text"]
+    curve.align_x, curve.align_y = "CENTER", "CENTER"
+    curve.extrude, curve.bevel_depth, curve.size = 0.12, 0.02, 1.0
+    obj = bpy.data.objects.new("title", curve)
+    sc.collection.objects.link(obj)
+    obj.rotation_euler = (math.radians(90), 0, 0)
+    obj.data.materials.append(mat(_hex(cfg["accent"])))
+    bpy.ops.object.light_add(type="SUN", location=(3, -6, 6))
+    bpy.context.object.data.energy = 3.0
+    bpy.context.object.rotation_euler = (math.radians(55), 0, math.radians(25))
+    bpy.ops.object.camera_add(location=(0, -13, 0), rotation=(math.radians(90), 0, 0))
+    cam = bpy.context.object
+    sc.camera = cam
+    n = sc.frame_end
+    for f in range(1, n + 1):
+        p = (f - 1) / max(n - 1, 1)
+        cam.location = (0, -13.0 + 2.5 * p, 0)
+        cam.keyframe_insert("location", frame=f)
+        obj.rotation_euler = (math.radians(90), 0, math.radians(8 * (0.5 - p)))
+        obj.keyframe_insert("rotation_euler", frame=f)
+
+
 def main(cfg):
     bpy.ops.wm.read_factory_settings(use_empty=True)
     sc = bpy.context.scene
@@ -143,6 +178,10 @@ def main(cfg):
     elif hasattr(sc, "eevee") and hasattr(sc.eevee, "taa_render_samples"):
         sc.eevee.taa_render_samples = 16
     sc.view_settings.view_transform = "Standard"  # flat bright colours, not the filmic look
+    if cfg.get("kind") == "title":
+        build_title(cfg)
+        bpy.ops.render.render(animation=True)
+        return
     bg = cfg["background"]
     sc.world = bpy.data.worlds.new("w")
     sc.world.use_nodes = True

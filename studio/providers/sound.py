@@ -128,6 +128,8 @@ def ensure_sound(cache: Path, mood: str = "minor") -> dict[str, Path]:
     out = {}
     bed = cache / f"bed_{mood}.wav"
     out["music"] = bed if bed.exists() else music_bed(bed, mood)
+    quiet = cache / "silence.wav"  # used when a channel or video is set to "no music"
+    out["silence"] = quiet if quiet.exists() else _write(quiet, np.zeros(SR * 2))
     for name, fn in SFX.items():
         f = cache / f"sfx_{name}.wav"
         out[name] = f if f.exists() else fn(f)
