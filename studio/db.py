@@ -6,7 +6,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import create_engine, event, inspect
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -17,7 +17,24 @@ from studio.models import SCHEMA_VERSION, Base, SchemaVersion
 def make_engine(db_path: Path | str) -> Engine:
     """SQLite engine for a file path, or ':memory:'."""
     url = "sqlite://" if str(db_path) == ":memory:" else f"sqlite:///{db_path}"
-    return create_engine(url, future=True)
+    engine = create_engine(url, future=True, connect_args={"timeout": BUSY_TIMEOUT_MS / 1000})
+    if url != "sqlite://":
+        event.listen(engine, "connect", _sqlite_pragmas)
+    return engine
+
+
+BUSY_TIMEOUT_MS = 30_000
+
+
+def _sqlite_pragmas(dbapi_conn, _record) -> None:
+    """WAL lets readers and one writer coexist; busy_timeout makes writers wait instead of failing."""
+    cur = dbapi_conn.cursor()
+    try:
+        cur.execute("PRAGMA journal_mode=WAL")
+        cur.execute("PRAGMA synchronous=NORMAL")
+        cur.execute(f"PRAGMA busy_timeout={BUSY_TIMEOUT_MS}")
+    finally:
+        cur.close()
 
 
 def init_db(engine: Engine) -> None:

@@ -108,8 +108,7 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
         (out / "scenes").mkdir(exist_ok=True)
         pkg = load_package(ctx, video_id)
         limits = rules.edit_limits(ctx.settings.root)
-        s.query(Asset).filter(Asset.video_id == video_id,
-                              Asset.kind.in_(["clip", "image", "card", "chart", "scene"])).delete()
+        new_assets: list[Asset] = []  # written in one short transaction after the slow work
         rows = {r.position: r for r in s.query(Segment).filter_by(video_id=video_id)}
         used: set[int] = set()
         used_img: set = set()
@@ -133,7 +132,7 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
                     if clip:
                         got = True
                         found.append((kind, clip))
-                        s.add(Asset(video_id=video_id, kind=kind, path=str(clip.path),
+                        new_assets.append(Asset(video_id=video_id, kind=kind, path=str(clip.path),
                                     source=f"{clip.provider}: {clip.author}".strip(), licence=clip.licence,
                                     attribution_url=clip.page_url))
                         break
@@ -147,7 +146,7 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
                 card = text_card(seg.get("chapter") or seg["visual_keywords"][0], "", clips_dir / f"card_{pos:03d}.png",
                                  ctx.settings.assets_dir)
                 vis.update(kind="card", path=str(card), paths=[str(card)])
-                s.add(Asset(video_id=video_id, kind="card", path=str(card), source="generated card",
+                new_assets.append(Asset(video_id=video_id, kind="card", path=str(card), source="generated card",
                             licence=OWN_LICENCE))
             if seg.get("chart_data"):
                 frames = render_chart(seg["chart_data"], pkg["sources"], charts_dir, f"seg_{pos:03d}")
@@ -156,7 +155,7 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
                     anims = chart_anim.animate(seg["chart_data"], frames, "", charts_dir)
                     animated += len(anims)
                 for f in frames:
-                    s.add(Asset(video_id=video_id, kind="chart", path=str(f),
+                    new_assets.append(Asset(video_id=video_id, kind="chart", path=str(f),
                                 source=source_line(seg["chart_data"], pkg["sources"]), licence=OWN_LICENCE))
             pl = scenes.plan(seg, prod["scene_style"], prod["segment_styles"].get(pos, ""))
             if pl:
@@ -172,12 +171,16 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
                     vis["chart_frames"] = [str(f) for f in res["frames"]] + vis.get("chart_frames", [])
                 src = res["clip"] or (res["frames"][0] if res["frames"] else None)
                 if src:
-                    s.add(Asset(video_id=video_id, kind="scene", path=str(src), licence=OWN_LICENCE,
+                    new_assets.append(Asset(video_id=video_id, kind="scene", path=str(src), licence=OWN_LICENCE,
                                 source=f"generated {res['mode'].upper()} {res['kind']} scene"))
             seg["visual"] = vis
             if pos in rows:
                 rows[pos].clip_path = vis["path"]
         pkg["visual_rejects"] = rejected
+        s.query(Asset).filter(Asset.video_id == video_id,
+                              Asset.kind.in_(["clip", "image", "card", "chart", "scene"])).delete()
+        s.add_all(new_assets)
+        s.commit()  # release the write lock before reports and file writes
         write_package(ctx, video_id, pkg)
         if rejected:
             typer.echo(f"Quality gate rejected {len(rejected)} bad or duplicate candidates (e.g. {rejected[0]}).")

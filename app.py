@@ -7,7 +7,7 @@ from pathlib import Path
 
 import streamlit as st
 
-from studio.errors import StudioError
+from studio.errors import LOCKED_HELP, StudioError, is_locked_error
 from studio.stages import research
 from studio.stages import script as script_stage
 from studio.stages import story as story_stage
@@ -49,7 +49,30 @@ def ctx_for(confirm=None):
     """Fresh context per call (cheap), with Streamlit secrets and in-session keys applied first."""
     svc.apply_secrets(_secrets())
     svc.apply_secrets(st.session_state.get("session_keys", {}))
-    return svc.make_ctx(ROOT, confirm)
+    ctx = svc.make_ctx(ROOT, confirm)
+    _run_ctxs.append(ctx)  # closed when this script run ends, so no connection or lock outlives a rerun
+    return ctx
+
+
+_run_ctxs: list = []
+
+
+def _lock_tools() -> None:
+    """Show which other processes may hold the database, with buttons to stop them or clear stale files."""
+    from studio.config import load_settings
+    from studio.util import dblock
+
+    holders = dblock.find_holders(ROOT)
+    for h in holders:
+        st.write(f"Process {h.pid} ({h.name}): `{h.cmdline}`")
+        if st.button(f"Stop process {h.pid}", key=f"stop{h.pid}"):
+            st.success("Stopped." if dblock.stop(h.pid) else "Could not stop it: close it in Task Manager.")
+    if not holders:
+        stale = dblock.stale_files(load_settings(ROOT).db_path)
+        st.write("No other Studio process found." + (f" Leftover files: {[p.name for p in stale]}." if stale else ""))
+        if stale and st.button("Clear leftover database files"):
+            dblock.clear_stale(load_settings(ROOT).db_path, ROOT)
+            st.success("Cleared. Try again.")
 
 
 def show(res: svc.Outcome, success: str = "Done.") -> None:
@@ -62,6 +85,8 @@ def show(res: svc.Outcome, success: str = "Done.") -> None:
         handoff_ui.show_problems(res)
     else:
         st.error(res.error)
+        if res.error == LOCKED_HELP:
+            _lock_tools()
     if res.log.strip():
         with st.expander("Details"):
             st.code(res.log)
@@ -636,6 +661,17 @@ def main() -> None:
          "🧸 Kids mode": page_kids}[page]()
     except StudioError as exc:
         st.error(str(exc))
+    except Exception as exc:  # noqa: BLE001 - one database error must not poison later reruns
+        if not is_locked_error(exc):
+            raise
+        st.error(LOCKED_HELP)
+        _lock_tools()
+    finally:
+        while _run_ctxs:
+            try:
+                _run_ctxs.pop().close()
+            except Exception:  # noqa: BLE001 - closing is best effort
+                pass
     data_ui.tick(ROOT)
 
 

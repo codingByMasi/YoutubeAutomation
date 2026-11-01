@@ -32,6 +32,14 @@ class Ctx:
     youtube_factory: Callable[[], tuple[Any, Any]] | None = None
     _yt: tuple[Any, Any] | None = field(default=None, repr=False)
 
+    def close(self) -> None:
+        """Roll back anything uncommitted, close the session and release every pooled connection."""
+        try:
+            self.session.rollback()
+            self.session.close()
+        finally:
+            self.engine.dispose()
+
     @property
     def quota(self) -> QuotaTracker:
         return QuotaTracker(self.session, self.settings.daily_quota_limit, self.settings.quota_safety_margin)
