@@ -27,6 +27,8 @@ MUSIC_DB = -17.0  # base level; sidechain ducking pushes it a further ~8 dB down
 AUDIO_EXT = {".mp3", ".wav", ".m4a", ".ogg", ".flac", ".aac"}
 VIDEO_EXT = {".mp4", ".mov", ".mkv", ".webm"}
 IMAGE_EXT = {".png", ".jpg", ".jpeg"}
+ANIM_MIN_SECONDS = 1.6  # shorter chart steps are shown still
+HOOK_PUNCH = 2.0
 
 
 def licence_for(path: Path) -> str:
@@ -126,15 +128,21 @@ def render_picture(segs: list[dict], work: Path,
         plans.append(plan)
         for k, (src, secs) in enumerate(plan, 1):
             extra = ff.XFADE_SECONDS if (k < len(plan) and not p.draft) else 0.0
-            jobs.append((src, work / f"seg_{pos:03d}_{k:02d}.mp4", secs + extra, motion))
+            jobs.append((src, work / f"seg_{pos:03d}_{k:02d}.mp4", secs + extra, motion if pos > 1 else -motion - 1))
             motion += 1
 
     def render(job: tuple[Path, Path, float, int]) -> None:
         src, out, secs, mo = job
         if src.suffix.lower() in IMAGE_EXT:
             charts = "charts" in src.parts
-            ff.run(ff.image_cmd(src, secs, out, zoom=not charts, motion=mo,
-                                aspect=None if charts else photo_aspect(src)), f"rendering {src.name}")
+            anim = src.with_suffix(".anim.mp4")
+            if charts and anim.exists() and secs > ANIM_MIN_SECONDS:  # the chart grows, then holds
+                ff.run(ff.chart_anim_cmd(anim, src, secs, out), f"animating {src.name}")
+                return
+            hook = mo < 0  # the opening segment gets a bigger camera move
+            ff.run(ff.image_cmd(src, secs, out, zoom=not charts, motion=-mo - 1 if hook else mo,
+                                aspect=None if charts else photo_aspect(src), punch=HOOK_PUNCH if hook else 1.0),
+                   f"rendering {src.name}")
         else:
             ff.run(ff.clip_cmd(src, secs, out), f"rendering {src.name}")
 

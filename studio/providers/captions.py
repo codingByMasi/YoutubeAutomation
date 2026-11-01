@@ -28,11 +28,11 @@ class CaptionStyle:
 
     @property
     def size(self) -> int:
-        return round(self.h * (0.052 if self.shorts else 0.074))
+        return round(self.h * (0.044 if self.shorts else 0.048))
 
     @property
     def margin_v(self) -> int:
-        return round(self.h * (0.30 if self.shorts else 0.11))
+        return round(self.h * (0.30 if self.shorts else 0.075))
 
 
 def words_from_script(spans: list[tuple[float, float]], narrations: list[str]) -> list[Word]:
