@@ -216,3 +216,10 @@ Music and effects were checked for level and clipping, not by ear: listen once a
 - Active profile now drives: TTS voice and YouTube channel id (override `.env` when set), script/outline brief and topic-ideas prompt (once the profile is customised), growth prompts and posting plan.
 - Per-channel separation: ideas (and so videos, calendar, status, analytics report) carry `ideas.channel_id` (old databases upgrade in place; existing rows join `default`); series, performance, monetization and fact-check data live in `growth/c/<channel>/` (the `default` channel keeps the old `growth/` paths).
 - Topic discovery follows the channel: once a niche is customised, hands-off suggestions use the niche and the business-word fit filter is relaxed (junk words are still blocked).
+
+
+## Persistent storage and hosting (2026-11-01)
+- `studio/storage/data.py` (usage, zip export/import, confirmed deletes), `studio/storage/sync.py` (folder/GitHub/S3 backup,
+  autosave, restore on empty disk, secret files from env), `studio/web/data_ui.py` (Data page), `HOSTING.md`, `Dockerfile`.
+- Decisions: one data dir = `STUDIO_HOME`; backups exclude media and secrets; GitHub backend refuses public repos;
+  every delete needs the exact word DELETE. Not tested live: GitHub/S3 calls, Docker build, Hugging Face deploy.
