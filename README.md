@@ -1,5 +1,7 @@
 # YouTube Channel Studio
 
+[![CI](https://github.com/codingByMasi/YoutubeAutomation/actions/workflows/ci.yml/badge.svg)](https://github.com/codingByMasi/YoutubeAutomation/actions/workflows/ci.yml)
+
 A command-line studio that runs a faceless YouTube channel from topic research to published video to ongoing management, with a human approval gate before anything goes public.
 
 ```
