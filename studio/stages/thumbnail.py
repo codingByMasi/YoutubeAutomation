@@ -14,6 +14,7 @@ from studio.context import Ctx
 from studio.providers import brand
 from studio.stages.base import get_video, run_stage
 from studio.stages.script import load_package, timeline, write_package
+from studio.util import progress
 from studio.util.ffmpeg import ensure_ffmpeg
 
 TW, TH = 1280, 720
@@ -160,10 +161,11 @@ def run(ctx: Ctx, video_id: int, force: bool = False) -> list[Path]:
     def work() -> None:
         from studio import production
         prod = production.resolve(ctx.settings, video_id)
-        with brand.use(prod["palette"], prod.get("theme")):
-            _work()
+        with progress.tracking(ctx.settings.project_dir(video_id), "thumbnail", 3, "thumbnails") as prog, \
+                brand.use(prod["palette"], prod.get("theme")):
+            _work(prog)
 
-    def _work() -> None:
+    def _work(prog: progress.Run) -> None:
         out = ctx.settings.project_dir(video_id) / "thumbs"
         out.mkdir(exist_ok=True)
         pkg = load_package(ctx, video_id)
@@ -188,6 +190,7 @@ def run(ctx: Ctx, video_id: int, force: bool = False) -> list[Path]:
             if problems:
                 raise ValueError("; ".join(problems))
             made.append(p)
+            prog.step(i, f"Thumbnail {i} of 3")
         pkg["thumbnails"] = [str(p) for p in made]
         write_package(ctx, video_id, pkg)
         typer.echo(f"Thumbnails: {', '.join(p.name for p in made)} in {out}")

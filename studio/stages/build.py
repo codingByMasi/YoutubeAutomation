@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
@@ -20,6 +21,7 @@ from studio.stages.script import load_package, timeline, write_package
 from studio.stages.timing import plan_segment, shot_max_for
 from studio.stages.visuals import visual_paths
 from studio.util import ffmpeg as ff
+from studio.util import progress
 from studio.util.logging import get_logger
 
 log = get_logger("build")
@@ -131,8 +133,9 @@ def sfx_events(segs: list[dict], plans: list[list[tuple[Path, float]]]) -> list[
     return events
 
 
-def render_picture(segs: list[dict], work: Path,
-                   limits: dict | None = None) -> tuple[list[Path], list[list[tuple[Path, float]]]]:
+def render_picture(segs: list[dict], work: Path, limits: dict | None = None,
+                   on_step: Callable[[int, int], None] | None = None
+                   ) -> tuple[list[Path], list[list[tuple[Path, float]]]]:
     """Render every shot, cross-dissolve the shots inside each segment, and return (segment clips, plans).
 
     Segments are joined by a hard cut (with a whoosh); shots within a segment dissolve into each other.
@@ -181,15 +184,24 @@ def render_picture(segs: list[dict], work: Path,
             ff.run(ff.xfade_cmd(files, [s for _, s in plan], out), f"dissolving shots of segment {pos}")
         return out
 
+    steps = [0]
+
+    def report(total: int) -> None:
+        steps[0] += 1
+        if on_step:
+            on_step(steps[0], total)
+
     with typer.progressbar(length=len(jobs) + len(segs), label="Rendering shots") as bar, \
             ThreadPoolExecutor(workers()) as pool:
         for f in as_completed([pool.submit(render, j) for j in jobs]):
             f.result()  # re-raises the first failure
             bar.update(1)
+            report(len(jobs) + len(segs))
         outs = []
         for f in [pool.submit(join, pos) for pos in range(1, len(segs) + 1)]:
             outs.append(f.result())
             bar.update(1)
+            report(len(jobs) + len(segs))
     return outs, plans
 
 
@@ -198,8 +210,17 @@ def run(ctx: Ctx, video_id: int, force: bool = False) -> None:
     video = get_video(s, video_id)
 
     def work() -> None:
+        with progress.tracking(ctx.settings.project_dir(video_id), "build", 1, "steps") as prog:
+            _work(prog)
+
+    def _work(prog: progress.Run) -> None:
         ff.ensure_ffmpeg()
         out = ctx.settings.project_dir(video_id)
+
+        def on_step(done: int, total: int) -> None:
+            # shots and joins are the bulk of the work; mixing, captions and the final encode take a little more
+            prog.total = total + 2
+            prog.step(done, f"Rendering shot or join {done} of {total}")
         tmp = out / "build_tmp"
         tmp.mkdir(exist_ok=True)
         pkg = load_package(ctx, video_id)
@@ -207,9 +228,11 @@ def run(ctx: Ctx, video_id: int, force: bool = False) -> None:
         assets = ctx.settings.assets_dir
 
         # 1. picture track
-        seg_clips, plans = render_picture(segs, tmp, rules.edit_limits(ctx.settings.root))
+        seg_clips, plans = render_picture(segs, tmp, rules.edit_limits(ctx.settings.root), on_step=on_step)
         ff.run(ff.concat_cmd(ff.concat_list(seg_clips, tmp / "parts.txt"), tmp / "picture.mp4",
                              reencode=False), "joining segments")
+
+        prog.step(prog.total - 1, "Adding narration, captions and music")
 
         # 2. narration track
         voices = [out / "voice" / f"seg_{i:03d}.mp3" for i in range(1, len(segs) + 1)]

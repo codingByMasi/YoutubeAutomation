@@ -112,6 +112,19 @@ def visuals(video_id: int, force: bool = FORCE) -> None:
 
 
 @app.command()
+def cancel(video_id: int) -> None:
+    """Stop the slow 3D rendering of a running `visuals` step; the remaining scenes are drawn in 2D instead."""
+    from studio.config import load_settings
+    from studio.util import progress
+    folder = load_settings().project_dir(video_id)
+    if not progress.is_active(folder):
+        typer.echo(f"Nothing is running for video {video_id}.")
+        return
+    progress.request_cancel(folder)
+    typer.echo("Cancel requested. The current 3D scene stops within a few seconds and the rest are drawn in 2D.")
+
+
+@app.command()
 def plan(video_id: int, draft: bool = typer.Option(False, "--draft", help="Show the fast-draft resolution.")) -> None:
     """Show what `visuals` and `build` will use (scenes, charts, search words, resolution, tools) before rendering."""
     from studio import plan_preview

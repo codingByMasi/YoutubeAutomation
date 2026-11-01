@@ -13,6 +13,7 @@ from studio.models import Segment
 from studio.providers.tts import TTS, get_tts
 from studio.stages.base import get_video, run_stage
 from studio.stages.script import load_package, pacing_warnings, write_package
+from studio.util import progress
 from studio.util.ffmpeg import probe_duration
 
 VOICE_WORKERS = 4
@@ -48,12 +49,14 @@ def run(ctx: Ctx, video_id: int, force: bool = False, tts: TTS | None = None,
             return row, path
 
         # Synthesis waits on the network, so a few at once is much faster; results are kept in order.
-        with typer.progressbar(length=len(rows), label=f"Voicing {len(rows)} segments ({engine.name})") as bar, \
+        with progress.tracking(ctx.settings.project_dir(video_id), "voice", len(rows), "segments") as prog, \
+                typer.progressbar(length=len(rows), label=f"Voicing {len(rows)} segments ({engine.name})") as bar, \
                 ThreadPoolExecutor(VOICE_WORKERS) as pool:
-            for row, path in pool.map(voice_row, rows):
+            for n, (row, path) in enumerate(pool.map(voice_row, rows), 1):
                 row.audio_path = str(path)
                 durations[row.position] = measure(path)
                 bar.update(1)
+                prog.step(n, f"Voicing segment {n} of {len(rows)}")
         total = apply_real_durations(pkg, rows, durations)
         est = sum(r.est_seconds for r in rows)
         write_package(ctx, video_id, pkg)

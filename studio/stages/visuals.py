@@ -17,9 +17,11 @@ from studio.providers.images import make_images
 from studio.quality import rules
 from studio.scenes import render3d
 from studio.scenes import stage as scene_stage
+from studio.scenes.budget import SceneBudget
 from studio.stages.base import get_video, run_stage
 from studio.stages.script import CHART_GAP_MAX, load_package, timeline, write_package
 from studio.stages.timing import shot_max_for, shots_needed, split_segment
+from studio.util import progress
 from studio.util.logging import get_logger
 from studio.util.media_check import check_media, dhash, similar, video_hash
 
@@ -85,10 +87,13 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
     def work() -> None:
         from studio import production
         prod = production.resolve(ctx.settings, video_id)
-        with brand.use(prod["palette"], prod.get("theme")):
-            _work(prod)
+        folder = ctx.settings.project_dir(video_id)
+        total = len(load_package(ctx, video_id)["segments"])
+        with progress.tracking(folder, "visuals", total, "segments") as prog, \
+                brand.use(prod["palette"], prod.get("theme")):
+            _work(prod, prog)
 
-    def _work(prod: dict) -> None:
+    def _work(prod: dict, prog: progress.Run) -> None:
         nonlocal stock, images
         if stock is UNSET:
             name, stock = make_footage(ctx.settings)
@@ -118,7 +123,23 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
         animated = 0
         blender = render3d.Blender3D(ctx.settings.blender_path)
         scene_counts: dict[str, int] = {}
+        planned = {p: scenes.plan(g, prod["scene_style"], prod["segment_styles"].get(p, ""))
+                   for p, g in enumerate(pkg["segments"], 1)}
+        todo3d = {p: min(float(g.get("real_seconds") or g["est_seconds"]), render3d.MAX_SECONDS)
+                  for p, g in enumerate(pkg["segments"], 1) if (planned[p] or {}).get("mode") == "3d"}
+        budget = SceneBudget(count=len(todo3d), folder=out)
+        budget.segments, budget.run = len(pkg["segments"]), prog
+        progress.clear_cancel(out)
+        if todo3d:
+            typer.echo(f"{len(todo3d)} scenes will be rendered in 3D (about {render3d.FPS_3D} frames per second of "
+                       f"video). Progress and time left are shown per scene; cancel any time with "
+                       f"'cancel {video_id}' or the Cancel button.")
         for pos, seg in enumerate(pkg["segments"], 1):
+            left3d = None
+            if budget.sec_per_frame and todo3d:
+                left3d = (budget.remaining + todo3d.get(pos, 0)) * render3d.FPS_3D * budget.sec_per_frame
+            prog.step(pos - 1, f"Segment {pos} of {len(pkg['segments'])}", eta_seconds=left3d,
+                      scene=budget.finished, scenes=budget.count)
             vis: dict = {}
             duration = float(seg.get("real_seconds") or seg["est_seconds"])
             bg_seconds, _ = split_segment(duration, bool(seg.get("chart_data")))
@@ -157,10 +178,19 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
                 for f in frames:
                     new_assets.append(Asset(video_id=video_id, kind="chart", path=str(f),
                                 source=source_line(seg["chart_data"], pkg["sources"]), licence=OWN_LICENCE))
-            pl = scenes.plan(seg, prod["scene_style"], prod["segment_styles"].get(pos, ""))
+            pl = planned[pos]
             if pl:
                 note = scene_note(seg, pl["scene"], pkg["sources"])
-                res = scene_stage.draw(pl, seg, pos, out / "scenes", charts_dir, blender, note, duration)
+                budget.remaining = sum(s for p, s in todo3d.items() if p > pos)
+                res = scene_stage.draw(pl, seg, pos, out / "scenes", charts_dir, blender, note, duration, budget)
+                if pos in todo3d:
+                    todo3d.pop(pos)
+                    if res["mode"] == "3d":
+                        left = ""
+                        if budget.sec_per_frame and budget.remaining:
+                            left = progress.fmt_duration(budget.remaining * render3d.FPS_3D * budget.sec_per_frame)
+                        typer.echo(f"3D scene {budget.finished} of {budget.count} done"
+                                   + (f"; about {left} left for the rest." if left else "."))
                 scene_counts[res["mode"]] = scene_counts.get(res["mode"], 0) + 1
                 vis["scene"] = {"kind": res["kind"], "mode": res["mode"], "fell_back": res["fell_back"]}
                 if res["clip"]:
