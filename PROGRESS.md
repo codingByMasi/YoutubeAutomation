@@ -258,3 +258,9 @@ Music and effects were checked for level and clipping, not by ear: listen once a
 - Not tested live: real YouTube Analytics API responses and metric availability (mocked), the Google sign-in browser flow with two accounts,
   Eevee rendering and the Windows `blender` executable for the title card, the Streamlit Sign-in button in a real browser.
 - Owner must: run `channels sign-in <id>` once per channel (add your accounts as test users on the OAuth consent screen).
+
+## Persistent storage and hosting (2026-11-01)
+- `studio/storage/data.py` (usage, zip export/import, confirmed deletes), `studio/storage/sync.py` (folder/GitHub/S3 backup,
+  autosave, restore on empty disk, secret files from env), `studio/web/data_ui.py` (Data page), `HOSTING.md`, `Dockerfile`.
+- Decisions: one data dir = `STUDIO_HOME`; backups exclude media and secrets; GitHub backend refuses public repos;
+  every delete needs the exact word DELETE. Not tested live: GitHub/S3 calls, Docker build, Hugging Face deploy.

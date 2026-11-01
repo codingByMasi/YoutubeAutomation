@@ -40,6 +40,9 @@ Or double-click `run_app.bat`. It opens http://localhost:8501. On macOS/Linux: `
 3. Deploy. Free hosting has about 1 GB RAM and temporary disk, so **download each video from step 4 before the app
    sleeps**. Long videos build slowly there; for long videos run the app locally.
 
+**Where to host for free and keep your data:** see [HOSTING.md](HOSTING.md). All data lives in one folder
+(`STUDIO_HOME`); the **Data** page exports, imports and deletes it, and `STORAGE_BACKEND` adds an automatic backup.
+
 **What works where**
 
 | Feature | Local | Streamlit Cloud |
