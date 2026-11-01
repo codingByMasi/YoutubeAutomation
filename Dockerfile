@@ -4,7 +4,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg fonts-de
     && rm -rf /var/lib/apt/lists/* && pip install --no-cache-dir boto3
 RUN useradd -m -u 1000 user
 USER user
-ENV PATH=/home/user/.local/bin:$PATH STUDIO_HOME=/data
+ENV PATH=/home/user/.local/bin:$PATH STUDIO_HOME=/home/user/data
 WORKDIR /home/user/app
 COPY --chown=user requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt streamlit
