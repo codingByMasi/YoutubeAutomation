@@ -108,6 +108,9 @@ def validate_package(d: dict) -> list[str]:
             problems.append(f"{where}: narration uses banned phrase {p!r}")
         if seg.get("chart_data"):
             problems += validate_chart(seg["chart_data"], source_ids, where)
+        if seg.get("scene"):
+            from studio.scenes import validate_scene
+            problems += validate_scene(seg["scene"], where, seg, source_ids)
     if segs and isinstance(segs[0].get("est_seconds"), (int, float)) and segs[0]["est_seconds"] > HOOK_MAX_SECONDS:
         problems.append(f"segment 1 is the hook and must be at most {HOOK_MAX_SECONDS}s")
     if d.get("sensitive_topic") and not sources:

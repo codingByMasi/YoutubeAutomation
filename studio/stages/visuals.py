@@ -6,12 +6,15 @@ from pathlib import Path
 
 import typer
 
+from studio import scenes
 from studio.context import Ctx
 from studio.models import Asset, Segment
 from studio.providers import brand
 from studio.providers.charts import render_chart, source_line, text_card
 from studio.providers.footage import make_footage
 from studio.providers.images import make_images
+from studio.scenes import render3d
+from studio.scenes import stage as scene_stage
 from studio.stages.base import get_video, run_stage
 from studio.stages.script import CHART_GAP_MAX, load_package, timeline, write_package
 from studio.stages.timing import shot_max_for, shots_needed, split_segment
@@ -51,6 +54,15 @@ def find_valid(prov, keywords: list[str], seen: set, kind: str, hashes: list[int
     return None
 
 
+def scene_note(seg: dict, scene: dict, sources: list[dict]) -> str:
+    """Source line for a scene: its own source_ids, else its chart's, else none."""
+    if scene.get("source_ids"):
+        return source_line({"source_ids": scene["source_ids"], "title": scene.get("title", "")}, sources)
+    if scene["kind"] == "chart3d" and seg.get("chart_data"):
+        return source_line(seg["chart_data"], sources)
+    return ""
+
+
 def chart_gaps(segs: list[dict]) -> list[str]:
     """Warn where more than CHART_GAP_MAX seconds pass without a chart."""
     warns, last = [], 0.0
@@ -70,10 +82,11 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
 
     def work() -> None:
         from studio import production
-        with brand.use(production.resolve(ctx.settings, video_id)["palette"]):
-            _work()
+        prod = production.resolve(ctx.settings, video_id)
+        with brand.use(prod["palette"]):
+            _work(prod)
 
-    def _work() -> None:
+    def _work(prod: dict) -> None:
         nonlocal stock, images
         if stock is UNSET:
             name, stock = make_footage(ctx.settings)
@@ -90,14 +103,18 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
         out = ctx.settings.project_dir(video_id)
         clips_dir, charts_dir = out / "clips", out / "charts"
         clips_dir.mkdir(exist_ok=True)
+        (out / "scenes").mkdir(exist_ok=True)
         pkg = load_package(ctx, video_id)
-        s.query(Asset).filter(Asset.video_id == video_id, Asset.kind.in_(["clip", "image", "card", "chart"])).delete()
+        s.query(Asset).filter(Asset.video_id == video_id,
+                              Asset.kind.in_(["clip", "image", "card", "chart", "scene"])).delete()
         rows = {r.position: r for r in s.query(Segment).filter_by(video_id=video_id)}
         used: set[int] = set()
         used_img: set = set()
         hashes: list[int] = []
         rejected: list[str] = []
         fallbacks = 0
+        blender = render3d.Blender3D(ctx.settings.blender_path)
+        scene_counts: dict[str, int] = {}
         for pos, seg in enumerate(pkg["segments"], 1):
             vis: dict = {}
             duration = float(seg.get("real_seconds") or seg["est_seconds"])
@@ -134,6 +151,22 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
                 for f in frames:
                     s.add(Asset(video_id=video_id, kind="chart", path=str(f),
                                 source=source_line(seg["chart_data"], pkg["sources"]), licence=OWN_LICENCE))
+            pl = scenes.plan(seg, prod["scene_style"], prod["segment_styles"].get(pos, ""))
+            if pl:
+                note = scene_note(seg, pl["scene"], pkg["sources"])
+                res = scene_stage.draw(pl, seg, pos, out / "scenes", charts_dir, blender, note, duration)
+                scene_counts[res["mode"]] = scene_counts.get(res["mode"], 0) + 1
+                vis["scene"] = {"kind": res["kind"], "mode": res["mode"], "fell_back": res["fell_back"]}
+                if res["clip"]:
+                    vis["scene_clip"] = str(res["clip"])
+                    if res["replaces_chart"]:
+                        vis.pop("chart_frames", None)
+                if res["frames"]:
+                    vis["chart_frames"] = [str(f) for f in res["frames"]] + vis.get("chart_frames", [])
+                src = res["clip"] or (res["frames"][0] if res["frames"] else None)
+                if src:
+                    s.add(Asset(video_id=video_id, kind="scene", path=str(src), licence=OWN_LICENCE,
+                                source=f"generated {res['mode'].upper()} {res['kind']} scene"))
             seg["visual"] = vis
             if pos in rows:
                 rows[pos].clip_path = vis["path"]
@@ -146,6 +179,8 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
         typer.echo(f"Visuals: {shots.count('clip')} stock clips, {shots.count('image')} photos, "
                    f"{fallbacks} segments on generated cards, "
                    f"{charts} charts.")
+        if scene_counts:
+            typer.echo("Scenes: " + ", ".join(f"{n} in {m.upper()}" for m, n in sorted(scene_counts.items())) + ".")
         for w in chart_gaps(pkg["segments"]):
             typer.secho(f"warning: {w}", fg=typer.colors.YELLOW)
 

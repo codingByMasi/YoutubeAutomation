@@ -46,6 +46,13 @@ You are writing a complete YouTube video package for a faceless, narrated explai
   call to action tied to this topic: ask one concrete question to answer in the comments and name what the
   next video covers. A generic "like and subscribe" alone is not enough.
 - A chart, diagram or number card (`chart_data`) at least every 60-90 seconds, and for every major figure.
+- Optional `scene` (leave it `null` when a plain chart or footage is enough): a short animated scene that the owner can
+  draw in 3D or 2D. Use it for at most one segment in four, only where it explains something better than footage.
+  Kinds and their `items`: `timeline` (2-10 `{{label: "1066", text: "Norman conquest"}}`, in order, `source_ids` required),
+  `map` (2-10 places in route order, `{{label, x, y}}` with x and y between 0 and 1: a schematic map, not real
+  geography), `artifact` (exactly one `{{label, shape}}`, shape coin, column, vase or box), `chart3d` (bars
+  from the segment's bar/line `chart_data`; give `items` `{{label, value}}` plus `source_ids` only if there is no chart_data).
+  `style` is "" (follow the video's setting), "2d" or "3d".
 - Typical total length is {min_minutes}-{max_minutes} minutes at about 150 spoken words per minute; go longer if the
   topic needs it. There is no maximum length: never cut the money flow short to fit.
   `est_seconds` = words / 2.5. Keep each segment 8-30 seconds so the picture changes often (hook: 15 at most).
@@ -92,7 +99,8 @@ You are writing a complete YouTube video package for a faceless, narrated explai
         "unit": "%",
         "source_ids": ["s1"],
         "is_estimate": false
-      }}
+      }},
+      "scene": null
     }}
   ],
   "cta": "The call-to-action sentence used in the last segment."

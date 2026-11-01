@@ -27,6 +27,7 @@ DEFAULTS: dict = {
     "posts_per_week": 2,
     "voice": "",  # edge-tts / ElevenLabs voice; empty = use TTS_VOICE from .env
     "renderer": "",  # 2d | blender; "" = RENDERER from .env
+    "scene_style": "",  # 2d | 3d | mixed; "" = the channel type's default
     "music": "",  # generated | none; "" = automatic (your own track in assets/music wins)
     "music_mood": "",  # minor | major; "" = the channel type's default
     "tts_provider": "",  # edge | eleven | silent; "" = TTS_PROVIDER from .env

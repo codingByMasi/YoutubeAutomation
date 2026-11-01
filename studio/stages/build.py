@@ -44,9 +44,10 @@ def first_file(folder: Path, exts: set[str]) -> Path | None:
 
 def _title_card(ctx: Ctx, prod: dict, pkg: dict, tmp: Path) -> Path | None:
     """A 3D title intro when the resolved renderer is Blender and Blender works; else None (no intro)."""
+    from studio import production
     from studio.kids import build3d
 
-    exe = build3d.choose(prod["renderer"], ctx.settings.blender_path)
+    exe = build3d.choose("blender" if production.wants_blender(prod) else "2d", ctx.settings.blender_path)
     if exe is None:
         return None
     from studio.blender import title_card
@@ -114,8 +115,12 @@ def render_picture(segs: list[dict], work: Path) -> tuple[list[Path], list[list[
     motion = 0
     for pos, seg in enumerate(segs, 1):
         backgrounds, frames = visual_paths(seg)
-        plan = plan_segment(float(seg.get("real_seconds") or seg["est_seconds"]), backgrounds, frames,
-                            shot_max=shot_max_for(pos))
+        duration = float(seg.get("real_seconds") or seg["est_seconds"])
+        shot_max = shot_max_for(pos)
+        scene_clip = (seg.get("visual") or {}).get("scene_clip")
+        if scene_clip and Path(scene_clip).exists():  # a 3D scene is one continuous shot, not cut every 5 s
+            backgrounds, shot_max = [Path(scene_clip)], max(duration, shot_max)
+        plan = plan_segment(duration, backgrounds, frames, shot_max=shot_max)
         plans.append(plan)
         for k, (src, secs) in enumerate(plan, 1):
             extra = ff.XFADE_SECONDS if (k < len(plan) and not p.draft) else 0.0
