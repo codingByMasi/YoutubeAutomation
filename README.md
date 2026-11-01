@@ -112,6 +112,8 @@ sources and photo credits, a Shorts plan, a fact and source checklist (must be c
 pasting YouTube Studio numbers for next-script advice, and a Partner Program tracker with a monetization checklist.
 Where Claude's writing helps, copy the shown prompt into Claude and paste the JSON answer back. No API key needed.
 
+See [FIRST_VIDEO.md](FIRST_VIDEO.md) for the step-by-step first-video checklist (accounts, keys, exact commands).
+
 ## 1. Requirements
 
 - Python 3.11+
@@ -249,6 +251,9 @@ python -m studio.cli run-all "how cruise lines make money"
 
 | Command | What it does |
 |---|---|
+| `doctor` | Go/no-go readiness check (tools, keys, YouTube sign-in) |
+| `suggest` | Suggest fresh channel-fit topics with no seed typed |
+| `add-topic "<topic>" [--approve]` | Use your own topic |
 | `research "<seed>"` | Find and rank topic ideas, flag small-channel outliers |
 | `approve-idea <id>` | Approve a topic and start a video record |
 | `script <idea_id>` | Generate titles, script, and segment list (via a prompt file Claude Code answers) |
