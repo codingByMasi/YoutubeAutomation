@@ -190,6 +190,20 @@ def ideas_for(ctx: Ctx, seed: str | None = None) -> list[Idea]:
     return sorted(q.all(), key=lambda i: i.rank_score, reverse=True)
 
 
+def pending_ideas(ctx: Ctx) -> list[Idea]:
+    """Every not-yet-approved idea for the active channel, newest first (older ones included)."""
+    q = scope.ideas(ctx.session).filter(Idea.seed != "__demo__", Idea.status != "approved")
+    return sorted(q.all(), key=lambda i: (i.created_at, i.id), reverse=True)
+
+
+def approve_ideas(ctx: Ctx, idea_ids: list[int]) -> list[Video]:
+    """Approve several ideas (new or older) at once; each gets its own video. Already-approved ones are reused."""
+    from studio.stages import research
+
+    allowed = {i.id for i in scope.ideas(ctx.session).all()}
+    return [research.approve(ctx, i) for i in idea_ids if i in allowed]
+
+
 def video_title(ctx: Ctx, v: Video) -> str:
     """Picked title if there is one, else the topic."""
     t = ctx.session.query(Title).filter_by(video_id=v.id, is_pick=True).first()

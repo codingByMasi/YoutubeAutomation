@@ -160,3 +160,20 @@ def test_topics_follow_each_channels_own_type(ctx):
     ctx.session.info["channel_id"] = kids
     from studio.web import service as svc
     assert not {i.id for i in svc.ideas_for(ctx)} & {i.id for i in ideas}
+
+
+def test_older_topics_can_be_approved_together(ctx):
+    from datetime import datetime, timedelta
+
+    from studio.models import Idea
+    from studio.web import service as svc
+
+    for n in range(10):
+        ctx.session.add(Idea(seed="s", topic=f"t{n}", created_at=datetime(2026, 1, 1) + timedelta(days=n)))
+    ctx.session.commit()
+    pending = svc.pending_ideas(ctx)
+    assert len(pending) == 10 and pending[0].topic == "t9" and pending[-1].topic == "t0"
+    vids = svc.approve_ideas(ctx, [pending[-1].id, pending[-2].id])
+    assert len(vids) == 2 and len(svc.pending_ideas(ctx)) == 8
+    assert len(svc.approve_ideas(ctx, [pending[-1].id])) == 1
+    assert len(svc.list_videos(ctx)) == 2
