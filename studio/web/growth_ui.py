@@ -48,6 +48,35 @@ def page_grow_factory(ctx_for, video_picker, show):
             if st.form_submit_button("Save profile"):
                 profile.save(ctx.settings.root, vals)
                 st.success("Saved. Prompts and descriptions now use these answers.")
+        with st.expander("Identity: niche statement, mascot, theme, playlists"):
+            import json as _json
+
+            from studio.growth import channels as _ch
+            from studio.growth import identity
+            st.caption("The mascot appears on thumbnails and the sign-off card, the theme colours the charts, cards "
+                       "and thumbnails, and playlists become series with next-video end screens. Applies to the "
+                       "active channel only.")
+            pick = st.selectbox("Start from a preset", list(identity.PRESETS),
+                                format_func=lambda k: identity.PRESETS[k]["label"])
+            if st.button("Apply preset to this channel"):
+                _ch.update(ctx.settings.root, **identity.preset_fields(pick))
+                identity.sync_playlists(ctx.settings.root, _ch.get(ctx.settings.root))
+                st.success("Applied. Edit the details below if you like.")
+                st.rerun()
+            keys = ("niche_statement", "tagline", "mascot", "theme", "playlists")
+            text = st.text_area("Identity (JSON)", _json.dumps({k: p[k] for k in keys}, indent=2), height=360)
+            if st.button("Save identity"):
+                def _save():
+                    try:
+                        data = _json.loads(text)
+                    except _json.JSONDecodeError as exc:
+                        raise StudioError("The identity text is not valid JSON.", str(exc),
+                                          "Fix it; nothing was saved.") from exc
+                    _ch.update(ctx.settings.root, **data)
+
+                ok, _ = _try(_save, "Identity saved.")
+                if ok:
+                    identity.sync_playlists(ctx.settings.root, _ch.get(ctx.settings.root))
 
     def tab_series(ctx):
         root = ctx.settings.root

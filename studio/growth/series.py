@@ -39,6 +39,15 @@ def add_entry(root: Path, name: str, topic: str, video_id: int | None = None) ->
     _save(root, series)
 
 
+def set_meta(root: Path, name: str, **meta: str) -> None:
+    """Store extra fields on a series (e.g. the YouTube playlist id, title pattern). Blank values are not written
+    over existing ones."""
+    series = load(root)
+    s = _find(series, name)
+    s.update({k: v for k, v in meta.items() if v})
+    _save(root, series)
+
+
 def link_video(root: Path, name: str, index: int, video_id: int, title: str) -> None:
     """Attach a made video (and its real title) to a planned slot."""
     series = load(root)

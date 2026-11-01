@@ -6,12 +6,13 @@ A legacy single `growth/profile.json` becomes the "default" channel the first ti
 
 from __future__ import annotations
 
+import copy
 import json
 import re
 from pathlib import Path
 
 from studio.errors import StudioError
-from studio.growth import channel_types, store
+from studio.growth import channel_types, identity, store
 
 NAME = "channels"
 DEFAULT_ID = "default"
@@ -39,6 +40,12 @@ DEFAULTS: dict = {
     "watch_hours": 0.0,
     "newsletter_url": "",
     "affiliate_note": "",
+    # identity (see studio/growth/identity.py): positioning, host character, look, playlists
+    "niche_statement": "",  # one sentence: who it is for, what they get, what makes it different
+    "tagline": "",
+    "mascot": {},  # name, kind, color, look, personality, catchphrase, intro_line, outro_line, on_thumbnail
+    "theme": {},  # bg, accent, accent2, text, heading_font, intro_style, outro_style, thumbnail_style, motion
+    "playlists": [],  # name, description, title_pattern, topics, youtube_id
 }
 
 
@@ -49,6 +56,12 @@ def slug(name: str) -> str:
 
 def _clean(values: dict) -> dict:
     out = {k: values[k] for k in DEFAULTS if k in values and values[k] is not None}
+    if "mascot" in out:
+        out["mascot"] = identity.clean_mascot(out["mascot"])
+    if "theme" in out:
+        out["theme"] = identity.clean_theme(out["theme"])
+    if "playlists" in out:
+        out["playlists"] = identity.clean_playlists(out["playlists"])
     if "type" in out:
         out["type"] = channel_types.normalize(out["type"])
     for key, allowed in channel_types.CHOICES.items():
@@ -98,7 +111,7 @@ def _heal(values: dict) -> dict:
 
 
 def _full(values: dict) -> dict:
-    full = {**DEFAULTS, **_clean(values)}
+    full = copy.deepcopy({**DEFAULTS, **_clean(values)})
     return _heal(full)
 
 
@@ -220,7 +233,9 @@ def summary(p: dict) -> str:
             f"Posts {p['posts_per_week']} long video(s) per week. Faceless narration with charts and diagrams.")
     t = channel_types.info(p.get("type"))
     text += f" Format: {t['label']}. {t['guidance']}"
-    return f"{text} About: {p['description']}" if p.get("description") else text
+    text = f"{text} About: {p['description']}" if p.get("description") else text
+    ident = identity.brief(p)
+    return f"{text} {ident}" if ident else text
 
 
 def type_info(root: Path, channel_id: str | None = None) -> dict:

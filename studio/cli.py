@@ -358,6 +358,52 @@ def channels_show(channel_id: str = typer.Argument(None)) -> None:
         typer.echo(f"{k}: {v}")
 
 
+@channels_app.command("identity")
+def channels_identity(channel_id: str = typer.Argument(None, help="Channel id (default: the active one)."),
+                      preset: str = typer.Option(None, help="Apply a starting point: finance-stories or explainer."),
+                      file: Path = typer.Option(None, "--file", help="JSON with niche_statement, tagline, mascot, "
+                                                "theme, playlists to apply."),
+                      preview: Path = typer.Option(None, help="Write a picture of the mascot, an outro card and "
+                                                   "a thumbnail corner to this folder.")) -> None:
+    """Show or set a channel's niche statement, mascot, theme and playlists."""
+    import json
+
+    from studio.errors import StudioError
+    from studio.growth import channels, identity
+    root = _channels_root()
+    cid = channel_id or channels.active_id(root)
+    if preset:
+        channels.update(root, cid, **identity.preset_fields(preset))
+        typer.echo(f"Applied the '{preset}' identity to '{cid}'. Edit any field with --file or in the app.")
+    if file:
+        try:
+            data = json.loads(file.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise StudioError(f"Could not read {file}.", str(exc), "Give a valid JSON file.") from exc
+        keys = ("niche", "niche_statement", "tagline", "mascot", "theme", "playlists")
+        channels.update(root, cid, **{k: data[k] for k in keys if k in data})
+    prof = channels.get(root, cid)
+    if preset or file:
+        made = identity.sync_playlists(root, prof)
+        if made:
+            typer.echo(f"Playlist plans created: {', '.join(made)} (see the Series tab).")
+    m, th = prof["mascot"], identity.colors(prof)
+    typer.echo(f"Niche: {prof['niche']}\nStatement: {prof['niche_statement'] or '(not set)'}\n"
+               f"Tagline: {prof['tagline'] or '(not set)'}")
+    typer.echo(f"Mascot: {m['name'] + ' (' + m['kind'] + ') - ' + m['personality'] if m else '(none)'}")
+    typer.echo(f"Theme: bg {th['bg']}, accent {th['accent']}, accent2 {th['accent2']}, text {th['text']}; "
+               f"intro {prof['theme'].get('intro_style', 'none')}, outro {prof['theme'].get('outro_style', 'none')}")
+    for pl in prof["playlists"]:
+        typer.echo(f"Playlist: {pl['name']} | {pl['title_pattern'] or '-'} | {len(pl['topics'])} planned | "
+                   f"YouTube id: {pl['youtube_id'] or '(add after you create it in YouTube Studio)'}")
+    if preview:
+        preview.mkdir(parents=True, exist_ok=True)
+        if m:
+            identity.mascot_image(m, 600).save(preview / "mascot.png")
+        identity.card_image(prof, "outro", "", "", None, (1280, 720)).save(preview / "outro_card.png")
+        typer.echo(f"Preview pictures written to {preview}.")
+
+
 @channels_app.command("remove")
 def channels_remove(channel_id: str = typer.Argument(...)) -> None:
     """Delete a channel profile."""

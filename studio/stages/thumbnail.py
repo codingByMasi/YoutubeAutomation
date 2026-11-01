@@ -159,7 +159,8 @@ def run(ctx: Ctx, video_id: int, force: bool = False) -> list[Path]:
 
     def work() -> None:
         from studio import production
-        with brand.use(production.resolve(ctx.settings, video_id)["palette"]):
+        prod = production.resolve(ctx.settings, video_id)
+        with brand.use(prod["palette"], prod.get("theme")):
             _work()
 
     def _work() -> None:
@@ -177,6 +178,10 @@ def run(ctx: Ctx, video_id: int, force: bool = False) -> list[Path]:
         frame = grab_frame(clean, at, out / "frame.png") if clean.exists() else None
         images = [layout_split(texts[0], frame, assets), layout_fullbleed(texts[1], frame, assets),
                   layout_number(texts[2], headline_number(pkg), assets)]
+        from studio.growth import channels, identity
+        prof = channels.get(ctx.settings.root)  # the channel's mascot appears in a corner, reacting differently
+        images = [identity.paste_mascot(img, prof, size, "tr", mood)
+                  for img, size, mood in zip(images, (150, 260, 200), ("happy", "surprised", "thinking"))]
         for i, img in enumerate(images, 1):
             p = save_under_limit(_overlay(img, assets), out / f"thumb_{i}.jpg")
             problems = validate_thumb(p)

@@ -71,6 +71,9 @@ def _load_review(path: Path) -> dict:
 def run(ctx: Ctx, video_id: int, at: str | None = None, playlist: str | None = None) -> None:
     s = ctx.session
     video = get_video(s, video_id)
+    if not playlist:  # a video planned in a playlist/series goes into that YouTube playlist if its id is known
+        from studio.growth import identity
+        playlist = identity.playlist_id_for(ctx.settings.root, video_id)
     review_path = ctx.settings.project_dir(video_id) / "review.json"
     resuming = video.stage == "scheduled" and video.youtube_video_id
     if not resuming:
