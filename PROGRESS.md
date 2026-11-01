@@ -341,3 +341,4 @@ Music and effects were checked for level and clipping, not by ear: listen once a
   the segment falls back to its chart or card. `charts.fmt` turns "trillion US$/USD/dollars" into "$5.03 trillion"; number cards auto-size.
 - Found while diagnosing: the owner's Downloads copy is older than PR #24 (no render_report.py / chart_anim.py), so animated charts and the render report were absent.
   Owner must: `git pull origin main` or re-download, then rebuild (non-draft).
+- Also: in `mixed`/`3d` style, pie charts now become 3D charts too (`scenes.chart_items`), so scripts with few explicit scenes are still mostly 3D. Flow and number charts stay 2D.

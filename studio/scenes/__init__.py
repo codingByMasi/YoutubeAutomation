@@ -72,9 +72,9 @@ def validate_scene(scene: object, where: str, seg: dict | None = None,
 
 
 def chart_items(seg: dict) -> list[dict]:
-    """Bar/line chart_data as chart3d items ([] for other chart types)."""
+    """Bar, line and pie chart_data as chart3d items ([] for flow and number charts)."""
     chart = seg.get("chart_data") or {}
-    if chart.get("type") not in ("bar", "line"):
+    if chart.get("type") not in ("bar", "line", "pie"):
         return []
     from studio.providers.charts import fmt
 
@@ -87,8 +87,8 @@ def plan(seg: dict, style: str, override: str = "") -> dict | None:
     """What to draw for a segment: {"scene": {...}, "mode": "2d" | "3d"}, or None for the normal visuals.
 
     style:    the video's/channel's choice. "2d": scenes are drawn as 2D motion graphics. "3d" and "mixed": scenes are
-              3D and every bar/line chart becomes a 3D chart too (so a script with no scenes still gets 3D);
-              pie, flow and number charts stay 2D.
+              3D and every bar, line and pie chart becomes a 3D chart too (so a script with no scenes still gets 3D);
+              flow and number charts stay 2D.
     override: this segment's own choice ("2d" or "3d"); it also beats the scene's own `style`.
     A chart3d scene in 2D mode needs nothing extra: the regular 2D chart is its equivalent.
     """
