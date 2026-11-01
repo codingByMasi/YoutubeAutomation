@@ -12,7 +12,7 @@ from studio.stages import research
 from studio.stages import script as script_stage
 from studio.stages import story as story_stage
 from studio.stages.base import STAGES
-from studio.web import handoff_ui, publish_ui, setup_ui, wizard_ui
+from studio.web import handoff_ui, publish_ui, remedy_ui, setup_ui, wizard_ui
 from studio.web import service as svc
 from studio.web.growth_ui import page_grow_factory
 
@@ -75,8 +75,13 @@ def _lock_tools() -> None:
             st.success("Cleared. Try again.")
 
 
-def show(res: svc.Outcome, success: str = "Done.") -> None:
-    """Render a stage outcome: success or the CLI-style error, plus the log."""
+def show(res: svc.Outcome, success: str = "Done.", retry=None, key: str = "run", **variants) -> None:
+    """Render a stage outcome: success, or the error with fix buttons (retry re-runs the step), plus the log."""
+    if not res.ok and not res.pending and not res.problems:
+        done = remedy_ui.error_panel(res.error, key=key, ctx=ctx_for(), log=res.log, retry=retry, **variants)
+        if done is not None and done.ok:
+            st.success(success)
+        return
     if res.ok:
         st.success(success)
     elif res.pending:
@@ -90,6 +95,18 @@ def show(res: svc.Outcome, success: str = "Done.") -> None:
     if res.log.strip():
         with st.expander("Details"):
             st.code(res.log)
+
+
+def _variants(ctx, name: str, vid: int, draft: bool, force: bool = False) -> dict:
+    """Retry callbacks for a failed stage: plain retry, quick draft, and reset-and-rerun."""
+    return {"retry": lambda: svc.run_stage_by_name(ctx, name, vid, force=force, draft=draft),
+            "retry_draft": None if draft else lambda: svc.run_stage_by_name(ctx, name, vid, force=force, draft=True),
+            "retry_force": None if force else lambda: svc.run_stage_by_name(ctx, name, vid, force=True, draft=draft)}
+
+
+def _run(ctx, name: str, vid: int, draft: bool, force: bool = False):
+    """Run a stage; returns (outcome, retry kwargs) for `show`."""
+    return svc.run_stage_by_name(ctx, name, vid, force=force, draft=draft), _variants(ctx, name, vid, draft, force)
 
 
 def video_picker(ctx, key: str, stages: tuple[str, ...] | None = None):
@@ -407,7 +424,8 @@ def page_make() -> None:
     c1, c2 = st.columns(2)
     if nxt and (nxt == "voice" or not gated) and c1.button(f"Run next step: {svc.STAGE_LABEL[nxt]}"):
         with st.spinner(f"{svc.STAGE_LABEL[nxt]}..."):
-            show(svc.run_stage_by_name(ctx, nxt, v.id, draft=draft), f"{svc.STAGE_LABEL[nxt]} done.")
+            res, kw = _run(ctx, nxt, v.id, draft)
+            show(res, f"{svc.STAGE_LABEL[nxt]} done.", key=f"next{v.id}", **kw)
     if nxt and not gated and c2.button("Run everything to the end", type="primary"):
         bar = st.progress(0.0)
         todo = svc.PRODUCE_STAGES[svc.PRODUCE_STAGES.index(nxt):]
@@ -415,19 +433,21 @@ def page_make() -> None:
             bar.progress(n / len(todo), text=f"{svc.STAGE_LABEL[name]}...")
             res = svc.run_stage_by_name(ctx, name, v.id, draft=draft)
             if not res.ok:
-                show(res)
+                show(res, key=f"all{v.id}", **_variants(ctx, name, v.id, draft))
                 break
         else:
             bar.progress(1.0, text="All done")
             st.success("Video made. Go to **4. Review and download**.")
     if STAGES.index(v.stage) >= STAGES.index("built") and st.button("Also cut 2-3 Shorts"):
         with st.spinner("Cutting Shorts..."):
-            show(svc.run_stage_by_name(ctx, "shorts", v.id, draft=draft), "Shorts ready.")
+            res, kw = _run(ctx, "shorts", v.id, draft)
+            show(res, "Shorts ready.", key=f"shorts{v.id}", **kw)
     with st.expander("Redo a step"):
         redo = st.selectbox("Step", svc.PRODUCE_STAGES, format_func=svc.STAGE_LABEL.get)
         if st.button("Redo it (later steps must be re-run)"):
             with st.spinner("Working..."):
-                show(svc.run_stage_by_name(ctx, redo, v.id, force=True, draft=draft))
+                res, kw = _run(ctx, redo, v.id, draft, force=True)
+                show(res, key=f"redo{v.id}", **kw)
 
 
 def show_player(ctx, video_id: int, final: Path) -> None:
@@ -660,7 +680,7 @@ def main() -> None:
          "Channels": page_channels, "Settings": page_settings, "Data": page_data,
          "🧸 Kids mode": page_kids}[page]()
     except StudioError as exc:
-        st.error(str(exc))
+        remedy_ui.error_panel(str(exc), key="page", ctx=ctx_for())
     except Exception as exc:  # noqa: BLE001 - one database error must not poison later reruns
         if not is_locked_error(exc):
             raise
