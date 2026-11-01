@@ -5,16 +5,17 @@ from __future__ import annotations
 import contextlib
 import io
 import os
+import re
 import subprocess
 import sys
 import zipfile
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from studio import scope
 from studio.context import Ctx, build_ctx
-from studio.errors import PendingLLMResponse, StudioError
+from studio.errors import InvalidAnswer, PendingLLMResponse, StudioError
 from studio.llm import prompt_paths
 from studio.models import Idea, Title, Video
 from studio.stages.base import STAGES
@@ -37,6 +38,8 @@ class Outcome:
     log: str
     error: str = ""
     pending: bool = False  # True when a prompt file was written and an answer is awaited
+    problems: list[str] = field(default_factory=list)  # individual validation problems of a pasted answer
+    answer: str = ""  # the rejected answer text, kept so it is never lost
 
 
 def apply_secrets(values: Mapping[str, object]) -> list[str]:
@@ -65,6 +68,8 @@ def capture(fn: Callable[..., object], *args, **kwargs) -> Outcome:
             fn(*args, **kwargs)
         except PendingLLMResponse as exc:
             return Outcome(False, out.getvalue() + err.getvalue(), str(exc), pending=True)
+        except InvalidAnswer as exc:
+            return Outcome(False, out.getvalue() + err.getvalue(), str(exc), problems=list(exc.problems))
         except StudioError as exc:
             return Outcome(False, out.getvalue() + err.getvalue(), str(exc))
     return Outcome(True, out.getvalue() + err.getvalue())
@@ -206,6 +211,59 @@ def save_response(ctx: Ctx, video_id: int, text: str, task: str = "script") -> P
     return rf
 
 
+_PLAIN = [
+    (re.compile(r"beat '(.*?)' not in .*"), r"uses the beat '\1', which is not allowed "
+     "(use question, reveal, example, pattern_break or null)"),
+    (re.compile(r"chart has no source.*"), "has a chart with real figures but no source "
+     "(add source_ids, or label it a made-up example)"),
+    (re.compile(r"chart cites unknown source id '(.*?)'"), r"cites the source '\1', which is not in the sources list"),
+    (re.compile(r"visual_keywords is empty"), "has no visual keywords"),
+    (re.compile(r"narration is empty"), "has no narration"),
+]
+
+
+def plain_problems(problems: list[str]) -> list[str]:
+    """Validation problems in plain language, e.g. 'Segment 15 uses the beat ...'."""
+    out = []
+    for p in problems:
+        m = re.match(r"(segment \d+): (.*)", p)
+        if not m:
+            out.append(p[:1].upper() + p[1:])
+            continue
+        who, rest = m.group(1).capitalize(), m.group(2)
+        for rx, repl in _PLAIN:
+            if rx.fullmatch(rest):
+                rest = rx.sub(repl, rest)
+                break
+        out.append(f"{who} {rest}" if rest != m.group(2) else f"{who}: {rest}")
+    return out
+
+
+def fix_request(problems: list[str], task: str = "script") -> str:
+    """Text to paste to Claude asking it to repair its previous answer, with the exact errors."""
+    bullets = "\n".join(f"- {p}" for p in problems)
+    return (f"Your {task} JSON answer failed the studio's validation. Please send back the full corrected JSON "
+            f"object (only the JSON, no other text), changing only what is needed to fix these errors:\n\n{bullets}\n\n"
+            "Allowed `beat` values: question, reveal, example, pattern_break, or null. Charts with real figures need "
+            "`source_ids` that exist in `sources`; a flow diagram with empty `values`, or a chart titled "
+            "'made-up example', needs no source.")
+
+
+def rejected_answer(ctx: Ctx, video_id: int, task: str = "script") -> str:
+    """The last rejected pasted answer for a task ('' if none), so it can be shown again."""
+    pf, _ = prompt_paths(ctx.settings.project_dir(video_id), task)
+    f = pf.with_name(f"{task}.rejected.json")
+    return f.read_text(encoding="utf-8") if f.exists() else ""
+
+
+def _reject(rf: Path, res: Outcome) -> Outcome:
+    """A bad answer is moved aside (never deleted) so a new one can be pasted."""
+    if rf.exists():
+        res.answer = rf.read_text(encoding="utf-8")
+        rf.replace(rf.with_name(rf.name.replace(".response.json", ".rejected.json")))
+    return res
+
+
 def submit_script(ctx: Ctx, idea_id: int, video_id: int, pasted: str) -> Outcome:
     """Save a pasted script answer and run the script stage. A bad answer is removed so it can be re-pasted."""
     from studio.stages import script
@@ -216,9 +274,7 @@ def submit_script(ctx: Ctx, idea_id: int, video_id: int, pasted: str) -> Outcome
     except StudioError as exc:
         return Outcome(False, "", str(exc))
     res = capture(script.run, ctx, idea_id)
-    if not res.ok and rf.exists():
-        rf.unlink()
-    return res
+    return res if res.ok else _reject(rf, res)
 
 
 def submit_task(ctx: Ctx, video_id: int, task: str, pasted: str, fn: Callable[..., object], *args) -> Outcome:
@@ -228,9 +284,7 @@ def submit_task(ctx: Ctx, video_id: int, task: str, pasted: str, fn: Callable[..
     except StudioError as exc:
         return Outcome(False, "", str(exc))
     res = capture(fn, ctx, *args)
-    if not res.ok and rf.exists():
-        rf.unlink()
-    return res
+    return res if res.ok else _reject(rf, res)
 
 
 def project_files(ctx: Ctx, video_id: int) -> dict[str, list[Path]]:

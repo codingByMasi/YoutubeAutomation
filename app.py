@@ -58,6 +58,13 @@ def show(res: svc.Outcome, success: str = "Done.") -> None:
         st.success(success)
     elif res.pending:
         st.info("Waiting for the script. Follow the steps below.")
+    elif res.problems:
+        st.error("Claude's answer has a few problems. Nothing was lost: your answer is kept below.")
+        for line in svc.plain_problems(res.problems):
+            st.markdown(f"- {line}")
+        st.markdown("**Fix it:** copy this (copy icon, top right of the box) and send it to Claude, "
+                    "then paste the corrected answer back.")
+        st.code(svc.fix_request(res.problems), language="markdown", wrap_lines=True)
     else:
         st.error(res.error)
     if res.log.strip():

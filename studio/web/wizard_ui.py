@@ -47,7 +47,7 @@ def step_topic(ctx, show) -> None:
         st.rerun()
 
 
-def _critique_box(ctx, v) -> None:
+def _critique_box(ctx, v, show) -> None:
     prompt = svc.read_prompt(ctx, v.id, "critique")
     if st.button("Write the review request", key=f"wz_creq{v.id}"):
         show_local = svc.capture(story_stage.run_critique, ctx, v.id)
@@ -63,7 +63,7 @@ def _critique_box(ctx, v) -> None:
                 st.success("Script improved.")
                 st.rerun()
             else:
-                st.error(res.error)
+                show(res)
 
 
 def step_script(ctx, v, show) -> None:
@@ -83,6 +83,10 @@ def step_script(ctx, v, show) -> None:
             show(res, "Script accepted.")
             if res.ok:
                 st.rerun()
+        kept = svc.rejected_answer(ctx, v.id)
+        if kept:
+            with st.expander("Your last answer is kept here (not lost)"):
+                st.code(kept, language="json", wrap_lines=True)
 
 
 def _qa_panel(ctx, v) -> None:
@@ -121,7 +125,7 @@ def step_make(ctx, v, show, production_box=None) -> None:
     if v.stage == "scripted":
         with st.expander("Optional but recommended: have Claude score and rewrite the script first"):
             st.write("Claude scores hook, stakes, pacing and ending, then returns a stronger script.")
-            _critique_box(ctx, v)
+            _critique_box(ctx, v, show)
         with st.expander("Optional: read the script"):
             sd = ctx.settings.project_dir(v.id) / "script.md"
             if sd.exists():

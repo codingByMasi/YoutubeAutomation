@@ -22,6 +22,7 @@ from studio.stages.script import (
     _brief,
     _spec_section,
     load_package,
+    normalize_package,
     prompt_text,
     save_package,
     validate_package,
@@ -147,6 +148,7 @@ def validate_critique(d: dict) -> list[str]:
     if not isinstance(revised, dict):
         problems.append("revised must be the complete script package")
     else:
+        normalize_package(revised)
         problems += [f"revised script: {p}" for p in validate_package(revised)]
     return problems
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
@@ -178,3 +179,25 @@ def test_ensure_preview_builds_once_and_rebuilds_when_stale(make_ctx, monkeypatc
     os.utime(d / "final.mp4", (p.stat().st_mtime + 10,) * 2)
     svc.ensure_preview(ctx, video.id)
     assert len(calls) == 2  # final changed, preview rebuilt
+
+
+def test_rejected_answer_is_kept_and_explained(make_ctx):
+    ctx = make_ctx()
+    idea, video = _approved(ctx)
+    from studio.stages import script
+
+    svc.capture(script.run, ctx, idea.id)
+    broken = json.loads(SAMPLE.read_text(encoding="utf-8"))
+    broken["segments"][2]["beat"] = "banana"
+    broken["segments"][3]["chart_data"] = {"type": "bar", "title": "Revenue", "labels": ["a"], "values": [1],
+                                           "source_ids": []}
+    text = json.dumps(broken)
+    res = svc.submit_script(ctx, idea.id, video.id, text)
+    assert not res.ok and len(res.problems) == 2 and res.answer == text
+    assert svc.rejected_answer(ctx, video.id, "script") == text
+    plain = svc.plain_problems(res.problems)
+    assert plain[0].startswith("Segment 3 uses the beat 'banana'")
+    req = svc.fix_request(res.problems)
+    assert "segment 3" in req and "question, reveal, example, pattern_break" in req
+    # a corrected paste works afterwards
+    assert svc.submit_script(ctx, idea.id, video.id, SAMPLE.read_text(encoding="utf-8")).ok

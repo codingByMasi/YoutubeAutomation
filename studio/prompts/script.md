@@ -18,7 +18,9 @@ You are writing a complete YouTube video package for a faceless, narrated explai
 # Hard rules
 - Original analysis only. Do not copy or closely paraphrase any existing video, script or article.
   Explain the money flow in your own structure, with your own examples and comparisons.
-- Every figure shown on screen needs a source in `sources` (annual report, filing, reputable article).
+- Every chart with real figures needs `source_ids` that exist in `sources` (annual report, filing, reputable
+  article). Exceptions that need no source: a `flow` diagram with `"values": []` (a concept, not data), and a chart
+  whose title or unit says "made-up example" or "illustration" (a teaching example, never presented as real).
   Label estimates as estimates (`"is_estimate": true`). No investment advice; no guarantees.
 - Banned phrases anywhere: {banned}.
 - Titles: exactly 15, each under 70 characters, one clear promise, no ALL-CAPS words longer than
@@ -36,7 +38,8 @@ You are writing a complete YouTube video package for a faceless, narrated explai
 - Open loops: in the first 60 seconds plant at least two teasers that are paid off later ("The third source is
   the one nobody notices", "And that is not even where the real profit hides"). Each payoff should plant the
   next teaser. Describe each teaser in the segment's `open_loop` field (empty string if none).
-- Pattern interrupt (`question`, `reveal`, `example`, or `pattern_break`) in `beat` at least every 20-40
+- `beat` must be exactly one of: `question`, `reveal`, `example`, `pattern_break`, or `null` for a plain explanatory
+  segment. Never write "explain" or any other word. Pattern interrupt in `beat` at least every 20-40
   seconds: ask the viewer something, drop a number, flip an assumption ("but here is the catch"), use a
   comparison they can picture, or tell a 1-2 sentence anecdote. Never two flat explanatory segments in a row.
 - Spoken style: write for the ear. Sentences of 18 words or fewer, contractions, plain words, "you". One idea

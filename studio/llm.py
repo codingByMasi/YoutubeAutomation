@@ -13,7 +13,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from studio.config import API_LLM_PROVIDERS, Settings
-from studio.errors import PendingLLMResponse, StudioError
+from studio.errors import InvalidAnswer, PendingLLMResponse, StudioError
 from studio.util.retry import with_retry
 
 Validator = Callable[[dict], list[str]]  # returns a list of problems; empty means valid
@@ -41,11 +41,12 @@ def _load_response(path: Path, validate: Validator | None) -> dict:
     problems = validate(data) if validate else []
     if problems:
         bullet = "\n  - ".join(problems)
-        raise StudioError(
+        raise InvalidAnswer(
             f"The answer in {path} failed validation:\n  - {bullet}",
             "The output must follow the rules in the prompt file.",
             f"Ask Claude Code to fix {path} using {path.with_name(path.name.replace('.response.json', '.prompt.md'))},"
             " then re-run the command.",
+            problems, str(path),
         )
     return data
 
