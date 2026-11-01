@@ -3,22 +3,21 @@
 from __future__ import annotations
 
 import os
-from datetime import date, time
 from pathlib import Path
 
 import streamlit as st
 
 from studio.errors import StudioError
-from studio.stages import research, review
+from studio.stages import research
 from studio.stages import script as script_stage
 from studio.stages import story as story_stage
 from studio.stages.base import STAGES
-from studio.web import growth_service as gsvc
+from studio.web import handoff_ui, publish_ui, setup_ui, wizard_ui
 from studio.web import service as svc
 from studio.web.growth_ui import page_grow_factory
 
 ROOT = Path(os.getenv("STUDIO_HOME") or Path(__file__).parent).resolve()
-PAGES = ["Home", "1. Topics", "2. Script", "3. Make the video", "4. Review and download",
+PAGES = ["🎬 Make a video", "Setup", "Home", "1. Topics", "2. Script", "3. Make the video", "4. Review and download",
          "5. Grow the channel", "📊 Analytics", "Channels", "Settings", "Data", "🧸 Kids mode"]
 
 st.set_page_config(page_title="YouTube Channel Studio", page_icon="🎬", layout="wide")
@@ -81,6 +80,8 @@ def page_home() -> None:
     st.title("🎬 YouTube Channel Studio")
     st.write("Work down the pages on the left: pick a topic, get the script written, let the studio make the "
              "video, then review and download it. Nothing is ever published without you typing `yes`.")
+    st.button("🎬 Make a video (guided, one page)", type="primary", on_click=handoff_ui.goto,
+              args=("🎬 Make a video",))
     from studio.growth import channels
     if channels.type_info(ROOT)["mode"] == "kids":
         st.info("This is a **kids channel**. Make its videos on the **🧸 Kids mode** page, and set every upload to "
@@ -176,7 +177,7 @@ def task_block(ctx, v, title: str, help_text: str, task: str, fn, arg: int) -> N
         prompt = svc.read_prompt(ctx, v.id, task)
         if prompt:
             st.code(prompt, language="markdown", wrap_lines=True)
-            pasted = st.text_area("Claude's answer (JSON)", height=240, key=f"ans_{task}{v.id}")
+            pasted = handoff_ui.answer_box(f"ans_{task}{v.id}", height=240)
             if st.button("Save and apply", key=f"save_{task}{v.id}"):
                 res = svc.submit_task(ctx, v.id, task, pasted, fn, arg)
                 show(res, "Done.")
@@ -214,7 +215,7 @@ def page_script() -> None:
         st.markdown("**Step 2.** Copy this (use the copy icon at the top right of the box) and paste it into Claude.")
         st.code(prompt, language="markdown", wrap_lines=True)
         st.markdown("**Step 3.** Paste Claude's JSON answer here. Length is up to you; there is no maximum.")
-        pasted = st.text_area("Claude's answer (JSON)", height=300, key=f"resp{v.id}")
+        pasted = handoff_ui.answer_box(f"resp{v.id}", height=300)
         if st.button("Save script and check it", type="primary"):
             res = svc.submit_script(ctx, v.idea_id, v.id, pasted)
             show(res, "Script accepted.")
@@ -372,33 +373,9 @@ def page_review() -> None:
                            key=f"zip{v.id}")
     st.divider()
     st.subheader("Approve and publish (optional)")
-    st.caption("You can simply download the video and upload it yourself. Publishing from here needs Google sign-in, "
-               "which only works when the app runs on your own computer.")
-    if v.stage not in ("thumbnailed", "reviewed", "scheduled", "live"):
-        return
-    fc_ok = v.stage in ("reviewed", "scheduled", "live") or gsvc.fact_check_passed(ctx, v.id)
-    if not fc_ok:
-        st.warning("Finish the **fact and source checklist** first (5. Grow the channel, Fact check tab). "
-                   "It must be complete before you can approve.")
-    thumb = st.radio("Thumbnail", [1, 2, 3], horizontal=True)
-    typed = st.text_input("Type yes to approve this video for publishing", key=f"yes1{v.id}")
-    if fc_ok and st.button("Run the pre-publish checklist"):
-        res = svc.capture(review.run, svc.make_ctx(ROOT, lambda _p: typed), v.id, thumb=thumb)
-        show(res, "Approved. You can now publish.")
-    if v.stage == "reviewed":
-        if not ctx.settings.client_secret.exists():
-            st.warning("Publishing needs client_secret.json (README section 3). Download the video instead, or run "
-                       "the app locally.")
-            return
-        when = st.date_input("Publish date", min_value=date.today())
-        at_time = st.time_input("Publish time (local)", value=time(18, 0))
-        typed2 = st.text_input("Type yes again to upload", key=f"yes2{v.id}")
-        if st.button("Upload to YouTube (private, scheduled)"):
-            from studio.stages import publish
-
-            res = svc.capture(publish.run, svc.make_ctx(ROOT, lambda _p: typed2), v.id,
-                              at=f"{when:%Y-%m-%d} {at_time:%H:%M}")
-            show(res, "Uploaded.")
+    st.caption("You can simply download the video and upload it yourself. Publishing from here needs Google sign-in "
+               "(Setup page), which only works when the app runs on your own computer.")
+    publish_ui.render(ctx, ROOT, v, show)
 
 
 def _signin_row(c: dict) -> None:
@@ -533,6 +510,14 @@ def page_settings() -> None:
              f"{ctx.quota.summary()['units']['used']} units.")
 
 
+def page_wizard() -> None:
+    wizard_ui.render(ctx_for, show, show_player, _production_box)
+
+
+def page_setup() -> None:
+    setup_ui.render(ctx_for, show)
+
+
 def page_kids() -> None:
     from studio.kids import page
 
@@ -564,9 +549,10 @@ def main() -> None:
     if chosen != active:
         channels.switch(ROOT, chosen)
         st.rerun()
-    page = st.sidebar.radio("Go to", PAGES, label_visibility="collapsed")
+    page = st.sidebar.radio("Go to", PAGES, key="nav", label_visibility="collapsed")
     try:
-        {"Home": page_home, "1. Topics": page_topics, "2. Script": page_script, "3. Make the video": page_make,
+        {"🎬 Make a video": page_wizard, "Setup": page_setup,
+         "Home": page_home, "1. Topics": page_topics, "2. Script": page_script, "3. Make the video": page_make,
          "4. Review and download": page_review, "5. Grow the channel": page_grow,
          "📊 Analytics": page_analytics,
          "Channels": page_channels, "Settings": page_settings, "Data": page_data,
