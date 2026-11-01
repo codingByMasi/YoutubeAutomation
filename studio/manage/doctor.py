@@ -19,20 +19,24 @@ class Check:
     level: str
     message: str
     fix: str = ""
+    action: str = ""  # Setup-page control: ffmpeg, llm, voice, footage, client_secret, channel_id, signin
 
 
 def _client_secret(settings: Settings) -> Check:
     p = settings.client_secret
     if not p.exists():
         return Check("YouTube upload", FAIL, f"No Google OAuth file at {p}.",
-                     "Create a Desktop-app OAuth client in Google Cloud and save it there (README section 3).")
+                     "Create a Desktop-app OAuth client in Google Cloud and save it there (README section 3).",
+                     "client_secret")
     try:
         data = json.loads(p.read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        return Check("YouTube upload", FAIL, f"{p.name} is not valid JSON.", "Download the OAuth client JSON again.")
+        return Check("YouTube upload", FAIL, f"{p.name} is not valid JSON.", "Download the OAuth client JSON again.",
+                     "client_secret")
     if "installed" not in data:
         return Check("YouTube upload", FAIL, f"{p.name} is not a Desktop-app client (no 'installed' section).",
-                     "Create the OAuth client with application type 'Desktop app', not 'Web application'.")
+                     "Create the OAuth client with application type 'Desktop app', not 'Web application'.",
+                     "client_secret")
     return Check("YouTube upload", OK, "Google OAuth client file found.")
 
 
@@ -42,25 +46,26 @@ def run_checks(settings: Settings) -> list[Check]:
     for tool in ("ffmpeg", "ffprobe"):
         out.append(Check("Video tools", OK, f"{tool} found.") if shutil.which(tool) else
                    Check("Video tools", FAIL, f"{tool} is not installed or not on PATH.",
-                         "Install ffmpeg (Windows: winget install ffmpeg; Mac: brew install ffmpeg); reopen terminal."))
+                         "Install ffmpeg (Windows: winget install ffmpeg; Mac: brew install ffmpeg); reopen terminal.",
+                         "ffmpeg"))
     if settings.llm_provider == "claude_code":
         out.append(Check("Writing", OK, "Claude Code writes scripts via prompt files (no API key needed)."))
     else:
         out.append(Check("Writing", OK if settings.llm_api_key else FAIL, f"LLM provider {settings.llm_provider}.",
-                         "" if settings.llm_api_key else "Set LLM_API_KEY or use LLM_PROVIDER=claude_code."))
+                         "" if settings.llm_api_key else "Set LLM_API_KEY or use LLM_PROVIDER=claude_code.", "llm"))
     if settings.tts_provider == "silent":
         out.append(Check("Voice", FAIL, "TTS_PROVIDER=silent makes a video with no narration.",
-                         "Set TTS_PROVIDER=edge (free) or eleven in .env."))
+                         "Set TTS_PROVIDER=edge (free) or eleven in .env.", "voice"))
     elif settings.tts_provider == "eleven" and not settings.elevenlabs_api_key:
         out.append(Check("Voice", FAIL, "TTS_PROVIDER=eleven but ELEVENLABS_API_KEY is empty.",
-                         "Add the key or use TTS_PROVIDER=edge."))
+                         "Add the key or use TTS_PROVIDER=edge.", "voice"))
     else:
         out.append(Check("Voice", OK, f"Narration via {settings.tts_provider} ({settings.tts_voice}). "
                                       "Listen to the first 20 seconds before approving."))
     keyed = settings.pexels_api_key or settings.pixabay_api_key
     if settings.footage_provider == "none" or not keyed:
         out.append(Check("Visuals", WARN, "No stock footage key: the video uses generated charts and cards only.",
-                         "Add a free PIXABAY_API_KEY for real footage between charts."))
+                         "Add a free PIXABAY_API_KEY for real footage between charts.", "footage"))
     else:
         out.append(Check("Visuals", OK, "Stock footage key set."))
     music = [f for f in (settings.assets_dir / "music").glob("*") if f.suffix.lower() in {".mp3", ".wav", ".m4a"}] \
@@ -70,17 +75,18 @@ def run_checks(settings: Settings) -> list[Check]:
     out.append(_client_secret(settings))
     if not settings.channel_id:
         out.append(Check("YouTube upload", FAIL, "CHANNEL_ID is empty in .env.",
-                         "Copy your channel ID from YouTube Studio > Settings > Channel > Advanced settings."))
+                         "Copy your channel ID from YouTube Studio > Settings > Channel > Advanced settings.",
+                         "channel_id"))
     elif not settings.channel_id.startswith("UC"):
         out.append(Check("YouTube upload", WARN, "CHANNEL_ID does not start with UC.",
-                         "Use the channel ID (UC...), not the @handle."))
+                         "Use the channel ID (UC...), not the @handle.", "channel_id"))
     else:
         out.append(Check("YouTube upload", OK, "CHANNEL_ID set."))
     if settings.token_path.exists():
         out.append(Check("YouTube upload", OK, "Signed in (token.json exists)."))
     else:
         out.append(Check("YouTube upload", WARN, "Not signed in to Google yet.",
-                         "Run `python -m studio.cli research \"how Costco makes money\"`; a browser opens once."))
+                         "Press 'Sign in to Google' in the app (Setup page); a browser opens once.", "signin"))
     return out
 
 

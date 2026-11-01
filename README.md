@@ -15,6 +15,19 @@ Full design: see `SPEC.md`. Build progress: see `PROGRESS.md`.
 
 ## Web app (no code needed)
 
+**Easiest start (no terminal):** on Windows double-click `run_app.bat` (installs everything the first time, offers
+to install ffmpeg, then opens the app in your browser). On macOS/Linux run `./run_app.sh`. Then:
+
+1. **Setup** page: a traffic-light checklist (ffmpeg, script writer, voice, footage key, Google client file,
+   channel ID, Google sign-in). Each item opens guided steps and a box to fix it; keys are saved to `.env`.
+2. **Make a video** page: one guided path (topic, script via copy/paste or file upload to Claude, make with QA
+   score, watch and pick a thumbnail, typed-`yes` approval, schedule/upload). It resumes where you left off.
+3. **Channels** page: any number of channels, each with a type (long explainers or kids songs) and its own
+   Google sign-in. Kids channels get the Kids builder with a 2D/3D picture choice.
+4. **Analytics** page: pull the latest report from YouTube (after sign-in) or paste numbers in *5. Grow the channel*.
+
+The older numbered pages stay available for finer control. Everything below also works without the launcher.
+
 Everything above also runs from a browser app built with Streamlit: pick a topic, copy the script request into
 Claude and paste the answer back, click once to make the video, then watch and download it.
 

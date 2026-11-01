@@ -44,6 +44,7 @@ class Settings:
     tts_provider: str = "edge"
     renderer: str = "2d"  # kids mode picture renderer: 2d (default, works anywhere) or blender (PC only)
     blender_path: str = ""
+    channel_slug: str = "default"  # active channel profile id; picks which Google sign-in (token) is used
     tts_voice: str = "en-US-AndrewNeural"
     daily_quota_limit: int = 10000
     quota_safety_margin: int = 500
@@ -63,7 +64,10 @@ class Settings:
 
     @property
     def token_path(self) -> Path:
-        return self.root / "token.json"
+        """Google sign-in cache. The default channel keeps the old `token.json`; others get `tokens/<id>.json`."""
+        if self.channel_slug in ("", "default"):
+            return self.root / "token.json"
+        return self.root / "tokens" / f"{self.channel_slug}.json"
 
     @property
     def client_secret(self) -> Path:
@@ -109,6 +113,7 @@ def _apply_active_channel(s: Settings) -> None:
     from studio.growth import channels
 
     p = channels.get(s.root)
+    s.channel_slug = channels.active_id(s.root)
     if p["voice"]:
         s.tts_voice = p["voice"]
     if p["youtube_channel_id"]:

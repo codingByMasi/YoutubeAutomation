@@ -60,6 +60,7 @@ def get_credentials(settings: Settings, run_flow=_run_flow) -> Any:
                 str(exc),
                 "If you saw 'Access blocked', add your account as a test user on the OAuth consent screen.",
             ) from exc
+    token.parent.mkdir(parents=True, exist_ok=True)
     token.write_text(creds.to_json(), encoding="utf-8")
     try:
         token.chmod(0o600)

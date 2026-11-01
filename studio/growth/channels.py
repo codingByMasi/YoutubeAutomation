@@ -17,8 +17,13 @@ NAME = "channels"
 DEFAULT_ID = "default"
 EXPORT_KIND = "yt-studio-channels"
 
+# Channel types: what the "Make a video" wizard builds for the channel.
+TYPES = {"explainer": "Long explainer videos (script, narration, charts)",
+         "kids": "Kids songs and nursery rhymes (animated, sing-along)"}
+
 DEFAULTS: dict = {
     "name": "My Channel",
+    "type": "explainer",
     "niche": "Business-model and economics explainers",
     "description": "",
     "language": "English",

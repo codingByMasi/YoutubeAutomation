@@ -42,9 +42,17 @@ def render(ctx_for, show) -> None:
                 show(svc.capture(kscript.run, ctx, topic), "Script accepted.")
                 st.rerun()
     if (d / "script.json").exists():
+        from studio.web import setup_service as setup
+
+        info = setup.renderer_info(ctx.settings)
+        choice = st.radio("Pictures", ["2d", "blender"], index=1 if ctx.settings.renderer == "blender" else 0,
+                          horizontal=True, key=f"kids_renderer_{slug}",
+                          format_func={"2d": "2D (works anywhere)", "blender": "3D (Blender, this PC only)"}.get)
+        if choice == "blender" and not info["blender_ok"]:
+            st.info(info["note"] + " The video will be made in 2D instead.")
         if st.button("Step 2: make the video"):
             with st.spinner("Drawing scenes (a few minutes)..."):
-                show(svc.capture(kbuild.run, ctx, slug), "Video ready.")
+                show(svc.capture(kbuild.run, ctx, slug, renderer=choice), "Video ready.")
         if (d / "final.mp4").exists():
             st.video((d / "final.mp4").read_bytes())
             st.download_button("Download MP4", (d / "final.mp4").read_bytes(), f"{slug}.mp4", "video/mp4")

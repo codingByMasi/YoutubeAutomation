@@ -66,6 +66,15 @@ Status values: `todo`, `in progress`, `blocked`, `done`
 - [x] `calendar`, `status [--sync]`, `run-all`, `quota`
 - [x] Tests: report generation, comment draft never posts, run-all stops at review gate (end to end with real ffmpeg and mocked APIs)
 
+### M9 Web app as the single front end: `done` (2026-11-01)
+- [x] `Setup` page: doctor checklist with guided steps and a fix box per item (keys to `.env`, upload `client_secret.json`, channel ID, voice sample, 2D/3D picture style)
+- [x] Per-channel Google sign-in (`tokens/<channel>.json`; the default channel keeps `token.json`), sign in/out from the app
+- [x] `Make a video` wizard (topic, script handoff with paste or upload, optional critique, voice, QA score, make, review, typed-yes approve, schedule/upload); resumes the newest unfinished video; kids channels route to the Kids builder
+- [x] `Analytics` page (pull from YouTube, latest per-channel report); channel type field; shared `publish_ui` and `handoff_ui`
+- [x] `run_app.bat` (Windows one-click: Python check, venv, packages, `.env`, ffmpeg offer) and `run_app.sh`
+- [x] Tests: `tests/test_web_setup_wizard.py` (231 tests total pass, ruff clean)
+- Not tested in a real run: the `.bat` on Windows, Google sign-in and upload, edge-tts voice sample (needs internet), Blender 3D, winget ffmpeg install.
+
 ### M8 Docs and hardening: `done` (2026-10-28)
 - [x] README setup steps updated to the real flow (prompt handoff, demo, licence notes, quota)
 - [x] SPEC updated with decisions that changed (LLM, quota table, video tooling, new commands)
