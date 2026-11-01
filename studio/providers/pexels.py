@@ -8,7 +8,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from studio.providers.footage import StockClip
+from studio.providers.footage import StockClip, is_relevant
 from studio.util.retry import with_retry
 
 SEARCH_URL = "https://api.pexels.com/v1/videos/search"
@@ -68,7 +68,8 @@ class Pexels:
         exclude = exclude if exclude is not None else set()
         for kw in keywords:
             for v in self.search(kw):
-                if v["id"] in exclude:
+                text = (v.get("url") or "").replace("-", " ") + " " + (v.get("alt") or "")
+                if v["id"] in exclude or not is_relevant(kw, text):
                     continue
                 clip = self.download(v)
                 if clip:
