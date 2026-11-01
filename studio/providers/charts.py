@@ -6,6 +6,7 @@ frames in sequence so the figure is revealed, not dumped on screen.
 
 from __future__ import annotations
 
+import re
 import textwrap
 from pathlib import Path
 
@@ -30,7 +31,13 @@ def fmt(value: float, unit: str) -> str:
         if isinstance(value, float) and not value.is_integer():
             v = f"{value:,.2f}"
         return f"{unit}{v}"
-    return f"{v}{unit}" if unit in {"%", "x"} else f"{v} {unit}".strip()
+    if unit in {"%", "x"}:
+        return f"{v}{unit}"
+    m = re.match(r"^(?P<scale>thousand|million|billion|trillion)?\s*(?P<cur>US\$|USD|\$|US dollars?|dollars?)$",
+                 unit.strip(), re.I)
+    if m and m["cur"]:
+        return f"${v} {m['scale'].lower()}".strip() if m["scale"] else f"${v}"
+    return f"{v} {unit}".strip()
 
 
 def _needs_source(chart: dict) -> bool:
@@ -159,8 +166,9 @@ def _flow(chart, foot, out: Path, stem: str) -> list[Path]:
 
 def _number(chart, foot, out: Path, stem: str) -> list[Path]:
     fig = _fig()
-    fig.text(0.5, 0.55, fmt(chart["values"][0], chart.get("unit", "")), ha="center", va="center",
-             color=brand.ACCENT, fontsize=180, fontweight="bold")
+    text = fmt(chart["values"][0], chart.get("unit", ""))
+    size = max(60, min(180, int(1500 / max(len(text), 1) * 1.5)))  # keep the figure inside the frame
+    fig.text(0.5, 0.55, text, ha="center", va="center", color=brand.ACCENT, fontsize=size, fontweight="bold")
     fig.text(0.5, 0.32, chart["labels"][0], ha="center", va="center", color=brand.FG, fontsize=48)
     _frame(fig, chart.get("title", ""), foot)
     return [_save(fig, out / f"{stem}_step1.png")]

@@ -167,3 +167,14 @@ def test_dissolved_segment_has_exact_length(tmp_path):
     final = tmp_path / "seg.mp4"
     ff.run(ff.xfade_cmd(parts, durs, final), "xfade")
     assert ff.probe_duration(final) == pytest.approx(sum(durs), abs=0.15)
+
+
+def test_stock_relevance_and_number_formatting():
+    """Unrelated stock footage is skipped; currency units read as $5.03 trillion, not '5.03 trillion US$'."""
+    from studio.providers.charts import fmt
+    from studio.providers.footage import is_relevant
+    assert is_relevant("nvidia graphics card", "gpu, graphics, card, computer")
+    assert not is_relevant("nvidia chip", "playstation, console, game, controller")
+    assert fmt(5.03, "trillion US$") == "$5.03 trillion"
+    assert fmt(2.5, "billion USD") == "$2.5 billion"
+    assert fmt(35, "%") == "35%"

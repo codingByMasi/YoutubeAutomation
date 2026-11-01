@@ -166,7 +166,7 @@ def _fake_opener(calls, payload):
     return opener
 
 
-PIXABAY_HIT = {"id": 7, "pageURL": "https://pixabay.com/videos/id-7/", "user": "ann", "user_id": 99, "videos": {
+PIXABAY_HIT = {"id": 7, "tags": "coffee, cup", "pageURL": "https://pixabay.com/videos/id-7/", "user": "ann", "user_id": 99, "videos": {
     "large": {"url": "", "width": 0, "height": 0, "size": 0},
     "medium": {"url": "https://cdn.pixabay.com/m.mp4", "width": 1920, "height": 1080, "size": 5},
     "small": {"url": "https://cdn.pixabay.com/s.mp4", "width": 1280, "height": 720, "size": 3}}}
