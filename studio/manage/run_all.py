@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import typer
 
+from studio import scope
 from studio.context import Ctx
 from studio.models import Idea, Video
 from studio.stages import build, research, script, thumbnail, visuals, voice
@@ -13,7 +14,7 @@ from studio.stages.base import stage_index
 def pick_video(ctx: Ctx, ranked: list[Idea]) -> Video:
     """Highest-ranked approved idea still before the review gate; else approve the top new idea."""
     s = ctx.session
-    approved = [i for i in research.rank(s.query(Idea).filter_by(status="approved").all())
+    approved = [i for i in research.rank(scope.ideas(s).filter_by(status="approved").all())
                 if not i.seed.startswith("__")]
     for idea in approved:
         v = s.query(Video).filter_by(idea_id=idea.id).first()

@@ -208,3 +208,11 @@ Music and effects were checked for level and clipping, not by ear: listen once a
   A1000's render speed and memory use, and the engine id on Blender 4.2-4.5 (`BLENDER_EEVEE_NEXT`; Blender 5.x uses
   `BLENDER_EEVEE`; the script tries both).
 - Owner must: install Blender 4.2+ and run the demo command above, then report the render time.
+
+
+## Dynamic channel profiles (2026-11-01)
+- Any number of channel profiles (name, niche, description, audience, language, posts/week, voice, YouTube channel id) stored in `growth/channels.json`; one is active. Old `growth/profile.json` becomes the `default` channel automatically.
+- CLI: `channels list|add|edit|use|show|remove|export|import`. App: sidebar channel selector + **Channels** page (add/edit/delete/switch, download/restore `channels.json`).
+- Active profile now drives: TTS voice and YouTube channel id (override `.env` when set), script/outline brief and topic-ideas prompt (once the profile is customised), growth prompts and posting plan.
+- Per-channel separation: ideas (and so videos, calendar, status, analytics report) carry `ideas.channel_id` (old databases upgrade in place; existing rows join `default`); series, performance, monetization and fact-check data live in `growth/c/<channel>/` (the `default` channel keeps the old `growth/` paths).
+- Topic discovery follows the channel: once a niche is customised, hands-off suggestions use the niche and the business-word fit filter is relaxed (junk words are still blocked).

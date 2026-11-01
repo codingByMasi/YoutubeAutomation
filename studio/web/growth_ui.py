@@ -27,17 +27,19 @@ def page_grow_factory(ctx_for, video_picker, show):
     """Build the page function (needs the app's helpers, which live in app.py)."""
 
     def tab_profile(ctx):
-        st.write("Tell the studio about the channel. Every field has a default, so you can skip this and come back.")
+        st.write("Tell the studio about the active channel (add or switch channels on the Channels page). "
+                 "Every field has a default, so you can skip this and come back.")
         p = g.profile_for(ctx)
         with st.form("profile"):
             c1, c2 = st.columns(2)
             vals = {
                 "name": c1.text_input("Channel name", p["name"]),
                 "niche": c1.text_input("Niche", p["niche"]),
+                "description": c1.text_area("Description", p["description"]),
                 "language": c1.text_input("Language", p["language"]),
                 "audience": c1.text_input("Target audience", p["audience"]),
                 "posts_per_week": c2.number_input("Long videos per week", 1, 7, int(p["posts_per_week"])),
-                "voice": c2.text_input("Voice (edge-tts name)", p["voice"]),
+                "voice": c2.text_input("Voice (edge-tts name; blank = default)", p["voice"]),
                 "brand_primary": c2.color_picker("Brand color", p["brand_primary"]),
                 "brand_accent": c2.color_picker("Accent color", p["brand_accent"]),
                 "newsletter_url": c1.text_input("Newsletter signup link (optional)", p["newsletter_url"]),

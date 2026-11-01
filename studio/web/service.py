@@ -12,6 +12,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
+from studio import scope
 from studio.context import Ctx, build_ctx
 from studio.errors import PendingLLMResponse, StudioError
 from studio.llm import prompt_paths
@@ -148,7 +149,7 @@ def import_claude_ideas(ctx: Ctx, text: str) -> Outcome:
 
 def used_topics(ctx: Ctx) -> list[Idea]:
     """Topics already approved into videos, newest first."""
-    return (ctx.session.query(Idea).filter(Idea.status == "approved", Idea.seed != "__demo__")
+    return (scope.ideas(ctx.session).filter(Idea.status == "approved", Idea.seed != "__demo__")
             .order_by(Idea.id.desc()).all())
 
 
@@ -170,7 +171,7 @@ def add_manual_topic(ctx: Ctx, topic: str) -> Idea:
 
 def ideas_for(ctx: Ctx, seed: str | None = None) -> list[Idea]:
     """Ideas ranked best first, optionally for one seed."""
-    q = ctx.session.query(Idea).filter(Idea.seed != "__demo__")
+    q = scope.ideas(ctx.session).filter(Idea.seed != "__demo__")
     if seed:
         q = q.filter(Idea.seed == seed)
     return sorted(q.all(), key=lambda i: i.rank_score, reverse=True)
@@ -183,7 +184,7 @@ def video_title(ctx: Ctx, v: Video) -> str:
 
 
 def list_videos(ctx: Ctx) -> list[Video]:
-    return ctx.session.query(Video).order_by(Video.id.desc()).all()
+    return scope.videos(ctx.session).order_by(Video.id.desc()).all()
 
 
 def read_prompt(ctx: Ctx, video_id: int, task: str = "script") -> str:

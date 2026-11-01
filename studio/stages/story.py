@@ -18,8 +18,8 @@ from studio.models import Idea
 from studio.stages.base import get_video, stage_index
 from studio.stages.script import (
     BANNED_PHRASES,
-    DEFAULT_BRIEF,
     DEFAULT_STYLE,
+    _brief,
     _spec_section,
     load_package,
     prompt_text,
@@ -121,7 +121,7 @@ def run_outline(ctx: Ctx, idea_id: int, force: bool = False) -> dict:
                          f"Use `critique {video.id}` to improve the existing script instead.")
     topic = ctx.session.get(Idea, idea_id).topic
     prompt = prompt_text("outline").format(
-        topic=topic, brief=_spec_section(ctx.settings.root, 1, DEFAULT_BRIEF),
+        topic=topic, brief=_brief(ctx.settings.root),
         style=_spec_section(ctx.settings.root, 9, DEFAULT_STYLE), hooks=prompt_text("hooks"))
     d = ask_json(ctx.settings, ctx.settings.project_dir(video.id), "outline", prompt,
                  validate=validate_outline, force=force)

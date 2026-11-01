@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text, event
+from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
 SCHEMA_VERSION = 1
 
@@ -34,6 +34,7 @@ class Idea(Base):
     competition_score: Mapped[float] = mapped_column(Float, default=0)
     outlier_score: Mapped[float] = mapped_column(Float, default=0)
     status: Mapped[str] = mapped_column(String(20), default="idea")  # idea | approved | rejected
+    channel_id: Mapped[str] = mapped_column(String(64), default="default", server_default="default", index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
     @property
@@ -139,3 +140,11 @@ class QuotaLog(Base):
     endpoint: Mapped[str] = mapped_column(String(60))
     units: Mapped[int] = mapped_column(Integer)
     ok: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+@event.listens_for(Session, "before_flush")
+def _tag_new_ideas(session, _ctx, _instances) -> None:
+    """New ideas belong to the session's active channel (session.info["channel_id"], default "default")."""
+    for obj in session.new:
+        if isinstance(obj, Idea) and not obj.channel_id:
+            obj.channel_id = session.info.get("channel_id", "default")
