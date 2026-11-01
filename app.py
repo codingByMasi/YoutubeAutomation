@@ -106,6 +106,14 @@ def page_home() -> None:
 def page_topics() -> None:
     ctx = ctx_for()
     st.header("1. Pick a topic")
+    from studio.growth import channel_types, channels
+    prof = channels.get(ROOT)
+    st.info(f"Topics for channel **{prof['name']}** · type: {channel_types.TYPES[prof['type']]['label']} · "
+            f"niche: {prof['niche']}. Wrong channel? Switch it in the sidebar, or fix the type and niche on the "
+            f"**Channels** page.")
+    if st.session_state.get("seed_channel") != channels.active_id(ROOT):  # never carry one channel's seed to another
+        st.session_state["seed"] = None
+        st.session_state["seed_channel"] = channels.active_id(ROOT)
     st.write("Don't have an idea? Let the studio find some. It avoids topics you already saved or used.")
     if st.button("✨ Suggest topics for me", type="primary"):
         with st.spinner("Looking for fresh ideas..."):

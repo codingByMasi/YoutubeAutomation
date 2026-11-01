@@ -112,9 +112,12 @@ CUSTOM_ANGLES = ("{s} explained", "how {s} works", "{s} for beginners", "{s} mis
 
 
 def _custom_niche(ctx: Ctx) -> str:
-    """The active channel's niche once the owner has customised it, else empty (business defaults apply)."""
-    from studio.growth import channels
-    return channels.get(ctx.settings.root)["niche"] if channels.brief(ctx.settings.root) else ""
+    """The active channel's niche unless it is a business channel on the stock niche (then SUBJECTS apply)."""
+    from studio.growth import channel_types, channels
+    p = channels.get(ctx.settings.root)
+    if channel_types.normalize(p["type"]) == "business" and p["niche"] == channel_types.TYPES["business"]["niche"]:
+        return ""
+    return p["niche"]
 
 
 def auto_suggest(ctx: Ctx, count: int = 8, suggest: Callable[[str], list[str]] | None = None,

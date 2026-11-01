@@ -120,3 +120,43 @@ def test_custom_niche_relaxes_topic_filter(root):
     assert not fits_channel("best tomato varieties")
     assert clean_topics(["best tomato varieties"], "gardening", strict=False) == ["best tomato varieties"]
     assert not fits_channel("tomato game cheats", strict=False)
+
+
+def test_changing_type_replaces_stock_niche_of_old_type(root):
+    cid = channels.add(root, "Tiny Tunes", type="kids")
+    assert "nursery" in channels.get(root, cid)["niche"].lower()
+    # the edit form resubmits the old niche text along with the new type
+    channels.update(root, cid, type="business", niche=channels.get(root, cid)["niche"],
+                    audience=channels.get(root, cid)["audience"])
+    p = channels.get(root, cid)
+    assert "nursery" not in p["niche"].lower() and "toddler" not in p["audience"].lower()
+
+
+def test_stored_wrong_niche_is_healed_and_custom_niche_kept(root):
+    channels.add(root, "Money Maps", type="business", niche="Original nursery rhymes and learning songs for toddlers")
+    assert "nursery" not in channels.get(root, "money-maps")["niche"].lower()
+    channels.add(root, "Chef", type="kids", niche="Cooking for kids")
+    assert channels.get(root, "chef")["niche"] == "Cooking for kids"
+
+
+def test_topics_follow_each_channels_own_type(ctx):
+    from studio.stages import discover
+    root = ctx.settings.root
+    kids = channels.add(root, "Tiny Tunes", type="kids")
+    biz = channels.add(root, "Money Maps", type="business")
+    asked: list[str] = []
+    ctx.session.info["channel_id"] = kids
+    channels.switch(root, kids)
+    discover.auto_suggest(ctx, count=3, suggest=lambda q: asked.append(q) or [])
+    assert any(w in " ".join(asked) for w in ("song", "lullaby", "animal"))
+    asked.clear()
+    channels.switch(root, biz)
+    ctx.session.info["channel_id"] = biz
+    ideas = discover.auto_suggest(ctx, count=3, suggest=lambda q: asked.append(q) or [])
+    text = " ".join(asked + [i.topic for i in ideas]).lower()
+    assert not any(w in text for w in ("nursery", "lullaby", "counting song", "toddler"))
+    assert all(i.channel_id == biz for i in ideas)
+    # the kids channel's list is separate
+    ctx.session.info["channel_id"] = kids
+    from studio.web import service as svc
+    assert not {i.id for i in svc.ideas_for(ctx)} & {i.id for i in ideas}
