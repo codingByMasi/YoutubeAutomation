@@ -325,9 +325,11 @@ python -m studio.cli run-all "how cruise lines make money"
 | `build <video_id>` | Assemble the final MP4 with captions and music |
 | `shorts <video_id>` | Cut vertical Shorts from the video |
 | `thumbnail <video_id>` | Generate 3 thumbnail variants |
-| `review <video_id>` | Checklist and typed approval gate |
+| `gate <video_id>` | Quality gate: scores script, hook, pacing, visuals, audio, metadata for the channel's type (pass / warn / block) |
+| `review <video_id>` | Checklist, quality gate and typed approval gate (`--accept-weak` overrides a gate block, never the typed yes) |
 | `publish <video_id> --at "<datetime>"` | Upload and schedule after review |
 | `analytics` | Pull 28-day metrics and write a plain-English report |
+| `feedback learn [--mock] [--live]` | Turn retention/CTR into per-channel script and edit rules; `feedback show` lists them |
 | `ab-log <video_id>` | Record title/thumbnail changes with before/after metrics |
 | `comments <video_id>` | Draft comment replies to a file (never posts) |
 | `comments post <file>` | Post edited replies, one typed `yes` per reply |

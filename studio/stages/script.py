@@ -155,7 +155,8 @@ def pacing_warnings(segs: list[dict], key: str = "est_seconds") -> list[str]:
 def _brief(root: Path) -> str:
     """The active channel's brief if the owner customised it, else SPEC section 1."""
     from studio.growth import channels
-    return channels.brief(root) or _spec_section(root, 1, DEFAULT_BRIEF)
+    from studio.quality import rules
+    return (channels.brief(root) or _spec_section(root, 1, DEFAULT_BRIEF)) + rules.lessons_text(root)
 
 
 def _spec_section(root: Path, number: int, default: str) -> str:
