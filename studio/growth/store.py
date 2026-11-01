@@ -45,13 +45,7 @@ def video_file(project_dir: Path, name: str) -> Path:
 
 
 def extract_json(text: str) -> dict:
-    """Parse the first JSON object in pasted text (tolerates ```json fences and chatter)."""
-    start, end = text.find("{"), text.rfind("}")
-    if start < 0 or end <= start:
-        raise StudioError("No JSON object found in the pasted text.", "The answer must be a JSON object.",
-                          "Ask Claude to reply with ONLY the JSON, then paste it again.")
-    try:
-        return json.loads(text[start:end + 1])
-    except json.JSONDecodeError as exc:
-        raise StudioError("The pasted JSON could not be read.", str(exc),
-                          "Ask Claude to fix the JSON and paste it again.") from exc
+    """Parse the first JSON object in pasted text (tolerates fences, chatter, smart quotes, trailing commas)."""
+    from studio.util.answer_json import parse_answer
+
+    return parse_answer(text)

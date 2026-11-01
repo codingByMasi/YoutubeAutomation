@@ -12,7 +12,7 @@ from pathlib import Path
 import typer
 
 from studio.context import Ctx
-from studio.errors import StageError
+from studio.errors import StageError, StudioError
 from studio.llm import ask_json, prompt_paths
 from studio.models import Idea
 from studio.stages.base import get_video, stage_index
@@ -27,6 +27,7 @@ from studio.stages.script import (
     validate_package,
     write_package,
 )
+from studio.util.answer_json import parse_answer
 
 CRITERIA = ["hook", "stakes", "curiosity_loops", "pacing", "concreteness", "clarity", "story_arc",
             "payoff_ending", "originality", "trust"]
@@ -104,10 +105,9 @@ def load_outline(work_dir: Path) -> dict | None:
     _, rf = prompt_paths(work_dir, "outline")
     if not rf.exists():
         return None
-    text = rf.read_text(encoding="utf-8")
     try:
-        return json.loads(text[text.find("{"): text.rfind("}") + 1])
-    except json.JSONDecodeError:
+        return parse_answer(rf.read_text(encoding="utf-8"))
+    except StudioError:
         return None
 
 

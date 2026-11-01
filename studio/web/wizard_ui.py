@@ -57,13 +57,9 @@ def _critique_box(ctx, v) -> None:
     if prompt:
         st.code(prompt, language="markdown", wrap_lines=True)
         pasted = handoff_ui.answer_box(f"wz_cans{v.id}", height=200)
-        if st.button("Apply the rewrite", key=f"wz_capply{v.id}", disabled=not pasted.strip()):
-            res = svc.submit_task(ctx, v.id, "critique", pasted, story_stage.run_critique, v.id)
-            if res.ok:
-                st.success("Script improved.")
+        if st.button("Apply the rewrite", key=f"wz_capply{v.id}"):
+            if handoff_ui.apply_answer(ctx, v.id, "critique", pasted, story_stage.run_critique, (v.id,)):
                 st.rerun()
-            else:
-                st.error(res.error)
 
 
 def step_script(ctx, v, show) -> None:
@@ -78,10 +74,8 @@ def step_script(ctx, v, show) -> None:
         st.code(prompt, language="markdown", wrap_lines=True)
         st.markdown("**3.** Paste Claude's JSON answer here, or upload the file.")
         pasted = handoff_ui.answer_box(f"wz_sans{v.id}")
-        if st.button("Save script and check it", type="primary", key="wz_ssave", disabled=not pasted.strip()):
-            res = svc.submit_script(ctx, v.idea_id, v.id, pasted)
-            show(res, "Script accepted.")
-            if res.ok:
+        if st.button("Save script and check it", type="primary", key="wz_ssave"):
+            if handoff_ui.apply_answer(ctx, v.id, "script", pasted, None, (), idea_id=v.idea_id):
                 st.rerun()
 
 

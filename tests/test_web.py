@@ -44,7 +44,7 @@ def test_script_handoff_and_paste_flow(make_ctx):
     assert prompt and "How to answer" not in prompt and "ONLY the JSON" in prompt
 
     bad = svc.submit_script(ctx, idea.id, video.id, "not json")
-    assert not bad.ok and "valid JSON" in bad.error
+    assert not bad.ok and "no JSON object" in bad.error
     good = svc.submit_script(ctx, idea.id, video.id, SAMPLE.read_text(encoding="utf-8"))
     assert good.ok, good.error
     assert ctx.session.get(Video, video.id).stage == "scripted"

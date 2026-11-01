@@ -298,3 +298,15 @@ Music and effects were checked for level and clipping, not by ear: listen once a
   suggestions followed it. Fix: a niche/audience that is another type's stock text is replaced by the channel type's own
   (on save and on read, which also repairs saved channels). Business channels on the stock niche use the business subject list.
 - Topics page now shows the active channel, type and niche, and resets its seed when the channel changes.
+
+## 2026-11-01 Fix: "Save and apply" on the answer box did nothing
+- Cause: on success the page called `st.rerun()` straight away, so the success message vanished and the outline/critique
+  looked unchanged; failures that raised an unexpected error (wrong-shaped JSON) were not caught, and pasted answers with
+  fences, chatter, smart quotes or trailing commas were rejected with a vague message.
+- Fix: `studio/util/answer_json.py` reads the first JSON object tolerantly (fences, surrounding text, smart quotes,
+  trailing commas, // comments, raw newlines in strings) and reports line/column on failure. All paste-back flows
+  (script, outline, critique, series, pack, kids) use it. `handoff_ui.apply_answer` shows a green "what was saved"
+  message that survives the rerun, or a red message saying what is wrong and that nothing was saved. Unexpected errors
+  become readable messages instead of tracebacks.
+- Note: the app has paste-back boxes for script, outline, critique, series ideas, title pack and kids script; there are no
+  separate research, fact-check or thumbnail answer boxes (fact-check is a tick-list).

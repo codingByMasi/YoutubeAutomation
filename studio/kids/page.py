@@ -38,7 +38,7 @@ def render(ctx_for, show) -> None:
             if problems:
                 st.error("\n".join(f"- {p}" for p in problems))
             else:
-                resp_file.write_text(pasted, encoding="utf-8")
+                resp_file.write_text(json.dumps(llm_json(pasted), indent=2, ensure_ascii=False), encoding="utf-8")
                 show(svc.capture(kscript.run, ctx, topic), "Script accepted.")
                 st.rerun()
     if (d / "script.json").exists():
@@ -61,9 +61,10 @@ def render(ctx_for, show) -> None:
 
 def llm_json(text: str) -> dict:
     """Parse pasted JSON (tolerates code fences)."""
+    from studio.errors import StudioError
     from studio.llm import _extract_json
 
     try:
         return _extract_json(text)
-    except json.JSONDecodeError as exc:
-        raise ValueError(str(exc)) from exc
+    except StudioError as exc:
+        raise ValueError(f"{exc.what} {exc.why}".strip()) from exc
