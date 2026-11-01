@@ -449,3 +449,10 @@ All external APIs are mocked, so tests need no keys or network. Tests that rende
 - Avoid mass-producing near-identical videos; YouTube can demote or demonetize repetitive, low-effort content.
 - Disclose realistic AI-generated or altered content when YouTube requires it. The review step shows this flag.
 - Add sources and a disclaimer to finance, health, legal, and news videos.
+
+## Channel identity (mascot, theme, niche, playlists)
+`python -m studio.cli channels identity --preset finance-stories --preview out/` gives the active channel a niche
+statement, a mascot, a colour theme and playlist plans (presets: `finance-stories`, `explainer`); or pass `--file`
+with your own JSON (`niche_statement`, `tagline`, `mascot`, `theme`, `playlists`). The mascot shows on thumbnails
+and the sign-off card, the theme colours charts/cards/thumbnails, and playlists become series. After creating each
+playlist in YouTube Studio, put its id in `playlists[].youtube_id` so `publish` adds videos to it automatically.

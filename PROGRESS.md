@@ -334,6 +334,22 @@ Music and effects were checked for level and clipping, not by ear: listen once a
 - Setup page > Footage has a "Test my footage key" button (`doctor.test_footage_keys`). Tests: `tests/test_key_errors.py`.
 - Owner must: use `PIXABAY_API_KEY=yourkey` in `.env`, no quotes or spaces.
 
+## 2026-11-01 Channel identity: niche statement, mascot, theme, playlists (any channel)
+- New channel profile fields (`studio/growth/identity.py`): `niche_statement`, `tagline`, `mascot`, `theme`, `playlists`.
+  Validated on save; exported/imported with the channel. Presets: `finance-stories` (Penny the gold coin, navy/gold, three
+  playlists: Comeback Stories, How Giants Make Money, Biggest Business Mistakes) and a neutral `explainer` (Ollie the owl).
+- Used by: script/series/title prompts (persona, positioning, playlist title patterns via `channels.summary`); charts, cards
+  and thumbnails (theme colours beat the type palette via `brand.use(palette, theme)`); thumbnails (mascot badge, a different
+  mood per variant); build (branded outro card with the next-video line, optional intro card, only when no file in
+  assets/intro or assets/outro); series (playlists create series, `youtube_id` stored); publish (uses the series' playlist
+  id when `--playlist` is not given).
+- Commands: `channels identity [--preset NAME] [--file x.json] [--preview DIR]`; the app: Grow > Profile > Identity.
+- Owner must: create the playlists in YouTube Studio and paste each playlist id into the channel's `playlists[].youtube_id`
+  (creating playlists through the API is not built). Optional: own mascot art/fonts in assets (heading_font in assets/fonts).
+- Decision: mascot is drawn in code (coin, owl, robot) so no art files are required; the mascot never states figures.
+
+
+
 ## 2026-11-01 Growth playbook built into the gate
 - Research summary with sources: `docs/growth-playbook.md` (numbers are blog rules of thumb; only the July 2025 inauthentic-content policy is from YouTube).
 - Quality gate gained three dimensions (`studio/quality/growth.py`): `fit` (visuals match what the segment says: figures over stock,

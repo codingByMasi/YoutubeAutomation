@@ -16,17 +16,21 @@ SERIES = [ACCENT, ACCENT_2, "#A3E635", "#F472B6", "#C084FC", "#FB923C"]
 
 
 @contextmanager
-def use(palette: tuple[str, str] | None) -> Iterator[None]:
-    """Temporarily switch the background and accent colours (a channel's palette) for charts and thumbnails."""
-    global BG, ACCENT
-    old = (BG, ACCENT, SERIES[0])
+def use(palette: tuple[str, str] | None, theme: dict | None = None) -> Iterator[None]:
+    """Temporarily switch the colours (a channel's palette and optional theme) for charts and thumbnails.
+
+    `theme` may hold bg, accent, accent2 and text (see identity.colors); it wins over `palette`."""
+    global BG, ACCENT, ACCENT_2, FG
+    old = (BG, ACCENT, ACCENT_2, FG, SERIES[0], SERIES[1])
     if palette:
         BG, ACCENT = palette
-        SERIES[0] = ACCENT
+    if theme:
+        BG, ACCENT, ACCENT_2, FG = theme["bg"], theme["accent"], theme["accent2"], theme["text"]
+    SERIES[0], SERIES[1] = ACCENT, ACCENT_2
     try:
         yield
     finally:
-        BG, ACCENT, SERIES[0] = old
+        BG, ACCENT, ACCENT_2, FG, SERIES[0], SERIES[1] = old
 
 
 def font_path(assets_dir: Path | None = None, bold: bool = True) -> str:

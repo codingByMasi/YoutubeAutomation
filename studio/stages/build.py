@@ -60,6 +60,30 @@ def _title_card(ctx: Ctx, prod: dict, pkg: dict, tmp: Path) -> Path | None:
     return title_card.make(exe, title, prod["palette"], tmp / "title3d.mp4", tmp / "title3d_frames", (p.w, p.h))
 
 
+def _identity_card(ctx: Ctx, kind: str, pkg: dict, video_id: int, tmp: Path) -> Path | None:
+    """A branded intro/outro clip from the channel's theme and mascot when its theme asks for one, else None.
+
+    Your own files in assets/intro or assets/outro always win (the caller only gets here when there are none)."""
+    from studio.growth import channels, identity, series
+
+    prof = channels.get(ctx.settings.root)
+    style = (prof.get("theme") or {}).get(f"{kind}_style", "none")
+    if style != "card":
+        return None
+    title = next((t["text"] for t in pkg.get("titles", []) if t.get("is_pick")), pkg.get("topic", ""))
+    nxt = ""
+    pos = series.position(ctx.settings.root, video_id)
+    if kind == "outro" and pos:
+        nxt = series.end_screen(*pos).get("next_topic") or ""
+        nxt = f"Next: {nxt}" if nxt else ""
+    p = ff.profile()
+    png = tmp / f"{kind}_card.png"
+    identity.card_image(prof, kind, title, nxt, ctx.settings.assets_dir, (p.w, p.h)).save(png)
+    clip = tmp / f"{kind}_card.mp4"
+    ff.run(identity.card_clip_cmd(png, 2.5 if kind == "intro" else 6.0, clip), f"drawing {kind} card")
+    return clip
+
+
 def normalize_cmd(src: Path, out: Path, with_audio: bool) -> list[str]:
     """Bring an intro/outro clip to 1920x1080/30fps/AAC 48k so it can be concatenated."""
     cmd = ["ffmpeg", "-y", "-i", str(src)]
@@ -243,6 +267,16 @@ def run(ctx: Ctx, video_id: int, force: bool = False) -> None:
         for kind in ("intro", "outro"):
             src = first_file(assets / kind, VIDEO_EXT)
             norm = tmp / f"{kind}.mp4"
+            if not src:
+                src = _identity_card(ctx, kind, pkg, video_id, tmp)
+                if src:
+                    ff.run(normalize_cmd(src, norm, False), f"preparing {kind} card")
+                    s.add(Asset(video_id=video_id, kind=kind, path=str(src), source="channel identity card",
+                                licence=sound.OWN_LICENCE))
+                    if kind == "intro":
+                        intro_s = ff.probe_duration(norm)
+                    pieces.append((kind, norm))
+                    continue
             if not src and kind == "intro":
                 src = _title_card(ctx, prod, pkg, tmp)
                 if src:

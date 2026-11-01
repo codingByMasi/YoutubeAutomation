@@ -12,7 +12,7 @@ from pathlib import Path
 
 from studio.config import Settings
 from studio.errors import StudioError
-from studio.growth import channel_types, channels
+from studio.growth import channel_types, channels, identity
 
 VIDEO_FIELDS = ("renderer", "scene_style", "voice", "music", "music_mood", "tts_provider")
 SEGMENT_KEY = "segment_styles"  # {"3": "3d"}: this segment's own 2d/3d choice (position, 1-based)
@@ -109,6 +109,9 @@ def resolve(settings: Settings, video_id: int | None = None, channel_id: str | N
                                                               channels.DEFAULTS["brand_accent"])
     out["palette"] = (prof["brand_primary"], prof["brand_accent"]) if custom else t["palette"]
     src["palette"] = "channel" if custom else ("type" if t["palette"] else "default")
+    out["theme"] = identity.colors(prof) if identity.has_theme(prof) else None  # channel theme beats the palette
+    if out["theme"]:
+        out["palette"], src["palette"] = (out["theme"]["bg"], out["theme"]["accent"]), "theme"
     out["sources"] = src
     out["type"], out["mode"] = prof["type"], t["mode"]
     out["segment_styles"] = {int(k): v for k, v in over.get(SEGMENT_KEY, {}).items()}

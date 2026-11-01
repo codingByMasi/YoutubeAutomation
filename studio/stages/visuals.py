@@ -85,7 +85,7 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
     def work() -> None:
         from studio import production
         prod = production.resolve(ctx.settings, video_id)
-        with brand.use(prod["palette"]):
+        with brand.use(prod["palette"], prod.get("theme")):
             _work(prod)
 
     def _work(prod: dict) -> None:
