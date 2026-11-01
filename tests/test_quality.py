@@ -92,7 +92,7 @@ def test_thresholds_only_accept_tunable_keys():
 
 
 def test_channel_type_from_profile_or_niche():
-    assert profiles.channel_type({"channel_type": "story"}) == "story"
+    assert profiles.channel_type({"type": "history"}) == "story"
     assert profiles.channel_type({"niche": "Nursery rhymes for toddlers"}) == "kids"
     assert profiles.channel_type({"niche": "Economics"}) == "explainer"
 
@@ -214,10 +214,10 @@ def test_live_mode_without_data_is_a_clear_error(ctx):
 
 def test_rules_are_separate_per_channel(ctx):
     root = ctx.settings.root
-    channels.add(root, "Money Maps", channel_type="explainer")
+    channels.add(root, "Money Maps", type="business")
     feedback.run(ctx, mode="mock", apply_mock=True, echo=lambda *_: None)
     assert rules.load(root)["lessons"]
-    channels.add(root, "Kids Corner", channel_type="kids")
+    channels.add(root, "Kids Corner", type="kids")
     assert rules.load(root)["lessons"] == []  # a new channel starts clean
     feedback.run(ctx, mode="mock", apply_mock=True, echo=lambda *_: None)
     assert rules.load(root)["channel_type"] == "kids"

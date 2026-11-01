@@ -54,6 +54,12 @@ class YouTubeData:
         return self._call("channels.list", lambda: self.yt.channels().list(
             part="statistics,snippet", id=",".join(ids[:50]))).get("items", [])
 
+    def my_channel(self) -> dict:
+        """The channel the signed-in account is working as (id, title, subscriber count), or {}."""
+        items = self._call("channels.list", lambda: self.yt.channels().list(
+            part="statistics,snippet", mine=True)).get("items", [])
+        return items[0] if items else {}
+
     # --- publishing ---
     def upload(self, file: Path, body: dict) -> dict:
         from googleapiclient.http import MediaFileUpload

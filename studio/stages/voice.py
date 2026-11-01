@@ -33,7 +33,8 @@ def run(ctx: Ctx, video_id: int, force: bool = False, tts: TTS | None = None,
     video = get_video(s, video_id)
 
     def work() -> None:
-        engine = tts or get_tts(ctx.settings)
+        from studio import production
+        engine = tts or get_tts(production.apply(ctx.settings, video_id))
         out = ctx.settings.project_dir(video_id) / "voice"
         out.mkdir(exist_ok=True)
         pkg = load_package(ctx, video_id)

@@ -1,5 +1,7 @@
 # YouTube Channel Studio
 
+[![CI](https://github.com/codingByMasi/YoutubeAutomation/actions/workflows/ci.yml/badge.svg)](https://github.com/codingByMasi/YoutubeAutomation/actions/workflows/ci.yml)
+
 A command-line studio that runs a faceless YouTube channel from topic research to published video to ongoing management, with a human approval gate before anything goes public.
 
 ```
@@ -105,6 +107,36 @@ Windows setup (one time):
 Scenes are 24 fps, 1280x720, flat colours (no image textures) and use the same script, narration and captions as 2D.
 Blender is used for the pictures only; the Pexels/Pixabay stages and the main (non-kids) pipeline are unchanged.
 
+### Optional sung melody (OpenUtau, your PC only)
+Kids songs normally use the narrator plus an original background tune. If you want the words actually *sung*, the
+`kids sing` step writes a melody and lyrics for OpenUtau (free, open source) and the build mixes the vocal you export.
+It is optional: with no exported vocal the build is exactly as before.
+
+What is automatic and what is by hand:
+- Automatic: `kids sing "<topic>"` turns the script into one note per syllable (a pentatonic tune; repeated chorus
+  lines get the identical tune) and writes `projects/kids_<slug>/sung/` with `song.ustx` (OpenUtau project),
+  `song.mid`, `lyrics.txt` and `sing_plan.json`. `kids build` then mixes `sung/vocal.wav` over a chords-and-bass bed
+  and drops the spoken narration.
+- By hand (OpenUtau has no documented command-line renderer): open the project, pick a singer, export the WAV.
+
+Windows setup (one time):
+1. Download OpenUtau from github.com/stakira/OpenUtau/releases (the Windows x64 zip; unzip it anywhere, for example
+   `C:\Tools\OpenUtau`, and run `OpenUtau.exe`). Put the path in `.env` as `OPENUTAU_PATH=C:\Tools\OpenUtau\OpenUtau.exe`
+   if you want `--open` to launch it.
+2. Install a free English singing voicebank: in OpenUtau use Singers > Install Singer (or Singers > Get more) and pick a
+   DiffSinger or classic English voicebank. **Read that voicebank's licence yourself before monetising**; each one has
+   its own terms (commercial use, credit line, no use for kids content, and so on). Save the licence text beside the video.
+3. Run `python -m studio.cli kids sing "counting five little ducks" --open` (or open `sung\song.ustx` in OpenUtau).
+4. In OpenUtau choose your singer for the track. If the words sound wrong, change the track's Phonemizer (the file
+   asks for "English Arpasing+"; a DiffSinger voicebank may need its own phonemizer). Press play to check it.
+5. Save, then **File > Export Audio > Mixdown To Wav File**. OpenUtau writes into an `Export` folder next to the
+   project; the build finds the newest WAV there, or run `kids sing "<topic>" --use C:\path\to\song.wav`.
+6. `python -m studio.cli kids build "counting five little ducks" --force` mixes it in.
+
+Notes: the vocal is time-stretched to the video length (within x0.75 to x1.5; a note says if it was not enough, then
+change the tempo in OpenUtau). A 4 GB GPU is not needed for classic voicebanks; DiffSinger voicebanks run on CPU
+(slower) or GPU. Disclose AI/synthetic voices in YouTube's "altered content" setting where it applies.
+
 ### Growing the channel (page 5)
 The **5. Grow the channel** page has tabs for: channel profile, series/playlists (each video points to the next), a
 content calendar, 5 titles + 3 thumbnail concepts per video (scored by a checklist), description/tags/chapters with
@@ -113,6 +145,34 @@ pasting YouTube Studio numbers for next-script advice, and a Partner Program tra
 Where Claude's writing helps, copy the shown prompt into Claude and paste the JSON answer back. No API key needed.
 
 See [FIRST_VIDEO.md](FIRST_VIDEO.md) for the step-by-step first-video checklist (accounts, keys, exact commands).
+
+## Multiple channels: types, sign-in, analytics and production look
+
+Each channel profile has a **type**: `business` (economics explainers), `history` (history and education), `kids`
+(nursery rhymes, uses Kids mode and Made for Kids) or `general`. The type sets sensible defaults (niche, audience,
+prompt guidance, topic phrasing, music mood, thumbnail and chart colours, Made for Kids on upload) and you can
+override everything. Different types run side by side.
+
+```
+python -m studio.cli channels types
+python -m studio.cli channels add "Tiny Tunes" --type kids --renderer blender --music none
+python -m studio.cli channels sign-in tiny-tunes     # its own Google login, saved to tokens/tiny-tunes.json
+python -m studio.cli channels stats tiny-tunes --days 28          # one channel's page
+python -m studio.cli channels compare --from 2026-10-01 --to 2026-10-31   # all channels side by side
+python -m studio.cli channels stats --demo                         # labelled SAMPLE data if not signed in
+```
+
+- The `default` channel keeps using `token.json`; every other channel has `tokens/<id>.json` (git-ignored).
+  On sign-in, pick the YouTube channel when Google asks; its id is saved on the profile and a different one is rejected.
+- Analytics (app page **📊 Analytics**, or the commands above): views, watch hours, net subscribers, average view
+  duration and percent viewed (retention), top videos, change versus the previous period of the same length, a
+  date-range filter, and a side-by-side table. Channels not signed in show a note, or sample data only if you ask.
+- **Look and sound per channel and per video**: renderer (`2d` or `blender`), voice, TTS provider, music
+  (`generated` or `none`, your own track in `assets/music` still wins) and mood. Set them on a channel
+  (`channels edit --renderer ...`, or the Channels page) or on one video (`production set 7 --renderer blender`,
+  or the "Look and sound" box on page 3). `production show [video]` explains where each value comes from.
+  Blender gives kids channels 3D scenes and narrated channels a 3D title intro (only when you have no
+  `assets/intro` clip); without Blender everything falls back to 2D with a printed note.
 
 ## 1. Requirements
 

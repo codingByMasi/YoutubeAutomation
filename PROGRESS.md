@@ -219,9 +219,42 @@ Music and effects were checked for level and clipping, not by ear: listen once a
 
 
 ## Quality gate and retention feedback (2026-11-01)
-- `studio/quality/`: `profiles.py` (channel types `explainer`, `story`, `kids`; set with `channels add|edit --type`, guessed from the niche otherwise), `gate.py` (six scored dimensions: script, hook, pacing, visuals, audio, metadata; verdict pass / warn / block), `rules.py` and `feedback.py` (retention loop).
+- `studio/quality/`: `profiles.py` (channel types `explainer` (business, general), `story` (history), `kids`; set with `channels add|edit --type business|history|kids|general`, guessed from the niche otherwise), `gate.py` (six scored dimensions: script, hook, pacing, visuals, audio, metadata; verdict pass / warn / block), `rules.py` and `feedback.py` (retention loop).
 - CLI: `gate <id>`; `review` now runs the gate and refuses on `block` unless `--accept-weak` (typed `yes` is unchanged and still required). `feedback learn [--mock|--live|--apply-mock]`, `feedback show`.
 - Loop: retention curve + CTR per published video -> hook retention at 0:30, worst mid-video drop (mapped to the chapter), average viewed, end retention -> per-channel `rules.json` in the channel's growth folder: gate threshold tuning (hook length, beat gap, sentence length), edit limits (`shot_max_seconds`, `hook_shot_max_seconds`, respected by `visuals` and `build`), and lessons appended to the script/outline brief.
 - Decisions: mock retention data (used automatically when YouTube Analytics is unavailable) is labelled and stays advisory; it changes nothing unless `--apply-mock`. Rules only tighten limits. Audio uses ffmpeg `ebur128` on `final.mp4`; when unmeasurable it is noted, not failed. Every threshold is a rule of thumb, not a YouTube rule.
 - Tests: `tests/test_quality.py` (APIs mocked). Not tested live: real YouTube Analytics retention curves (`audienceWatchRatio`), ffmpeg loudness on a real build, how well the thresholds match this channel's real audience.
 - Owner must: set the channel type; run `feedback learn` after each video has a few days of data.
+
+## 2026-11-01: optional sung melody via OpenUtau (kids mode)
+- Added `studio/kids/` `sing.py` (syllable-per-note melody plan, same tune for repeated lines, ends on the root),
+  `sing_files.py` (MIDI with lyric events + `.ustx` YAML), `openutau.py` (find app, launch, pick up the exported WAV),
+  `sing_mix.py` (ffmpeg mix command), `sing_step.py`, CLI `kids sing [--open] [--use wav]`, `OPENUTAU_PATH` setting,
+  chords-only bed (`music.render(melody=False)`), README "Optional sung melody" with Windows steps.
+- Decisions: OpenUtau has no documented CLI renderer, so rendering is a manual Export step; the build uses
+  `sung/vocal.wav` (or the newest `sung/Export/*.wav`) when present and otherwise keeps the old narration + tune path.
+  A sung vocal replaces the narration. The vocal is stretched to the video (x0.75-1.5) instead of re-timing scenes.
+  The `.ustx` sets no singer; the phonemizer id is a best guess and the owner picks both in the app.
+- Tests: 19 new (228 total) pass; ruff clean. MIDI also parsed with `mido`. The mix ran for real with ffmpeg using a
+  generated WAV as a stand-in vocal.
+- Not tested: OpenUtau itself (does it open the `.ustx`/launch argument cleanly, is the phonemizer id valid in the
+  current release), any voicebank, how the sung result sounds, Windows paths. Owner must: install OpenUtau + a
+  voicebank, check its licence, export once and report what happens.
+
+
+## Multi-channel types, analytics and per-channel production settings (2026-11-01)
+- Channel `type` (business, history, kids, general) in `studio/growth/channel_types.py`: drives prompt guidance, topic phrasing,
+  music mood, colours, pipeline mode (kids vs narrated) and `selfDeclaredMadeForKids` on upload. Each channel has its own
+  token (`tokens/<id>.json`; `default` keeps `token.json`) and `channels sign-in` records the YouTube channel id.
+- Analytics: `studio/manage/multi_analytics.py` + `channels stats|compare` + app page "📊 Analytics" (per channel, all-channels overview,
+  side-by-side table, date range, previous-period change, top videos, retention = average % viewed). Not-signed-in channels show a note,
+  or labelled SAMPLE data with `--demo`.
+- Production settings (`studio/production.py`): renderer, voice, tts provider, music, mood, colours resolved video > channel > type > `.env`;
+  CLI `production show|set|reset`, `channels add|edit --renderer/--music/--music-mood/--tts-provider`, app Channels page and per-video box.
+  Narrated videos get an optional Blender 3D title intro (`blender/title_card.py`); kids builds honour music none and the channel voice.
+- Decisions: 3D for narrated channels is a title intro only (economics charts and diagrams gain nothing from 3D scenes); the app's Sign in
+  button only works when the app runs on your own computer. Analytics for Made for Kids videos may be limited by YouTube.
+- Tests: new files `test_multi_analytics.py` and `test_production.py`; 259 tests pass and ruff is clean. The Blender title scene was rendered for real through `bpy` (Cycles CPU).
+- Not tested live: real YouTube Analytics API responses and metric availability (mocked), the Google sign-in browser flow with two accounts,
+  Eevee rendering and the Windows `blender` executable for the title card, the Streamlit Sign-in button in a real browser.
+- Owner must: run `channels sign-in <id>` once per channel (add your accounts as test users on the OAuth consent screen).

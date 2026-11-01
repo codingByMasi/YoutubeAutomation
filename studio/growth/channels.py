@@ -11,7 +11,7 @@ import re
 from pathlib import Path
 
 from studio.errors import StudioError
-from studio.growth import store
+from studio.growth import channel_types, store
 
 NAME = "channels"
 DEFAULT_ID = "default"
@@ -19,13 +19,17 @@ EXPORT_KIND = "yt-studio-channels"
 
 DEFAULTS: dict = {
     "name": "My Channel",
+    "type": channel_types.DEFAULT_TYPE,  # business | history | kids | general (see channel_types)
     "niche": "Business-model and economics explainers",
     "description": "",
-    "channel_type": "explainer",  # explainer | story | kids: picks the quality-gate thresholds
     "language": "English",
     "audience": "Curious adults 18-44 who want to understand how companies make money",
     "posts_per_week": 2,
     "voice": "",  # edge-tts / ElevenLabs voice; empty = use TTS_VOICE from .env
+    "renderer": "",  # 2d | blender; "" = RENDERER from .env
+    "music": "",  # generated | none; "" = automatic (your own track in assets/music wins)
+    "music_mood": "",  # minor | major; "" = the channel type's default
+    "tts_provider": "",  # edge | eleven | silent; "" = TTS_PROVIDER from .env
     "youtube_channel_id": "",  # empty = use CHANNEL_ID from .env
     "brand_primary": "#0B1F3A",
     "brand_accent": "#F5B700",
@@ -43,7 +47,18 @@ def slug(name: str) -> str:
 
 
 def _clean(values: dict) -> dict:
-    return {k: values[k] for k in DEFAULTS if k in values}
+    out = {k: values[k] for k in DEFAULTS if k in values and values[k] is not None}
+    if "type" in out:
+        out["type"] = channel_types.normalize(out["type"])
+    for key, allowed in channel_types.CHOICES.items():
+        if key in out:
+            out[key] = str(out[key]).strip().lower()
+            if out[key] not in allowed:
+                names = ", ".join(a for a in allowed if a)
+                raise StudioError(f"'{out[key]}' is not a valid {key}.",
+                                  f"Choose one of: {names} (or leave it blank for the default).",
+                                  f"Set {key} again.")
+    return out
 
 
 def _path(root: Path) -> Path:
@@ -99,7 +114,12 @@ def add(root: Path, name: str, activate: bool = True, **values) -> str:
     base, cid, n = slug(name), slug(name), 2
     while cid in d["channels"]:
         cid, n = f"{base}-{n}", n + 1
-    d["channels"][cid] = _clean({**values, "name": name.strip()})
+    clean = _clean({**values, "name": name.strip()})
+    t = channel_types.info(clean.get("type"))
+    for key in ("niche", "audience"):  # a new channel starts from its type's defaults
+        if not clean.get(key) or clean[key] == DEFAULTS[key]:
+            clean[key] = t[key]
+    d["channels"][cid] = clean
     if activate:
         d["active"] = cid
     _save(root, d)
@@ -171,7 +191,8 @@ def import_json(root: Path, text: str, replace: bool = False) -> list[str]:
 def brief(root: Path) -> str | None:
     """Prompt brief for the active channel, or None while it is still the untouched default."""
     p = get(root)
-    if p["niche"] == DEFAULTS["niche"] and not p["description"] and p["name"] == DEFAULTS["name"]:
+    if (p["niche"] == DEFAULTS["niche"] and not p["description"] and p["name"] == DEFAULTS["name"]
+            and p["type"] == DEFAULTS["type"]):
         return None
     return summary(p)
 
@@ -180,4 +201,11 @@ def summary(p: dict) -> str:
     """One paragraph for prompts."""
     text = (f"Channel '{p['name']}': {p['niche']}. Language: {p['language']}. Audience: {p['audience']}. "
             f"Posts {p['posts_per_week']} long video(s) per week. Faceless narration with charts and diagrams.")
+    t = channel_types.info(p.get("type"))
+    text += f" Format: {t['label']}. {t['guidance']}"
     return f"{text} About: {p['description']}" if p.get("description") else text
+
+
+def type_info(root: Path, channel_id: str | None = None) -> dict:
+    """The type definition (mode, made_for_kids, seeds...) of a channel; the active one by default."""
+    return channel_types.info(get(root, channel_id)["type"])

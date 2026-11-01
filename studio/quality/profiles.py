@@ -33,16 +33,19 @@ DEFAULT_TYPE = "explainer"
 TUNABLE = ("hook_max_seconds", "beat_gap_max", "sentence_max_words", "card_share_max", "min_minutes")
 
 
+GATE_TYPE = {"business": "explainer", "general": "explainer", "history": "story", "kids": "kids"}
+
+
 def channel_type(profile: dict) -> str:
-    """The profile's channel_type if known, else a guess from its niche, else the default."""
-    t = str(profile.get("channel_type") or "").strip().lower()
+    """Gate type for a channel profile: from its `type` (business/history/kids/general), else its niche."""
+    t = str(profile.get("type") or "").strip().lower()
+    if t in GATE_TYPE:
+        return GATE_TYPE[t]
     if t in TYPES:
         return t
     niche = f"{profile.get('niche', '')} {profile.get('description', '')}".lower()
     if any(w in niche for w in ("kids", "nursery", "children", "toddler")):
         return "kids"
-    if any(w in niche for w in ("story", "documentary", "true crime", "history")):
-        return "story"
     return DEFAULT_TYPE
 
 
