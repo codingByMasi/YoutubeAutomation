@@ -8,6 +8,7 @@ import typer
 
 from studio.context import Ctx
 from studio.models import Asset, Segment
+from studio.providers import brand
 from studio.providers.charts import render_chart, source_line, text_card
 from studio.providers.footage import make_footage
 from studio.providers.images import make_images
@@ -68,6 +69,11 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
     video = get_video(s, video_id)
 
     def work() -> None:
+        from studio import production
+        with brand.use(production.resolve(ctx.settings, video_id)["palette"]):
+            _work()
+
+    def _work() -> None:
         nonlocal stock, images
         if stock is UNSET:
             name, stock = make_footage(ctx.settings)

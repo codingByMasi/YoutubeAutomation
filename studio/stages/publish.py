@@ -44,9 +44,9 @@ def parse_when(text: str | None, now: datetime | None = None) -> datetime | None
     return dt
 
 
-def upload_body(review: dict, publish_at: datetime | None) -> dict:
+def upload_body(review: dict, publish_at: datetime | None, made_for_kids: bool = False) -> dict:
     """videos.insert body. Always private; publishAt schedules it. Field names per the Data API docs."""
-    status = {"privacyStatus": "private", "selfDeclaredMadeForKids": False, "embeddable": True,
+    status = {"privacyStatus": "private", "selfDeclaredMadeForKids": made_for_kids, "embeddable": True,
               "license": "youtube", "containsSyntheticMedia": bool(review["synthetic_media"])}
     if publish_at:
         status["publishAt"] = publish_at.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -108,7 +108,7 @@ def run(ctx: Ctx, video_id: int, at: str | None = None, playlist: str | None = N
 
     data, _ = ctx.youtube("publish")
     if not resuming:
-        resp = data.upload(video_file, upload_body(review, publish_at))
+        resp = data.upload(video_file, upload_body(review, publish_at, ctx.settings.made_for_kids))
         video.youtube_video_id = resp["id"]
         video.publish_at = publish_at.replace(tzinfo=None) if publish_at else None
         advance(video, "scheduled")

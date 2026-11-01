@@ -22,7 +22,8 @@ def _run_flow(settings: Settings) -> Any:
 
     settings.require("auth", "GOOGLE_CLIENT_SECRET_PATH")
     flow = InstalledAppFlow.from_client_secrets_file(str(settings.client_secret), SCOPES)
-    print("Opening a browser to sign in to the Google account that owns the channel...")
+    print(f"Opening a browser to sign in for channel '{settings.channel_key}'. Pick that YouTube channel "
+          "if Google asks which one...")
     return flow.run_local_server(port=0, open_browser=True)
 
 
@@ -60,6 +61,7 @@ def get_credentials(settings: Settings, run_flow=_run_flow) -> Any:
                 str(exc),
                 "If you saw 'Access blocked', add your account as a test user on the OAuth consent screen.",
             ) from exc
+    token.parent.mkdir(parents=True, exist_ok=True)
     token.write_text(creds.to_json(), encoding="utf-8")
     try:
         token.chmod(0o600)
@@ -68,11 +70,46 @@ def get_credentials(settings: Settings, run_flow=_run_flow) -> Any:
     return creds
 
 
-def build_services(settings: Settings) -> tuple[Any, Any]:
+def settings_for(settings: Settings, channel_id: str) -> Settings:
+    """Copy of `settings` for one channel profile: its own token file, YouTube channel id and kids flag."""
+    from dataclasses import replace
+
+    from studio.growth import channels
+
+    p = channels.get(settings.root, channel_id)
+    return replace(settings, channel_key=channel_id, channel_id=p["youtube_channel_id"] or settings.channel_id,
+                   made_for_kids=channels.type_info(settings.root, channel_id)["made_for_kids"])
+
+
+def is_signed_in(settings: Settings) -> bool:
+    """True if this channel has a saved sign-in (token file). It may still need a refresh."""
+    return settings.token_path.exists()
+
+
+def load_credentials(settings: Settings) -> Any:
+    """Saved credentials for this channel, refreshed if needed. Never opens a browser; None if not signed in."""
+    from google.auth.exceptions import RefreshError
+    from google.auth.transport.requests import Request
+    from google.oauth2.credentials import Credentials
+
+    token = settings.token_path
+    if not token.exists():
+        return None
+    try:
+        creds = Credentials.from_authorized_user_file(str(token), SCOPES)
+        if not creds.valid and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+            token.write_text(creds.to_json(), encoding="utf-8")
+    except (ValueError, RefreshError):
+        return None
+    return creds if creds.valid else None
+
+
+def build_services(settings: Settings, credentials: Any = None) -> tuple[Any, Any]:
     """Return (youtube data service, youtube analytics service)."""
     from googleapiclient.discovery import build
 
-    creds = get_credentials(settings)
+    creds = credentials or get_credentials(settings)
     return (
         build("youtube", "v3", credentials=creds, cache_discovery=False),
         build("youtubeAnalytics", "v2", credentials=creds, cache_discovery=False),
