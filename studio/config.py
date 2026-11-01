@@ -44,6 +44,7 @@ class Settings:
     tts_provider: str = "edge"
     renderer: str = "2d"  # kids mode picture renderer: 2d (default, works anywhere) or blender (PC only)
     blender_path: str = ""
+    openutau_path: str = ""
     tts_voice: str = "en-US-AndrewNeural"
     daily_quota_limit: int = 10000
     quota_safety_margin: int = 500
@@ -134,6 +135,7 @@ def load_settings(root: Path | None = None) -> Settings:
         tts_provider=(os.getenv("TTS_PROVIDER") or "edge").strip().lower(),
         renderer=(os.getenv("RENDERER") or "2d").strip().lower(),
         blender_path=os.getenv("BLENDER_PATH", "").strip(),
+        openutau_path=os.getenv("OPENUTAU_PATH", "").strip(),
         tts_voice=(os.getenv("TTS_VOICE") or "en-US-AndrewNeural").strip(),
         daily_quota_limit=_int("DAILY_QUOTA_LIMIT", 10000),
         quota_safety_margin=_int("QUOTA_SAFETY_MARGIN", 500),

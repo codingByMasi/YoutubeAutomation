@@ -12,8 +12,9 @@ from PIL import ImageDraw, ImageFont
 
 from studio.context import Ctx
 from studio.errors import StageError, StudioError
-from studio.kids import build3d, draw, music, spec
+from studio.kids import build3d, draw, music, openutau, spec
 from studio.kids.script import project_dir
+from studio.kids.sing_mix import sung_mix_cmd
 from studio.kids.sprites import SpriteBank
 from studio.providers.brand import font_path
 from studio.providers.tts import get_tts
@@ -126,12 +127,21 @@ def run(ctx: Ctx, slug: str, force: bool = False, size: tuple[int, int] = (1280,
     lst = ff.concat_list(parts, d / "scenes.txt")
     joined = d / "joined.mp4"
     ff.run(ff.concat_cmd(lst, joined), "joining kids scenes")
-    track = _music(ctx)
-    if track is None:  # no track in assets/music: make an original tune from the title
-        track = music.render(data["title"], d / "music.wav")
-    ff.run(["ffmpeg", "-y", "-i", str(joined), "-stream_loop", "-1", "-i", str(track), "-filter_complex",
-            "[1:a]volume=-20dB[m];[0:a][m]amix=inputs=2:duration=first:normalize=0[a]", "-map", "0:v",
-            "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-movflags", "+faststart", str(final)], "mixing music")
+    vocal = openutau.vocal_path(d / "sung")
+    if vocal is not None:  # a sung vocal exported from OpenUtau: it replaces the narration over a chord bed
+        bed = music.render(data["title"], d / "music_bed.wav", melody=False)
+        cmd, note = sung_mix_cmd(joined, bed, vocal, final, ff.probe_duration(joined), ff.probe_duration(vocal))
+        if note:
+            print(note)
+        ff.run(cmd, "mixing the sung vocal")
+    else:
+        track = _music(ctx)
+        if track is None:  # no track in assets/music: make an original tune from the title
+            track = music.render(data["title"], d / "music.wav")
+        ff.run(["ffmpeg", "-y", "-i", str(joined), "-stream_loop", "-1", "-i", str(track), "-filter_complex",
+                "[1:a]volume=-20dB[m];[0:a][m]amix=inputs=2:duration=first:normalize=0[a]", "-map", "0:v",
+                "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-movflags", "+faststart", str(final)],
+               "mixing music")
     thumbnail(data, d / "thumbnail.jpg", font_file)
     return final
 

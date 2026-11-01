@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 
 import typer
 
@@ -347,6 +348,30 @@ def kids_build(topic: str, force: bool = FORCE,
     from studio.kids import build as m
     from studio.kids.script import slugify
     typer.echo(f"Built {m.run(_ctx(), slugify(topic), force=force, renderer=renderer or None)}")
+
+
+@kids_app.command("sing")
+def kids_sing(topic: str, force: bool = FORCE,
+              open_in_openutau: bool = typer.Option(False, "--open", help="Also launch OpenUtau with the project."),
+              use: str = typer.Option("", "--use", help="WAV exported from OpenUtau."),
+              ) -> None:
+    """Optional sung melody (PC only): write MIDI/USTX/lyrics for OpenUtau, or import the exported vocal."""
+    from studio.kids import openutau, sing_step
+    from studio.kids.script import project_dir, slugify
+    ctx, slug = _ctx(), slugify(topic)
+    files = sing_step.run(ctx, slug, force=force)
+    sung = project_dir(ctx, slug) / "sung"
+    if use:
+        typer.echo(f"Vocal ready: {openutau.import_vocal(sung, Path(use))}")
+    for k, p in files.items():
+        typer.echo(f"{k}: {p}")
+    if open_in_openutau:
+        exe = openutau.find_openutau(ctx.settings.openutau_path)
+        if exe is None:
+            typer.echo("OpenUtau not found. Set OPENUTAU_PATH in .env or open song.ustx yourself (README).")
+        else:
+            openutau.open_project(exe, files["ustx"])
+    typer.echo(sing_step.status(ctx, slug))
 
 
 @kids_app.command("checklist")
