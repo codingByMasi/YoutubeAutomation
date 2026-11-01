@@ -217,6 +217,21 @@ Music and effects were checked for level and clipping, not by ear: listen once a
 - Per-channel separation: ideas (and so videos, calendar, status, analytics report) carry `ideas.channel_id` (old databases upgrade in place; existing rows join `default`); series, performance, monetization and fact-check data live in `growth/c/<channel>/` (the `default` channel keeps the old `growth/` paths).
 - Topic discovery follows the channel: once a niche is customised, hands-off suggestions use the niche and the business-word fit filter is relaxed (junk words are still blocked).
 
+## 2026-11-01: optional sung melody via OpenUtau (kids mode)
+- Added `studio/kids/` `sing.py` (syllable-per-note melody plan, same tune for repeated lines, ends on the root),
+  `sing_files.py` (MIDI with lyric events + `.ustx` YAML), `openutau.py` (find app, launch, pick up the exported WAV),
+  `sing_mix.py` (ffmpeg mix command), `sing_step.py`, CLI `kids sing [--open] [--use wav]`, `OPENUTAU_PATH` setting,
+  chords-only bed (`music.render(melody=False)`), README "Optional sung melody" with Windows steps.
+- Decisions: OpenUtau has no documented CLI renderer, so rendering is a manual Export step; the build uses
+  `sung/vocal.wav` (or the newest `sung/Export/*.wav`) when present and otherwise keeps the old narration + tune path.
+  A sung vocal replaces the narration. The vocal is stretched to the video (x0.75-1.5) instead of re-timing scenes.
+  The `.ustx` sets no singer; the phonemizer id is a best guess and the owner picks both in the app.
+- Tests: 19 new (228 total) pass; ruff clean. MIDI also parsed with `mido`. The mix ran for real with ffmpeg using a
+  generated WAV as a stand-in vocal.
+- Not tested: OpenUtau itself (does it open the `.ustx`/launch argument cleanly, is the phonemizer id valid in the
+  current release), any voicebank, how the sung result sounds, Windows paths. Owner must: install OpenUtau + a
+  voicebank, check its licence, export once and report what happens.
+
 
 ## Multi-channel types, analytics and per-channel production settings (2026-11-01)
 - Channel `type` (business, history, kids, general) in `studio/growth/channel_types.py`: drives prompt guidance, topic phrasing,
