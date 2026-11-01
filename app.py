@@ -222,6 +222,31 @@ def page_script() -> None:
                 st.rerun()
 
 
+SCENE_LABELS = {"": "(follow channel)", "2d": "2D motion graphics", "3d": "3D (Blender)",
+                "mixed": "Mixed (3D scenes, 2D charts)"}
+
+
+def _segment_style_inputs(ctx, video_id: int) -> dict[int, str]:
+    """One 2D/3D picker per segment that has a scene or a bar/line chart; returns {position: choice}."""
+    from studio import production, scenes
+    from studio.stages.script import load_package
+
+    try:
+        segs = load_package(ctx, video_id)["segments"]
+    except Exception:
+        return {}
+    cur, out = production.segment_styles(ctx.settings, video_id), {}
+    rows = [(i, g) for i, g in enumerate(segs, 1) if g.get("scene") or scenes.chart_items(g)]
+    if rows:
+        st.caption("Per scene: 2D or 3D for just that part of the video (blank follows the video's setting).")
+    for pos, g in rows:
+        kind = (g.get("scene") or {}).get("kind", "chart3d")
+        out[pos] = st.selectbox(f"Segment {pos}: {kind} ({g.get('chapter') or 'no chapter'})", ["", "2d", "3d"],
+                                index=["", "2d", "3d"].index(cur.get(pos, "")), key=f"seg_style_{video_id}_{pos}",
+                                format_func=lambda x: x.upper() if x else "(follow video)")
+    return out
+
+
 def _production_box(ctx, video_id: int) -> None:
     """Per-video renderer, voice and music (blank = follow the channel and its type)."""
     from studio import production
@@ -236,6 +261,12 @@ def _production_box(ctx, video_id: int) -> None:
                                              format_func=lambda x: x or "(follow channel)",
                                              help="blender adds a 3D title intro (and 3D scenes in kids mode); "
                                                   "falls back to 2D if Blender is missing."),
+                    "scene_style": st.selectbox(
+                        "Scenes: 3D or 2D", channel_types.CHOICES["scene_style"],
+                        index=channel_types.CHOICES["scene_style"].index(cur.get("scene_style", "")),
+                        format_func=lambda x: SCENE_LABELS.get(x, x or "(follow channel)"),
+                        help="3D = animated Blender scenes (timelines, maps, artifacts, 3D charts); 2D = motion "
+                             "graphics; mixed = 3D scenes, plain 2D charts. Falls back to 2D if Blender is missing."),
                     "voice": st.text_input("Voice (edge-tts name)", cur.get("voice", "")),
                     "music": st.selectbox("Music", channel_types.CHOICES["music"],
                                           index=channel_types.CHOICES["music"].index(cur.get("music", "")),
@@ -244,8 +275,11 @@ def _production_box(ctx, video_id: int) -> None:
                                                index=channel_types.CHOICES["music_mood"].index(
                                                    cur.get("music_mood", "")),
                                                format_func=lambda x: x or "(follow channel)")}
+            seg_vals = _segment_style_inputs(ctx, video_id)
             if st.form_submit_button("Save for this video"):
                 production.set_video(ctx.settings, video_id, **vals)
+                for pos, style in seg_vals.items():
+                    production.set_segment_style(ctx.settings, video_id, pos, style)
                 st.rerun()
         if cur and st.button("Follow the channel again"):
             production.clear_video(ctx.settings, video_id)
@@ -423,6 +457,12 @@ def page_channels() -> None:
                     "renderer": b.selectbox("Picture renderer", channel_types.CHOICES["renderer"],
                                             index=channel_types.CHOICES["renderer"].index(c["renderer"]),
                                             format_func=lambda x: x or "(default from settings)", key=f"r_{c['id']}"),
+                    "scene_style": b.selectbox("Scenes: 3D or 2D", channel_types.CHOICES["scene_style"],
+                                               index=channel_types.CHOICES["scene_style"].index(c["scene_style"]),
+                                               format_func=lambda x: SCENE_LABELS.get(x, x or "(type default)"),
+                                               key=f"ss_{c['id']}",
+                                               help="History and business default to Mixed; kids and general to 2D. "
+                                                    "Needs Blender 4.2+ for 3D, otherwise 2D is used."),
                     "music": b.selectbox("Music", channel_types.CHOICES["music"],
                                          index=channel_types.CHOICES["music"].index(c["music"]),
                                          format_func=lambda x: x or "(automatic)", key=f"m_{c['id']}"),

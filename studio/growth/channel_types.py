@@ -15,6 +15,8 @@ CHOICES: dict[str, tuple[str, ...]] = {
     "music": ("", "generated", "none"),  # generated royalty-free bed (or your own track in assets/music), or none
     "music_mood": ("", "minor", "major"),
     "tts_provider": ("", "edge", "eleven", "silent"),
+    # narrated scenes: 2d motion graphics, 3d (Blender) or mixed (3d for timelines/maps/artifacts, 2d charts)
+    "scene_style": ("", "2d", "3d", "mixed"),
 }
 
 TYPES: dict[str, dict] = {
@@ -25,7 +27,7 @@ TYPES: dict[str, dict] = {
         "audience": "Curious adults 18-44 who want to understand how companies make money",
         "guidance": "Narrated explainer with charts and diagrams. Every figure needs a public source.",
         "seeds": ["how it makes money", "the economics of", "why it failed", "unit economics of"],
-        "music_mood": "minor", "palette": None,
+        "music_mood": "minor", "palette": None, "scene_style": "mixed",
         "analytics_hint": "Watch average view duration and retention; long explainers win on depth.",
     },
     "history": {
@@ -36,7 +38,7 @@ TYPES: dict[str, dict] = {
         "guidance": "Narrated story with maps, timelines and archive-style images. Cite primary or reputable "
                     "sources for dates and claims; mark disputed points as disputed.",
         "seeds": ["the rise and fall of", "what really happened", "how it worked", "history of"],
-        "music_mood": "minor", "palette": ("#2B1B12", "#E0A458"),
+        "music_mood": "minor", "palette": ("#2B1B12", "#E0A458"), "scene_style": "mixed",
         "analytics_hint": "Evergreen topics grow slowly; compare views after 28+ days, not the first week.",
     },
     "kids": {
@@ -47,7 +49,7 @@ TYPES: dict[str, dict] = {
         "guidance": "Original songs and characters only, simple words, bright visuals. Uses Kids mode. "
                     "Every upload must be set to Made for Kids.",
         "seeds": ["counting song", "colors song", "animal sounds", "bedtime lullaby", "alphabet song"],
-        "music_mood": "major", "palette": ("#1D4ED8", "#FACC15"),
+        "music_mood": "major", "palette": ("#1D4ED8", "#FACC15"), "scene_style": "2d",
         "analytics_hint": "Made for Kids videos have no comments and limited reports; expect fewer details.",
     },
     "general": {
@@ -57,7 +59,7 @@ TYPES: dict[str, dict] = {
         "audience": "General audience",
         "guidance": "Narrated explainer. Be accurate, original and cite sources for facts.",
         "seeds": ["explained", "how it works", "why does"],
-        "music_mood": "minor", "palette": None,
+        "music_mood": "minor", "palette": None, "scene_style": "2d",
         "analytics_hint": "Compare views per day across videos of the same length.",
     },
 }
