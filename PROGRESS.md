@@ -321,3 +321,7 @@ Music and effects were checked for level and clipping, not by ear: listen once a
   draft keeps camera moves; opening segment uses a 2x camera move; captions 0.074 -> 0.048 of height. README: Windows Blender steps.
 - Already existed and unchanged: music ducking, whoosh/pop/hit SFX, keyword-highlight captions, hook shot limit, story/quality gate, thumbnails.
 - Owner must: install Blender 4.2+ for real 3D; try a full (non-draft) build. Not tested: Blender render, full-length build look.
+
+## Beat normalisation on every path (2026-11-01)
+- `validate_package` now normalises segment `beat` values itself (so script, critique, quality gate and web paths all accept `explain` etc.). Unknown words become `null` (plain explanation); many more synonyms map to the nearest allowed beat. Script/critique prompts state the allowed beats and that the outline's `explain` device is `null`.
+- If an old checkout still shows "beat 'explain' not in [...]": run `git pull origin main`, restart the app/launcher.

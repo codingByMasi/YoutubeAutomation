@@ -24,6 +24,16 @@ BEAT_ALIASES: dict[str, str | None] = {
     "story": "example", "anecdote": "example", "analogy": "example", "comparison": "example",
     "twist": "pattern_break", "reversal": "pattern_break", "catch": "pattern_break", "surprise": "reveal",
     "number": "reveal", "stat": "reveal", "hook": "question", "teaser": "question", "payoff": "reveal",
+    "explains": None, "explaining": None, "explained": None, "tell": None, "telling": None, "narrate": None,
+    "narration": None, "describe": None, "description": None, "detail": None, "details": None, "define": None,
+    "definition": None, "background": None, "overview": None, "conclusion": None, "none": None, "null": None,
+    "plain": None, "normal": None, "neutral": None, "step": None, "fact": "reveal", "facts": "reveal",
+    "data": "reveal", "statistic": "reveal", "figure": "reveal", "insight": "reveal", "revelation": "reveal",
+    "answer": "reveal", "ask": "question", "questions": "question", "cliffhanger": "question",
+    "curiosity_gap": "question", "open_loop": "question", "case_study": "example", "examples": "example",
+    "illustration": "example", "scenario": "example", "demo": "example", "interrupt": "pattern_break",
+    "pattern_interrupt": "pattern_break", "patternbreak": "pattern_break", "break": "pattern_break",
+    "contrast": "pattern_break", "turn": "pattern_break", "plot_twist": "pattern_break",
 }
 ILLUSTRATIVE_WORDS = ("made-up", "made up", "illustration", "illustrative", "hypothetical", "for example only")
 TITLE_MAX = 70
@@ -78,23 +88,38 @@ def chart_needs_source(chart: dict) -> bool:
     return not any(w in text for w in ILLUSTRATIVE_WORDS)
 
 
+def _beat_key(beat: str) -> str:
+    return re.sub(r"[\s\-/]+", "_", beat.strip().lower()).strip("_.:")
+
+
+def normalize_beat(beat: object) -> str | None:
+    """Map any beat value to an allowed beat or None. Unknown words count as a plain explanation (None)."""
+    if not isinstance(beat, str):
+        return None
+    key = _beat_key(beat)
+    if key in BEATS:
+        return key
+    if key in BEAT_ALIASES:
+        return BEAT_ALIASES[key]
+    for part in key.split("_"):  # e.g. 'explain_question' / 'reveal+example': keep the first allowed word
+        if part in BEATS:
+            return part
+    return None
+
+
 def normalize_package(d: dict) -> list[str]:
     """Fix harmless near-misses in place (e.g. beat 'explain' -> no beat). Returns a note for each change."""
     notes = []
     for i, seg in enumerate(d.get("segments") or [], 1):
-        beat = seg.get("beat")
-        if isinstance(beat, str):
-            key = beat.strip().lower().replace(" ", "_").replace("-", "_")
-            if key in BEATS:
-                new = key
-            elif key in BEAT_ALIASES:
-                new = BEAT_ALIASES[key]
-            else:
-                continue
-            if new != beat:
-                seg["beat"] = new
-                notes.append(f"segment {i}: beat {beat!r} is not a retention beat; "
-                             + (f"changed to {new!r}" if new else "treated as a plain explanation (no beat)"))
+        if not isinstance(seg, dict) or "beat" not in seg:
+            continue
+        beat = seg["beat"]
+        if beat is None or beat in BEATS:
+            continue
+        new = normalize_beat(beat)
+        seg["beat"] = new
+        notes.append(f"segment {i}: beat {beat!r} is not a retention beat; "
+                     + (f"changed to {new!r}" if new else "treated as a plain explanation (no beat)"))
     return notes
 
 
@@ -123,7 +148,8 @@ def validate_chart(chart: dict, source_ids: set[str], where: str) -> list[str]:
 
 
 def validate_package(d: dict) -> list[str]:
-    """Hard problems that make a script package unusable."""
+    """Hard problems that make a script package unusable. Near-miss beats are fixed first, on every path."""
+    normalize_package(d)
     problems = validate_titles(d.get("titles") or [])
     sources = d.get("sources") or []
     source_ids = {str(s.get("id")) for s in sources}

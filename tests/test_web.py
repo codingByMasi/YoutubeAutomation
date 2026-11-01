@@ -188,7 +188,7 @@ def test_rejected_answer_is_kept_and_explained(make_ctx):
 
     svc.capture(script.run, ctx, idea.id)
     broken = json.loads(SAMPLE.read_text(encoding="utf-8"))
-    broken["segments"][2]["beat"] = "banana"
+    broken["segments"][2]["visual_keywords"] = []
     broken["segments"][3]["chart_data"] = {"type": "bar", "title": "Revenue", "labels": ["a"], "values": [1],
                                            "source_ids": []}
     text = json.dumps(broken)
@@ -196,7 +196,7 @@ def test_rejected_answer_is_kept_and_explained(make_ctx):
     assert not res.ok and len(res.problems) == 2 and json.loads(res.answer) == broken
     assert json.loads(svc.rejected_answer(ctx, video.id, "script")) == broken
     plain = svc.plain_problems(res.problems)
-    assert plain[0].startswith("Segment 3 uses the beat 'banana'")
+    assert plain[0].startswith("Segment 3 has no visual keywords")
     req = svc.fix_request(res.problems)
     assert "segment 3" in req and "question, reveal, example, pattern_break" in req
     # a corrected paste works afterwards

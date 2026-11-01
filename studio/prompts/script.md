@@ -39,7 +39,9 @@ You are writing a complete YouTube video package for a faceless, narrated explai
   the one nobody notices", "And that is not even where the real profit hides"). Each payoff should plant the
   next teaser. Describe each teaser in the segment's `open_loop` field (empty string if none).
 - `beat` must be exactly one of: `question`, `reveal`, `example`, `pattern_break`, or `null` for a plain explanatory
-  segment. Never write "explain" or any other word. Pattern interrupt in `beat` at least every 20-40
+  segment. Allowed values, and nothing else: `"question"`, `"reveal"`, `"example"`, `"pattern_break"`, `null`.
+  The outline's `explain` device is NOT a beat: write `"beat": null` for those segments (also for setup,
+  context, recap, transition, cta). Never write "explain" or any other word. Pattern interrupt in `beat` at least every 20-40
   seconds: ask the viewer something, drop a number, flip an assumption ("but here is the catch"), use a
   comparison they can picture, or tell a 1-2 sentence anecdote. Never two flat explanatory segments in a row.
 - Spoken style: write for the ear. Sentences of 18 words or fewer, contractions, plain words, "you". One idea
