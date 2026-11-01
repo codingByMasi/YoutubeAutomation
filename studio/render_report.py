@@ -22,7 +22,7 @@ def preflight(settings: Settings, video_id: int, segs: list[dict] | None = None)
     segs = segs or []
     planned = []
     for pos, seg in enumerate(segs, 1):
-        pl = scenes.plan(seg, prod["scene_style"], prod["segment_styles"].get(pos, ""))
+        pl = scenes.plan_for(seg, pos, prod)
         if pl and pl["mode"] == "3d":
             planned.append(pos)
     src = prod["sources"]

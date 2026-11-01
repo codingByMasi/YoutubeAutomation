@@ -112,6 +112,8 @@ def resolve(settings: Settings, video_id: int | None = None, channel_id: str | N
     out["theme"] = identity.colors(prof) if identity.has_theme(prof) else None  # channel theme beats the palette
     if out["theme"]:
         out["palette"], src["palette"] = (out["theme"]["bg"], out["theme"]["accent"]), "theme"
+    out["mascot"] = prof.get("mascot") or {}
+    out["host"] = prof.get("host_scenes") or "auto"  # "auto": the mascot acts out some segments in 3D; "off"
     out["sources"] = src
     out["type"], out["mode"] = prof["type"], t["mode"]
     out["segment_styles"] = {int(k): v for k, v in over.get(SEGMENT_KEY, {}).items()}

@@ -450,6 +450,20 @@ All external APIs are mocked, so tests need no keys or network. Tests that rende
 - Disclose realistic AI-generated or altered content when YouTube requires it. The review step shows this flag.
 - Add sources and a disclaimer to finance, health, legal, and news videos.
 
+## Host character in 3D scenes
+With a 3D scene style (`3d` or `mixed`), the channel's mascot acts out script beats in a small Blender set: it points,
+celebrates, reacts, thinks or shrugs, with props (money stacks, bars, generic logo blocks), camera cuts every few
+seconds and a mouth that opens with the narration's loudness. Segments without a chart or scene of their own get a
+host scene automatically (the first, then every other one); set `host_scenes` to `off` in the channel profile to
+stop that. Add one yourself in `script.json`:
+`"scene": {"kind": "host", "action": "point", "set": "vault", "props": ["money_stack", "bars_up"]}`
+(actions: present, point, celebrate, shock, think, shrug, walk_in, fall, wave; sets: studio, vault, street,
+boardroom, stage). The character is the mascot `kind`: `coin`, `owl`, `robot`, `piggy`, `bull` or `analyst`
+(a stylised person with glasses, rolled sleeves and a tablet; mascot fields `color` = shirt, `skin`, `hair`,
+`hair_style` short or curly). Without Blender the scene is drawn in 2D with the mascot picture. Rendering stays
+local: Eevee, 720p, 15 fps, about the same cost as the other 3D scenes. Real logos are never drawn; a prop that
+shows a figure needs `source_ids`.
+
 ## Channel identity (mascot, theme, niche, playlists)
 `python -m studio.cli channels identity --preset finance-stories --preview out/` gives the active channel a niche
 statement, a mascot, a colour theme and playlist plans (presets: `finance-stories`, `explainer`); or pass `--file`

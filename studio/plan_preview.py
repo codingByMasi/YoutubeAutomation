@@ -64,7 +64,7 @@ def build(settings: Settings, video_id: int, pkg: dict, draft: bool = False) -> 
         dur = spans[pos - 1][1] - spans[pos - 1][0]
         bg, _ = split_segment(dur, bool(seg.get("chart_data")))
         shots = max(1, shots_needed(bg, shot_max=shot_max_for(pos)))
-        pl = scenes.plan(seg, prod["scene_style"], prod["segment_styles"].get(pos, ""))
+        pl = scenes.plan_for(seg, pos, prod)
         scene = None
         if pl:
             mode = pl["mode"] if (pl["mode"] == "2d" or exe) else "2d"

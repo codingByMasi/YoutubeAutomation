@@ -388,3 +388,13 @@ in `script.json`, and the generated YouTube description lists every source under
 - Pictures step collects assets in memory and writes them in one short transaction (no write lock during downloads/Blender).
 - `Ctx.close()`; the web app closes every context at the end of each rerun and rolls back sessions after failed steps.
 - "database is locked" gets a plain message (app and CLI subprocess output), plus tools to find/stop other Studio processes and clear stale journal files (`studio/util/dblock.py`, needs `psutil`: run `pip install -r requirements.txt`).
+
+## Host character 3D scenes (2026-11-01)
+- New scene kind `host` (`studio/scenes/host.py`, `build_host`/`scene_host` in `studio/blender/scene_script.py`): the
+  channel mascot acts per beat (9 actions, 5 sets, 7 generic props), camera cuts, mouth follows the narration audio
+  (`host.envelope`, ffmpeg RMS). `scenes.plan_for` adds host scenes automatically in 3d/mixed style when the channel has
+  a mascot; `host_scenes: off` in the channel profile disables it.
+- Mascot kinds now: coin, owl, robot, piggy, bull, analyst (a stylised person; skin, hair, hair_style fields).
+- Decisions: the mouth is loudness-driven (no phoneme lip-sync); no real logos (generic labelled blocks); 2D fallback
+  shows the mascot picture. Owner must choose the default character per channel (`channels identity --file`).
+- Tests: `tests/test_host.py`; the bpy smoke test runs only where `pip install bpy` is available.

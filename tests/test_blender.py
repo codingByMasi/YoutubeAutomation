@@ -106,7 +106,7 @@ def test_scene_script_is_standalone_and_py311_to_313_syntax() -> None:
         tree = ast.parse(src, feature_version=version)
     imported = {a.name.split(".")[0] for n in ast.walk(tree) if isinstance(n, ast.Import) for a in n.names}
     imported |= {n.module.split(".")[0] for n in ast.walk(tree) if isinstance(n, ast.ImportFrom) and n.module}
-    assert imported <= {"bpy", "json", "math", "os", "sys"}
+    assert imported <= {"bpy", "json", "math", "mathutils", "os", "sys"}
 
 
 def test_scene_script_knows_every_character_and_background() -> None:

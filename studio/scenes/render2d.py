@@ -109,7 +109,22 @@ def artifact(scene: dict, foot: str, out: Path, stem: str) -> list[Path]:
     return [_save(fig, out / f"{stem}_01.png")]
 
 
-DRAWERS = {"timeline": timeline, "map": route_map, "artifact": artifact}
+def host(scene: dict, foot: str, out: Path, stem: str) -> list[Path]:
+    """2D stand-in for a host scene: the mascot picture (mood from the action) beside the scene's title."""
+    from studio.growth import identity
+
+    mood = {"shock": "surprised", "fall": "surprised", "think": "thinking", "shrug": "thinking"}.get(
+        scene.get("action", "present"), "happy")
+    fig, ax = _canvas(scene.get("title", ""), foot)
+    ax.set_xlim(-4, 4)
+    ax.set_ylim(-3, 3)
+    ax.set_aspect("equal")
+    pic = identity.mascot_image(scene.get("mascot") or {"kind": "coin", "name": "host"}, 600, mood)
+    ax.imshow(pic, extent=(-1.8, 1.8, -2.4, 1.2), zorder=3)
+    return [_save(fig, out / f"{stem}_01.png")]
+
+
+DRAWERS = {"timeline": timeline, "map": route_map, "artifact": artifact, "host": host}
 
 
 def render(scene: dict, foot: str, out: Path, stem: str) -> list[Path]:

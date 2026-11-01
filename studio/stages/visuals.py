@@ -157,10 +157,11 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
                 for f in frames:
                     new_assets.append(Asset(video_id=video_id, kind="chart", path=str(f),
                                 source=source_line(seg["chart_data"], pkg["sources"]), licence=OWN_LICENCE))
-            pl = scenes.plan(seg, prod["scene_style"], prod["segment_styles"].get(pos, ""))
+            pl = scenes.plan_for(seg, pos, prod)
             if pl:
                 note = scene_note(seg, pl["scene"], pkg["sources"])
-                res = scene_stage.draw(pl, seg, pos, out / "scenes", charts_dir, blender, note, duration)
+                res = scene_stage.draw(pl, seg, pos, out / "scenes", charts_dir, blender, note, duration,
+                                       Path(rows[pos].audio_path) if pos in rows and rows[pos].audio_path else None)
                 scene_counts[res["mode"]] = scene_counts.get(res["mode"], 0) + 1
                 vis["scene"] = {"kind": res["kind"], "mode": res["mode"], "fell_back": res["fell_back"]}
                 if res["clip"]:
