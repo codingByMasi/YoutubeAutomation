@@ -34,6 +34,14 @@ class GateError(StudioError):
     """The owner did not give the typed confirmation a guarded action needs."""
 
 
+class InvalidAnswer(StudioError):
+    """An LLM answer failed validation. `problems` holds the individual issues, `path` the saved answer."""
+
+    def __init__(self, what: str, why: str, next_step: str, problems: list[str], path: str = "") -> None:
+        super().__init__(what, why, next_step)
+        self.problems, self.path = problems, path
+
+
 class PendingLLMResponse(StudioError):
     """A prompt file was written and is waiting for an answer (claude_code provider)."""
 

@@ -33,10 +33,17 @@ def fmt(value: float, unit: str) -> str:
     return f"{v}{unit}" if unit in {"%", "x"} else f"{v} {unit}".strip()
 
 
+def _needs_source(chart: dict) -> bool:
+    from studio.stages.script import chart_needs_source
+    return chart_needs_source(chart)
+
+
 def source_line(chart: dict, sources: list[dict]) -> str:
     """Footnote naming every cited source; raises if the chart has none."""
     by_id = {s["id"]: s for s in sources}
     names = [by_id[i].get("title") or by_id[i]["url_or_note"] for i in chart.get("source_ids", []) if i in by_id]
+    if not names and chart and not _needs_source(chart):
+        return "Illustration, not real data" if chart.get("type") != "flow" else "Concept diagram"
     if not names:
         raise StudioError(f"Chart {chart.get('title', '')!r} has no source.", "Every figure needs a source.",
                           "Add source_ids to the chart in script.json and re-run `visuals --force`.")

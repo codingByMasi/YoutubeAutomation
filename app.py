@@ -58,6 +58,8 @@ def show(res: svc.Outcome, success: str = "Done.") -> None:
         st.success(success)
     elif res.pending:
         st.info("Waiting for the script. Follow the steps below.")
+    elif res.problems:
+        handoff_ui.show_problems(res)
     else:
         st.error(res.error)
     if res.log.strip():

@@ -77,6 +77,10 @@ def step_script(ctx, v, show) -> None:
         if st.button("Save script and check it", type="primary", key="wz_ssave"):
             if handoff_ui.apply_answer(ctx, v.id, "script", pasted, None, (), idea_id=v.idea_id):
                 st.rerun()
+        kept = svc.rejected_answer(ctx, v.id)
+        if kept:
+            with st.expander("Your last answer is kept here (not lost)"):
+                st.code(kept, language="json", wrap_lines=True)
 
 
 def _qa_panel(ctx, v) -> None:

@@ -102,3 +102,33 @@ def test_script_handoff_then_save(ctx):
     sc.run(ctx, idea.id)
     assert (out / "script.json").stat().st_mtime_ns == before
     assert ctx.session.query(Script).filter_by(video_id=v.id).count() == 1
+
+
+def test_beat_aliases_are_auto_fixed_with_notes():
+    d = pkg()
+    d["segments"][2]["beat"] = "explain"
+    d["segments"][3]["beat"] = "Anecdote"
+    notes = sc.normalize_package(d)
+    assert d["segments"][2]["beat"] is None and d["segments"][3]["beat"] == "example"
+    assert len(notes) == 2 and "segment 3" in notes[0]
+    assert sc.validate_package(d) == []
+
+
+def test_unknown_beat_still_fails():
+    d = pkg()
+    d["segments"][2]["beat"] = "banana"
+    assert sc.normalize_package(d) == []
+    assert any("beat 'banana'" in p for p in sc.validate_package(d))
+
+
+def test_concept_diagrams_and_made_up_examples_need_no_source():
+    flow = {"type": "flow", "title": "Formula", "labels": ["a", "b"], "values": [], "source_ids": []}
+    made_up = {"type": "bar", "title": "Made-up example, not real data", "labels": ["a", "b"], "values": [1, 2],
+               "unit": "$", "source_ids": []}
+    real = {"type": "bar", "title": "Revenue", "labels": ["a", "b"], "values": [1, 2], "source_ids": []}
+    assert sc.validate_chart(flow, set(), "x") == []
+    assert sc.validate_chart(made_up, set(), "x") == []
+    assert any("no source" in p for p in sc.validate_chart(real, set(), "x"))
+    from studio.providers.charts import source_line
+    assert source_line(flow, []) == "Concept diagram"
+    assert source_line(made_up, []).startswith("Illustration")

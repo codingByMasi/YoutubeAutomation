@@ -30,6 +30,19 @@ def show_flash() -> None:
                 st.code(msg["log"])
 
 
+def show_problems(res) -> None:
+    """Validation problems in plain words, with a copy-able request asking Claude to fix exactly those points."""
+    from studio.web import service as svc
+
+    st.error("❌ Claude's answer has a few problems, so it was not applied. Your answer is not lost: "
+             "it stays in the box and is kept in 'Your last answer' below.")
+    for line in svc.plain_problems(res.problems):
+        st.markdown(f"- {line}")
+    st.markdown("**Fix it:** copy this (copy icon, top right of the box), send it to Claude, "
+                "then paste the corrected answer back.")
+    st.code(svc.fix_request(res.problems), language="markdown", wrap_lines=True)
+
+
 def apply_answer(ctx, video_id: int, task: str, pasted: str, fn, args: tuple, idea_id: int | None = None) -> bool:
     """Save a pasted answer and run its step, always telling the user what happened.
 
@@ -46,6 +59,9 @@ def apply_answer(ctx, video_id: int, task: str, pasted: str, fn, args: tuple, id
     if res.ok:
         st.session_state["flash_ok"] = {"summary": res.summary or "Saved and applied.", "log": res.log.strip()}
         return True
+    if res.problems:
+        show_problems(res)
+        return False
     st.error("❌ Could not apply this answer, so nothing was saved.\n\n" + (res.error or "Unknown problem."))
     if res.log.strip():
         with st.expander("Details"):

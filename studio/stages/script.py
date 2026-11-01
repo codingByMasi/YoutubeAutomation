@@ -17,6 +17,15 @@ from studio.stages.base import run_stage
 BANNED_PHRASES = ["you won't believe", "shocking", "guaranteed", "secret they don't want you to know", "get rich"]
 CHART_TYPES = {"bar", "pie", "line", "flow", "number"}
 BEATS = {"question", "reveal", "example", "pattern_break"}
+# Beats the model tends to invent -> the allowed beat they mean. None = plain explanation (no retention interrupt).
+BEAT_ALIASES: dict[str, str | None] = {
+    "explain": None, "explanation": None, "explainer": None, "exposition": None, "setup": None, "context": None,
+    "recap": None, "summary": None, "transition": None, "cta": None, "outro": None, "intro": None,
+    "story": "example", "anecdote": "example", "analogy": "example", "comparison": "example",
+    "twist": "pattern_break", "reversal": "pattern_break", "catch": "pattern_break", "surprise": "reveal",
+    "number": "reveal", "stat": "reveal", "hook": "question", "teaser": "question", "payoff": "reveal",
+}
+ILLUSTRATIVE_WORDS = ("made-up", "made up", "illustration", "illustrative", "hypothetical", "for example only")
 TITLE_MAX = 70
 TITLE_COUNT = 15
 HOOK_MAX_SECONDS = 15
@@ -60,6 +69,35 @@ def validate_titles(titles: list[dict]) -> list[str]:
     return problems
 
 
+def chart_needs_source(chart: dict) -> bool:
+    """False for concept diagrams (a flow with no numbers) and charts labelled as made-up teaching examples."""
+    if chart.get("type") == "flow" and not chart.get("values"):
+        return False
+    parts = [chart.get("title", ""), chart.get("unit", ""), *(chart.get("labels") or [])]
+    text = " ".join(str(x) for x in parts).lower()
+    return not any(w in text for w in ILLUSTRATIVE_WORDS)
+
+
+def normalize_package(d: dict) -> list[str]:
+    """Fix harmless near-misses in place (e.g. beat 'explain' -> no beat). Returns a note for each change."""
+    notes = []
+    for i, seg in enumerate(d.get("segments") or [], 1):
+        beat = seg.get("beat")
+        if isinstance(beat, str):
+            key = beat.strip().lower().replace(" ", "_").replace("-", "_")
+            if key in BEATS:
+                new = key
+            elif key in BEAT_ALIASES:
+                new = BEAT_ALIASES[key]
+            else:
+                continue
+            if new != beat:
+                seg["beat"] = new
+                notes.append(f"segment {i}: beat {beat!r} is not a retention beat; "
+                             + (f"changed to {new!r}" if new else "treated as a plain explanation (no beat)"))
+    return notes
+
+
 def validate_chart(chart: dict, source_ids: set[str], where: str) -> list[str]:
     problems = []
     ctype = chart.get("type")
@@ -75,8 +113,9 @@ def validate_chart(chart: dict, source_ids: set[str], where: str) -> list[str]:
     if not all(isinstance(v, (int, float)) for v in values):
         problems.append(f"{where}: chart values must be numbers")
     refs = chart.get("source_ids") or []
-    if not refs:
-        problems.append(f"{where}: chart has no source (every figure needs a source)")
+    if not refs and chart_needs_source(chart):
+        problems.append(f"{where}: chart has no source (real figures need source_ids; "
+                        "a flow diagram with no values, or a chart titled 'made-up example', does not)")
     for r in refs:
         if r not in source_ids:
             problems.append(f"{where}: chart cites unknown source id {r!r}")
@@ -203,7 +242,7 @@ def render_markdown(d: dict) -> str:
         lines += ["", seg["narration"], "", f"Visuals: {', '.join(seg['visual_keywords'])}"]
         if seg.get("chart_data"):
             c = seg["chart_data"]
-            lines.append(f"Chart ({c['type']}): {c.get('title', '')} [{', '.join(c['source_ids'])}]")
+            lines.append(f"Chart ({c['type']}): {c.get('title', '')} [{', '.join(c.get('source_ids') or [])}]")
         lines.append("")
     lines += ["## Sources", ""] + [f"- [{s['id']}] {s.get('title', '')}: {s['url_or_note']}" for s in d["sources"]]
     return "\n".join(lines) + "\n"
@@ -259,9 +298,18 @@ def run(ctx: Ctx, idea_id: int, force: bool = False) -> Video:
         from studio.stages.qa import quality_report
         from studio.stages.story import load_outline
         out_dir = ctx.settings.project_dir(video.id)
+        notes: list[str] = []
+
+        def check(data: dict) -> list[str]:
+            notes.clear()
+            notes.extend(normalize_package(data))
+            return validate_package(data)
+
         d = ask_json(ctx.settings, out_dir, "script",
                      build_prompt(ctx.settings.root, topic, load_outline(out_dir)),
-                     validate=validate_package, force=False)
+                     validate=check, force=False)
+        for n in notes:
+            typer.secho(f"auto-fixed: {n}", fg=typer.colors.YELLOW)
         save_package(ctx, video, d)
         for w in quality_report(d)["warnings"]:
             typer.secho(f"warning: {w}", fg=typer.colors.YELLOW)
