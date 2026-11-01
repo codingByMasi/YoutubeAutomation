@@ -128,8 +128,10 @@ def auto_suggest(ctx: Ctx, count: int = 8, suggest: Callable[[str], list[str]] |
     used = " ".join(known).lower()
     niche = _custom_niche(ctx)
     if niche:  # customised channel: stay on its niche instead of the business subject list
-        fresh = [niche] * len(CUSTOM_ANGLES)
-        angles = list(CUSTOM_ANGLES)
+        fresh = [niche] * 12
+        from studio.growth import channels
+        seeds = channels.type_info(ctx.settings.root)["seeds"]
+        angles = [f"{{s}} {x}" for x in seeds] + list(CUSTOM_ANGLES)  # the channel type's own phrasing first
         rng.shuffle(angles)
     else:
         fresh = [s for s in SUBJECTS if s.lower() not in used] or SUBJECTS[:]
@@ -137,7 +139,7 @@ def auto_suggest(ctx: Ctx, count: int = 8, suggest: Callable[[str], list[str]] |
         angles = []
     found: list[tuple[str, float]] = []
     for n, subject in enumerate(fresh[: count + 4]):
-        angle = angles[n].format(s=subject) if angles else rng.choice(ANGLES).format(s=subject)
+        angle = angles[n % len(angles)].format(s=subject) if angles else rng.choice(ANGLES).format(s=subject)
         try:
             sug = suggest(angle)
         except Exception as exc:  # noqa: BLE001 - best effort

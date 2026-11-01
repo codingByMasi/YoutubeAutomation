@@ -42,6 +42,20 @@ def first_file(folder: Path, exts: set[str]) -> Path | None:
     return files[0] if files else None
 
 
+def _title_card(ctx: Ctx, prod: dict, pkg: dict, tmp: Path) -> Path | None:
+    """A 3D title intro when the resolved renderer is Blender and Blender works; else None (no intro)."""
+    from studio.kids import build3d
+
+    exe = build3d.choose(prod["renderer"], ctx.settings.blender_path)
+    if exe is None:
+        return None
+    from studio.blender import title_card
+
+    title = next((t["text"] for t in pkg.get("titles", []) if t.get("is_pick")), pkg.get("topic", ""))
+    p = ff.profile()
+    return title_card.make(exe, title, prod["palette"], tmp / "title3d.mp4", tmp / "title3d_frames", (p.w, p.h))
+
+
 def normalize_cmd(src: Path, out: Path, with_audio: bool) -> list[str]:
     """Bring an intro/outro clip to 1920x1080/30fps/AAC 48k so it can be concatenated."""
     cmd = ["ffmpeg", "-y", "-i", str(src)]
@@ -182,9 +196,15 @@ def run(ctx: Ctx, video_id: int, force: bool = False) -> None:
         # 4. music (your own track wins; otherwise a synthesized royalty-free bed), ducked under the voice,
         #    plus sound effects on cuts, chart steps and reveals
         s.query(Asset).filter(Asset.video_id == video_id, Asset.kind.in_(["music", "intro", "outro"])).delete()
-        snd = sound.ensure_sound(assets / "cache" / "sound")
-        music = first_file(assets / "music", AUDIO_EXT)
-        if music:
+        from studio import production
+        prod = production.resolve(ctx.settings, video_id)
+        snd = sound.ensure_sound(assets / "cache" / "sound", prod["music_mood"])
+        music = first_file(assets / "music", AUDIO_EXT) if prod["music"] != "none" else None
+        if prod["music"] == "none":
+            music = snd["silence"]
+            s.add(Asset(video_id=video_id, kind="music", path=str(music), source="no music (channel setting)",
+                        licence=sound.OWN_LICENCE))
+        elif music:
             s.add(Asset(video_id=video_id, kind="music", path=str(music), source=music.name,
                         licence=licence_for(music)))
         else:
@@ -207,9 +227,18 @@ def run(ctx: Ctx, video_id: int, force: bool = False) -> None:
         pieces, intro_s = [], 0.0
         for kind in ("intro", "outro"):
             src = first_file(assets / kind, VIDEO_EXT)
+            norm = tmp / f"{kind}.mp4"
+            if not src and kind == "intro":
+                src = _title_card(ctx, prod, pkg, tmp)
+                if src:
+                    ff.run(normalize_cmd(src, norm, True), "preparing intro")
+                    s.add(Asset(video_id=video_id, kind=kind, path=str(src), source="generated 3D title card",
+                                licence=sound.OWN_LICENCE))
+                    intro_s = ff.probe_duration(norm)
+                    pieces.append((kind, norm))
+                continue
             if not src:
                 continue
-            norm = tmp / f"{kind}.mp4"
             ff.run(normalize_cmd(src, norm, ff.has_audio_stream(src)), f"preparing {kind}")
             s.add(Asset(video_id=video_id, kind=kind, path=str(src), source=src.name, licence=licence_for(src)))
             if kind == "intro":

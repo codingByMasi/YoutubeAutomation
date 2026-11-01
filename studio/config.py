@@ -48,6 +48,8 @@ class Settings:
     daily_quota_limit: int = 10000
     quota_safety_margin: int = 500
     secrets: list[str] = field(default_factory=list)
+    channel_key: str = "default"  # which channel profile this context is for (picks the token file)
+    made_for_kids: bool = False  # set from the active channel's type
 
     @property
     def db_path(self) -> Path:
@@ -63,7 +65,10 @@ class Settings:
 
     @property
     def token_path(self) -> Path:
-        return self.root / "token.json"
+        """Each channel has its own sign-in; the "default" channel keeps the original token.json."""
+        if self.channel_key == "default":
+            return self.root / "token.json"
+        return self.root / "tokens" / f"{self.channel_key}.json"
 
     @property
     def client_secret(self) -> Path:
@@ -113,6 +118,8 @@ def _apply_active_channel(s: Settings) -> None:
         s.tts_voice = p["voice"]
     if p["youtube_channel_id"]:
         s.channel_id = p["youtube_channel_id"]
+    s.channel_key = channels.active_id(s.root)
+    s.made_for_kids = channels.type_info(s.root)["made_for_kids"]
 
 
 def load_settings(root: Path | None = None) -> Settings:
