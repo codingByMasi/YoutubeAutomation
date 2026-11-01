@@ -11,6 +11,7 @@ import re
 from collections.abc import Callable
 from datetime import UTC, datetime
 
+from studio import scope
 from studio.context import Ctx
 from studio.errors import StudioError
 from studio.models import Idea
@@ -70,21 +71,26 @@ def off_channel(topic: str) -> bool:
     return bool(words & BLOCKED)
 
 
-def fits_channel(topic: str, seed: str = "") -> bool:
-    """On-channel if not blocked and it talks about money/business, or shares words with the seed."""
+def fits_channel(topic: str, seed: str = "", strict: bool = True) -> bool:
+    """On-channel if not blocked and it talks about money/business, or shares words with the seed.
+
+    `strict=False` (a customised channel niche) only blocks junk: the business word list no longer applies."""
     if off_channel(topic):
         return False
+    if not strict:
+        return True
     words = set(re.findall(r"[a-z0-9]+", topic.lower()))
     return bool(words & FIT_WORDS) or bool(seed and key_tokens(seed) & key_tokens(topic))
 
 
-def clean_topics(topics: list[str], seed: str = "", known: list[str] | None = None) -> list[str]:
+def clean_topics(topics: list[str], seed: str = "", known: list[str] | None = None,
+                 strict: bool = True) -> list[str]:
     """Drop off-channel topics and near-duplicates (also against `known`), keeping the first of each group."""
     seen = [key_tokens(k) for k in (known or [])]
     out: list[str] = []
     for t in topics:
         t = t.strip()
-        if not t or not fits_channel(t, seed) or is_duplicate(t, seen):
+        if not t or not fits_channel(t, seed, strict) or is_duplicate(t, seen):
             continue
         seen.append(key_tokens(t))
         out.append(t)
@@ -93,12 +99,22 @@ def clean_topics(topics: list[str], seed: str = "", known: list[str] | None = No
 
 def known_topics(ctx: Ctx) -> list[str]:
     """Every topic ever saved, so nothing is suggested twice."""
-    return [i.topic for i in ctx.session.query(Idea).filter(Idea.seed != "__demo__").all()]
+    return [i.topic for i in scope.ideas(ctx.session).filter(Idea.seed != "__demo__").all()]
 
 
 def _demand(position: int, total: int) -> float:
     """0-10 from how high YouTube's own search box ranks the phrase (top result = 10)."""
     return round(10 * (1 - position / max(total, 1)), 1)
+
+
+CUSTOM_ANGLES = ("{s} explained", "how {s} works", "{s} for beginners", "{s} mistakes to avoid",
+                 "{s} myths", "the truth about {s}")
+
+
+def _custom_niche(ctx: Ctx) -> str:
+    """The active channel's niche once the owner has customised it, else empty (business defaults apply)."""
+    from studio.growth import channels
+    return channels.get(ctx.settings.root)["niche"] if channels.brief(ctx.settings.root) else ""
 
 
 def auto_suggest(ctx: Ctx, count: int = 8, suggest: Callable[[str], list[str]] | None = None,
@@ -110,17 +126,24 @@ def auto_suggest(ctx: Ctx, count: int = 8, suggest: Callable[[str], list[str]] |
     rng = rng or random.Random(datetime.now(UTC).strftime("%Y%m%d%H%M%S"))
     known = known_topics(ctx)
     used = " ".join(known).lower()
-    fresh = [s for s in SUBJECTS if s.lower() not in used] or SUBJECTS[:]
-    rng.shuffle(fresh)
+    niche = _custom_niche(ctx)
+    if niche:  # customised channel: stay on its niche instead of the business subject list
+        fresh = [niche] * len(CUSTOM_ANGLES)
+        angles = list(CUSTOM_ANGLES)
+        rng.shuffle(angles)
+    else:
+        fresh = [s for s in SUBJECTS if s.lower() not in used] or SUBJECTS[:]
+        rng.shuffle(fresh)
+        angles = []
     found: list[tuple[str, float]] = []
-    for subject in fresh[: count + 4]:
-        angle = rng.choice(ANGLES).format(s=subject)
+    for n, subject in enumerate(fresh[: count + 4]):
+        angle = angles[n].format(s=subject) if angles else rng.choice(ANGLES).format(s=subject)
         try:
             sug = suggest(angle)
         except Exception as exc:  # noqa: BLE001 - best effort
             log.warning("Suggestions unavailable for %r: %s", angle, exc)
             sug = []
-        pool = clean_topics([s for s in sug if key_tokens(subject) & key_tokens(s)], angle, known)
+        pool = clean_topics([s for s in sug if key_tokens(subject) & key_tokens(s)], angle, known, strict=not niche)
         pick = pool[0] if pool else None
         if pick is None and not sug:
             pick = angle  # offline: the plain template, unranked
@@ -141,10 +164,16 @@ def auto_suggest(ctx: Ctx, count: int = 8, suggest: Callable[[str], list[str]] |
 def ideas_prompt(ctx: Ctx, count: int = 10) -> str:
     """Text to paste into Claude (claude.ai or Claude Code) asking for new channel-fit topics."""
     avoid = "\n".join(f"- {t}" for t in known_topics(ctx)[-60:]) or "- (none yet)"
-    return f"""You are the topic researcher for a faceless YouTube channel that explains business models and
-economics in English with charts and diagrams. Every figure in a video needs a public source.
+    from studio.growth import channels
+    custom = channels.brief(ctx.settings.root)
+    about = custom or ("a faceless YouTube channel that explains business models and economics in English "
+                       "with charts and diagrams")
+    return f"""You are the topic researcher for this YouTube channel: {about}.
+Every figure in a video needs a public source.
 
-Suggest {count} NEW video topics. Mix Indian and global companies and industries. Prefer the shapes
+Suggest {count} NEW video topics. Stay inside the channel's niche. For the default business channel, mix Indian and
+global
+companies and industries. Prefer the shapes
 "How X really makes money", "Why X is so cheap/expensive", "The economics of X", "Why X failed".
 Pick topics people search for and that can be explained with real, citable numbers. Search the web to check
 the topic is real and current. Do not copy any creator's video; topics only.

@@ -7,6 +7,7 @@ from pathlib import Path
 
 import typer
 
+from studio import scope
 from studio.context import Ctx
 from studio.models import Idea, Title, Video
 from studio.stages.base import stage_index
@@ -61,7 +62,7 @@ def run(ctx: Ctx, weeks: int = 4, today: date | None = None) -> Path:
         t = s.query(Title).filter_by(video_id=v.id, is_pick=True).first()
         return f"#{v.id} {t.text if t else s.get(Idea, v.idea_id).topic}"
 
-    vids = [v for v in s.query(Video).all() if not s.get(Idea, v.idea_id).seed.startswith("__")]
+    vids = [v for v in scope.videos(s).all() if not s.get(Idea, v.idea_id).seed.startswith("__")]
     scheduled = [(v.publish_at.date(), label(v)) for v in vids if v.publish_at and v.publish_at.date() >= start]
     queue = [label(v) for v in sorted((v for v in vids if not v.youtube_video_id),
                                       key=lambda v: (-stage_index(v.stage), v.id))]

@@ -27,8 +27,17 @@ def save(path: Path, data: Any) -> Path:
     return path
 
 
-def channel_file(root: Path, name: str) -> Path:
+def global_file(root: Path, name: str) -> Path:
+    """Data shared by all channels (the channel list itself)."""
     return root / "growth" / f"{name}.json"
+
+
+def channel_file(root: Path, name: str) -> Path:
+    """Data for the active channel. The "default" channel keeps the original growth/<name>.json paths."""
+    active = load(global_file(root, "channels"), {}).get("active", "default")
+    if active == "default":
+        return global_file(root, name)
+    return root / "growth" / "c" / active / f"{name}.json"
 
 
 def video_file(project_dir: Path, name: str) -> Path:

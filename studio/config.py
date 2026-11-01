@@ -104,6 +104,17 @@ def _int(name: str, default: int) -> int:
         raise ConfigError(f"{name} must be a whole number, got {raw!r}.", "", f"Fix {name} in .env.") from exc
 
 
+def _apply_active_channel(s: Settings) -> None:
+    """The active channel profile's voice and YouTube channel id override the defaults in `.env`."""
+    from studio.growth import channels
+
+    p = channels.get(s.root)
+    if p["voice"]:
+        s.tts_voice = p["voice"]
+    if p["youtube_channel_id"]:
+        s.channel_id = p["youtube_channel_id"]
+
+
 def load_settings(root: Path | None = None) -> Settings:
     """Load `.env` from the project root and validate values that are always required."""
     root = Path(root or os.getenv("STUDIO_HOME") or Path.cwd()).resolve()
@@ -163,5 +174,6 @@ def load_settings(root: Path | None = None) -> Settings:
             f"Got margin {s.quota_safety_margin} and limit {s.daily_quota_limit}.",
             "Lower QUOTA_SAFETY_MARGIN in .env.",
         )
+    _apply_active_channel(s)
     s.secrets = [v for v in (s.llm_api_key, s.pexels_api_key, s.pixabay_api_key, s.elevenlabs_api_key) if v]
     return s

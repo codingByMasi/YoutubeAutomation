@@ -19,7 +19,7 @@ from studio.web.growth_ui import page_grow_factory
 
 ROOT = Path(os.getenv("STUDIO_HOME") or Path(__file__).parent).resolve()
 PAGES = ["Home", "1. Topics", "2. Script", "3. Make the video", "4. Review and download",
-         "5. Grow the channel", "Settings", "🧸 Kids mode"]
+         "5. Grow the channel", "Channels", "Settings", "🧸 Kids mode"]
 
 st.set_page_config(page_title="YouTube Channel Studio", page_icon="🎬", layout="wide")
 
@@ -332,6 +332,61 @@ def page_review() -> None:
             show(res, "Uploaded.")
 
 
+def page_channels() -> None:
+    from studio.growth import channels
+
+    st.header("Channels")
+    st.write("Add as many channels as you like and switch any time. Everything (prompts, voice, posting plan) "
+             "uses the active channel chosen in the sidebar.")
+    rows = channels.list_channels(ROOT)
+    for c in rows:
+        with st.expander(f"{'⭐ ' if c['active'] else ''}{c['name']} · {c['niche']}", expanded=c["active"]):
+            with st.form(f"edit_{c['id']}"):
+                a, b = st.columns(2)
+                vals = {
+                    "name": a.text_input("Channel name", c["name"]),
+                    "niche": a.text_input("Niche", c["niche"]),
+                    "description": a.text_area("Description", c["description"]),
+                    "audience": a.text_input("Target audience", c["audience"]),
+                    "language": b.text_input("Language", c["language"]),
+                    "posts_per_week": b.number_input("Posting frequency (long videos per week)", 1, 14,
+                                                     int(c["posts_per_week"])),
+                    "voice": b.text_input("Voice (blank = default from settings)", c["voice"]),
+                    "youtube_channel_id": b.text_input("YouTube channel ID (optional)", c["youtube_channel_id"]),
+                }
+                if st.form_submit_button("Save"):
+                    channels.update(ROOT, c["id"], **vals)
+                    st.rerun()
+            b1, b2 = st.columns(2)
+            if not c["active"] and b1.button("Make active", key=f"use_{c['id']}"):
+                channels.switch(ROOT, c["id"])
+                st.rerun()
+            if len(rows) > 1 and b2.button("Delete", key=f"del_{c['id']}"):
+                channels.remove(ROOT, c["id"])
+                st.rerun()
+    with st.form("add_channel"):
+        st.subheader("Add a channel")
+        name = st.text_input("Channel name")
+        niche = st.text_input("Niche", placeholder="e.g. personal finance for students")
+        desc = st.text_area("Description")
+        freq = st.number_input("Posting frequency (long videos per week)", 1, 14, 2)
+        voice = st.text_input("Voice (edge-tts name, optional)", placeholder="en-US-AndrewNeural")
+        if st.form_submit_button("Add and switch to it") and name.strip():
+            channels.add(ROOT, name, niche=niche or channels.DEFAULTS["niche"], description=desc,
+                         posts_per_week=int(freq), voice=voice.strip())
+            st.rerun()
+    st.divider()
+    st.write("Hosted storage is temporary. Download your channels now and then, and upload them again after a restart.")
+    st.download_button("⬇️ Download channels.json", channels.export_json(ROOT), "channels.json", "application/json")
+    up = st.file_uploader("Restore channels.json", type="json")
+    if up is not None and st.button("Import"):
+        try:
+            done = channels.import_json(ROOT, up.getvalue().decode("utf-8"))
+            st.success(f"Imported {len(done)} new channel(s).")
+        except StudioError as exc:
+            st.error(str(exc))
+
+
 def page_settings() -> None:
     ctx = ctx_for()
     s = ctx.settings
@@ -371,11 +426,21 @@ page_grow = page_grow_factory(ctx_for, video_picker, show)
 def main() -> None:
     gate()
     st.sidebar.title("🎬 Studio")
+    from studio.growth import channels
+
+    rows = channels.list_channels(ROOT)
+    ids = [c["id"] for c in rows]
+    names = {c["id"]: c["name"] for c in rows}
+    active = channels.active_id(ROOT)
+    chosen = st.sidebar.selectbox("Channel", ids, index=ids.index(active), format_func=names.get)
+    if chosen != active:
+        channels.switch(ROOT, chosen)
+        st.rerun()
     page = st.sidebar.radio("Go to", PAGES, label_visibility="collapsed")
     try:
         {"Home": page_home, "1. Topics": page_topics, "2. Script": page_script, "3. Make the video": page_make,
          "4. Review and download": page_review, "5. Grow the channel": page_grow,
-         "Settings": page_settings, "🧸 Kids mode": page_kids}[page]()
+         "Channels": page_channels, "Settings": page_settings, "🧸 Kids mode": page_kids}[page]()
     except StudioError as exc:
         st.error(str(exc))
 
