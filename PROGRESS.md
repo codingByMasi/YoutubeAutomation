@@ -334,6 +334,15 @@ Music and effects were checked for level and clipping, not by ear: listen once a
 - Setup page > Footage has a "Test my footage key" button (`doctor.test_footage_keys`). Tests: `tests/test_key_errors.py`.
 - Owner must: use `PIXABAY_API_KEY=yourkey` in `.env`, no quotes or spaces.
 
+## 2026-11-01: plan preview before building
+- New `studio/plan_preview.py` and CLI `plan <video_id> [--draft]`: lists per segment the length, 3D/2D scene, chart type,
+  stock search words and picture source, plus resolution, voice, music, captions, Blender and stock/photo availability,
+  and plain warnings (unsourced chart, no stock key, Blender unusable, 3D clips are 1280x720 @ 15 fps, no charts at all).
+  Reads only `script.json`, settings and `.env`; nothing is rendered or fetched.
+- Make video page: "Plan: what this video will use" box above the run buttons. Search words can be edited there; scene 2D/3D
+  stays in "Look and sound". "Approve this plan" is stored as a fingerprint in `plan_approval.json`; changing keywords, scenes,
+  charts or settings asks again. The run buttons (except Voiceover) wait for approval in the app; the CLI is not gated.
+- Tests: `tests/test_plan_preview.py`. Not tested: the Streamlit box in a browser.
 ## 2026-11-01 Fix: irrelevant stock footage and clipped big numbers
 - Cause: stock video was taken from the first search hit with no relevance check (PS4 for "Nvidia", lavender for "survived"; photos were tag-filtered, videos were not).
   Number cards printed units like "trillion US$" as "5.03 trillion US" at a fixed 180 pt, so the figure ran off the frame.
