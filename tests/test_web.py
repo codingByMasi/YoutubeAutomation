@@ -80,7 +80,8 @@ def test_app_renders_every_page(root, monkeypatch):
     monkeypatch.setenv("STUDIO_HOME", str(root))
     at = AppTest.from_file(str(Path(__file__).parent.parent / "app.py"), default_timeout=30).run()
     assert not at.exception
-    for page in ["1. Topics", "2. Script", "3. Make the video", "4. Review and download", "Settings"]:
+    for page in ["1. Topics", "2. Script", "3. Make the video", "4. Review and download", "📊 Analytics",
+                 "Channels", "Settings"]:
         at.sidebar.radio[0].set_value(page).run()
         assert not at.exception, page
 

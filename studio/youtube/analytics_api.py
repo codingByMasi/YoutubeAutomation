@@ -13,6 +13,8 @@ log = get_logger("analytics_api")
 
 CORE_METRICS = "views,estimatedMinutesWatched,averageViewDuration"
 # Not listed in the Analytics API metrics reference as of 2026-10-28; requested opportunistically.
+CHANNEL_METRICS = ("views,estimatedMinutesWatched,averageViewDuration,averageViewPercentage,"
+                  "subscribersGained,subscribersLost")
 THUMB_METRICS = "videoThumbnailImpressions,videoThumbnailImpressionsClickRate"
 
 
@@ -57,3 +59,21 @@ class YouTubeAnalytics:
         rows = self._query(startDate=start.isoformat(), endDate=end.isoformat(), metrics="audienceWatchRatio",
                            dimensions="elapsedVideoTimeRatio", filters=f"video=={video_id}")
         return [(float(r["elapsedVideoTimeRatio"]), float(r["audienceWatchRatio"])) for r in rows]
+
+    # --- channel-wide reports (used by the multi-channel analytics view) ---
+    def channel_totals(self, start: date, end: date) -> dict:
+        """One row of whole-channel totals for the range ({} if YouTube has no data)."""
+        rows = self._query(startDate=start.isoformat(), endDate=end.isoformat(), metrics=CHANNEL_METRICS)
+        return rows[0] if rows else {}
+
+    def channel_daily(self, start: date, end: date) -> list[dict]:
+        """Whole-channel views, minutes and subscribers per day."""
+        return self._query(startDate=start.isoformat(), endDate=end.isoformat(),
+                           metrics="views,estimatedMinutesWatched,subscribersGained,subscribersLost",
+                           dimensions="day", sort="day")
+
+    def top_videos(self, start: date, end: date, limit: int = 10) -> list[dict]:
+        """Best videos by views, each with watch minutes and average percentage viewed (retention)."""
+        return self._query(startDate=start.isoformat(), endDate=end.isoformat(),
+                           metrics="views,estimatedMinutesWatched,averageViewPercentage",
+                           dimensions="video", sort="-views", maxResults=limit)

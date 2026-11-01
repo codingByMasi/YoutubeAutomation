@@ -158,6 +158,11 @@ def run(ctx: Ctx, video_id: int, force: bool = False) -> list[Path]:
     made: list[Path] = []
 
     def work() -> None:
+        from studio import production
+        with brand.use(production.resolve(ctx.settings, video_id)["palette"]):
+            _work()
+
+    def _work() -> None:
         out = ctx.settings.project_dir(video_id) / "thumbs"
         out.mkdir(exist_ok=True)
         pkg = load_package(ctx, video_id)

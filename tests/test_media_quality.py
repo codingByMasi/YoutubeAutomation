@@ -115,8 +115,10 @@ def test_generated_sound_files_exist_and_are_not_clipping(tmp_path):
 
     import numpy as np
     files = sound.ensure_sound(tmp_path)
-    assert set(files) == {"music", "whoosh", "pop", "hit"}
+    assert set(files) == {"music", "silence", "whoosh", "pop", "hit"}
     for name, f in files.items():
+        if name == "silence":
+            continue
         with wave.open(str(f)) as w:
             data = np.frombuffer(w.readframes(w.getnframes()), dtype="<i2")
             assert w.getframerate() == 48000 and w.getnchannels() == 2 and len(data) > 1000
