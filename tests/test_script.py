@@ -114,11 +114,37 @@ def test_beat_aliases_are_auto_fixed_with_notes():
     assert sc.validate_package(d) == []
 
 
-def test_unknown_beat_still_fails():
+def test_unknown_beat_becomes_plain_explanation():
     d = pkg()
     d["segments"][2]["beat"] = "banana"
-    assert sc.normalize_package(d) == []
-    assert any("beat 'banana'" in p for p in sc.validate_package(d))
+    assert len(sc.normalize_package(d)) == 1 and d["segments"][2]["beat"] is None
+    assert sc.validate_package(d) == []
+
+
+@pytest.mark.parametrize("raw,want", [
+    ("explain", None), ("Explain", None), (" EXPLANATION ", None), ("explain.", None), ("tell", None),
+    ("pattern-break", "pattern_break"), ("Pattern Break", "pattern_break"), ("pattern interrupt", "pattern_break"),
+    ("explain/question", "question"), ("stat", "reveal"), ("case study", "example"), (5, None), ("", None),
+])
+def test_normalize_beat(raw, want):
+    assert sc.normalize_beat(raw) == want
+
+
+def test_validate_package_alone_never_rejects_explain_beats():
+    """Every validation path (script, critique, quality gate) must accept 'explain' without a separate fix-up step."""
+    d = pkg()
+    for i in (3, 8, 14, 17):  # segments 4, 9, 15, 18 from the bug report
+        if i < len(d["segments"]):
+            d["segments"][i]["beat"] = "explain"
+    assert sc.validate_package(d) == []
+    assert all(s["beat"] in (None, *sc.BEATS) for s in d["segments"])
+
+
+def test_script_prompt_lists_allowed_beats_and_forbids_explain():
+    text = (Path(__file__).parent.parent / "studio" / "prompts" / "script.md").read_text()
+    for b in ("question", "reveal", "example", "pattern_break", "null"):
+        assert b in text
+    assert "Never write \"explain\"" in text
 
 
 def test_concept_diagrams_and_made_up_examples_need_no_source():
