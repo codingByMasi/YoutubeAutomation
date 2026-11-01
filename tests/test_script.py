@@ -158,3 +158,21 @@ def test_concept_diagrams_and_made_up_examples_need_no_source():
     from studio.providers.charts import source_line
     assert source_line(flow, []) == "Concept diagram"
     assert source_line(made_up, []).startswith("Illustration")
+
+
+def test_charts_do_not_draw_sources_but_still_require_them(tmp_path):
+    import pytest
+
+    from studio.errors import StudioError
+    from studio.providers import charts
+    seen = []
+    orig = charts.RENDERERS["number"]
+    charts.RENDERERS["number"] = lambda c, foot, o, s: seen.append(foot) or []
+    try:
+        ok = {"type": "number", "title": "T", "value": 5, "source_ids": ["s1"]}
+        charts.render_chart(ok, [{"id": "s1", "title": "Filing", "url_or_note": "x"}], tmp_path, "a")
+        assert seen == [""]
+        with pytest.raises(StudioError):
+            charts.render_chart({"type": "number", "title": "T", "value": 5}, [], tmp_path, "b")
+    finally:
+        charts.RENDERERS["number"] = orig
