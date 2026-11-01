@@ -173,8 +173,9 @@ def render(ctx_for, show, show_player) -> None:
     ctx = ctx_for()
     prof = channels.get(ctx.settings.root)
     st.header("🎬 Make a video")
-    st.caption(f"Channel: **{prof['name']}** · {channels.TYPES.get(prof['type'], prof['type'])}")
-    if prof["type"] == "kids":
+    tinfo = channels.type_info(ctx.settings.root)
+    st.caption(f"Channel: **{prof['name']}** · {tinfo['label']}")
+    if tinfo["mode"] == "kids":
         st.info("This is a kids channel, so the wizard is the Kids mode builder below. It never uploads anything.")
         from studio.kids import page
 

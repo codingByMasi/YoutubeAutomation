@@ -14,7 +14,6 @@ from studio.growth import channels
 from studio.manage import doctor
 from studio.models import Video
 from studio.stages import research
-from studio.web import analytics_ui
 from studio.web import service as svc
 from studio.web import setup_service as setup
 from studio.web import wizard_service as wiz
@@ -42,14 +41,14 @@ def envsafe(monkeypatch):
 # ---------- per-channel sign-in ----------
 def test_token_path_is_per_channel(root):
     assert Settings(root=root).token_path == root / "token.json"  # default channel keeps the legacy file
-    assert Settings(root=root, channel_slug="kids-1").token_path == root / "tokens" / "kids-1.json"
+    assert Settings(root=root, channel_key="kids-1").token_path == root / "tokens" / "kids-1.json"
 
 
 def test_sign_in_writes_token_for_active_channel(make_ctx, root):
     channels.add(root, "Second")
-    ctx = make_ctx(channel_slug=channels.active_id(root))
+    ctx = make_ctx(channel_key=channels.active_id(root))
     ctx.settings.client_secret.write_bytes(CLIENT)
-    res = setup.sign_in(ctx, run_flow=lambda s: FakeCreds())
+    res = setup.sign_in(ctx, run_flow=lambda s: FakeCreds(), services=lambda cid: None)
     assert res.ok and (root / "tokens" / "second.json").exists() and not (root / "token.json").exists()
     assert setup.signed_in(ctx.settings) and setup.signed_in_for(root, "second")
     assert not setup.signed_in_for(root, "default")
@@ -66,7 +65,7 @@ def test_load_settings_follows_active_channel(root, monkeypatch):
 
     monkeypatch.delenv("STUDIO_HOME", raising=False)
     cid = channels.add(root, "Money Maps")
-    assert load_settings(root).channel_slug == cid
+    assert load_settings(root).channel_key == cid
     channels.switch(root, "default")
     assert load_settings(root).token_path == root / "token.json"
 
@@ -138,20 +137,10 @@ def test_resume_video_skips_live(ctx):
     assert wiz.resume_video(ctx).id == a.id
 
 
-def test_channel_type_defaults_and_roundtrip(root):
-    assert channels.get(root)["type"] == "explainer"
+def test_channel_type_drives_wizard_mode(root):
+    assert channels.type_info(root)["mode"] == "narrated"
     cid = channels.add(root, "Tiny Tunes", type="kids")
-    assert channels.get(root, cid)["type"] == "kids" and "kids" in channels.TYPES
-
-
-def test_latest_report_is_per_channel(root):
-    (root / "reports").mkdir()
-    (root / "reports" / "analytics_2026-01-01.md").write_text("a")
-    (root / "reports" / "analytics_2026-02-01.md").write_text("b")
-    (root / "reports" / "analytics_kids_2026-03-01.md").write_text("k")
-    assert analytics_ui.latest_report(root, "default").name == "analytics_2026-02-01.md"
-    assert analytics_ui.latest_report(root, "kids").name == "analytics_kids_2026-03-01.md"
-    assert analytics_ui.latest_report(root, "none") is None
+    assert channels.type_info(root, cid)["mode"] == "kids"
 
 
 # ---------- launchers ----------
@@ -176,7 +165,7 @@ def _app(root, monkeypatch):
 def test_new_pages_render(root, monkeypatch):
     at = _app(root, monkeypatch)
     assert not at.exception
-    for page in ["🎬 Make a video", "Setup", "Analytics", "Channels", "Home"]:
+    for page in ["🎬 Make a video", "Setup", "📊 Analytics", "Channels", "Home"]:
         at.sidebar.radio[0].set_value(page).run()
         assert not at.exception, page
 

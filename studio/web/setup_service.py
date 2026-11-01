@@ -141,14 +141,19 @@ def signed_in(settings: Settings) -> bool:
     return settings.token_path.exists()
 
 
-def sign_in(ctx: Ctx, run_flow: Callable | None = None) -> Outcome:
+def sign_in(ctx: Ctx, run_flow: Callable | None = None, services: Callable | None = None) -> Outcome:
     """Run the Google sign-in for the active channel. Opens a browser window on the machine running the app."""
-    from studio.youtube import auth
-
     if not can_sign_in(ctx.settings):
         return Outcome(False, "", "No Google OAuth client file yet.\nWhy: sign-in needs it to identify this app.\n"
                        "Next: upload client_secret.json on the Setup page first.")
-    return capture(auth.get_credentials, ctx.settings, *([run_flow] if run_flow else []))
+    from studio.growth import channels
+    from studio.manage import multi_analytics as ma
+
+    def go() -> None:
+        r = ma.sign_in(ctx.settings, channels.active_id(ctx.settings.root), run_flow=run_flow, services=services)
+        print(f"Signed in as {r['title'] or r['youtube_channel_id'] or 'your Google account'}.")
+
+    return capture(go)
 
 
 def sign_out(settings: Settings) -> bool:
@@ -178,7 +183,7 @@ def renderer_info(settings: Settings) -> dict:
 
 def signed_in_for(root: Path, channel_id: str) -> bool:
     """True when the named channel profile has its own saved Google sign-in."""
-    return Settings(root=root, channel_slug=channel_id).token_path.exists()
+    return Settings(root=root, channel_key=channel_id).token_path.exists()
 
 
 def section_level(all_checks: list[doctor.Check], action: str) -> str:

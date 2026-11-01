@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 
 import typer
 
@@ -236,9 +237,12 @@ def _channels_root():
     return load_settings().root
 
 
-def _fields(name, niche, description, posts_per_week, voice, language, audience, youtube_channel_id) -> dict:
-    given = dict(name=name, niche=niche, description=description, posts_per_week=posts_per_week, voice=voice,
+def _fields(name, niche, description, posts_per_week, voice, language, audience, youtube_channel_id,
+            type_=None, **production) -> dict:
+    given = dict(type=type_, name=name, niche=niche, description=description, posts_per_week=posts_per_week,
+                 voice=voice,
                  language=language, audience=audience, youtube_channel_id=youtube_channel_id)
+    given.update(production)
     return {k: v for k, v in given.items() if v is not None}
 
 
@@ -248,7 +252,7 @@ def channels_list() -> None:
     from studio.growth import channels
     for c in channels.list_channels(_channels_root()):
         typer.echo(f"{'*' if c['active'] else ' '} {c['id']:20} {c['name']} | {c['niche']} | "
-                   f"{c['posts_per_week']}/week | voice: {c['voice'] or '(default)'}")
+                   f"{c['type']} | {c['posts_per_week']}/week | voice: {c['voice'] or '(default)'}")
 
 
 @channels_app.command("add")
@@ -257,10 +261,16 @@ def channels_add(name: str = typer.Argument(..., help="Channel name."),
                  posts_per_week: int = typer.Option(None, "--posts-per-week"), voice: str = typer.Option(None),
                  language: str = typer.Option(None), audience: str = typer.Option(None),
                  youtube_channel_id: str = typer.Option(None, "--youtube-channel-id"),
+                 type_: str = typer.Option(None, "--type", help="business, history, kids or general."),
+                 renderer: str = typer.Option(None, help="2d or blender (3D); blank = default."),
+                 music: str = typer.Option(None, help="generated or none."),
+                 music_mood: str = typer.Option(None, "--music-mood", help="minor or major."),
+                 tts_provider: str = typer.Option(None, "--tts-provider", help="edge, eleven or silent."),
                  activate: bool = typer.Option(True, help="Switch to the new channel.")) -> None:
     """Add a channel profile."""
     from studio.growth import channels
-    fields = _fields(None, niche, description, posts_per_week, voice, language, audience, youtube_channel_id)
+    fields = _fields(None, niche, description, posts_per_week, voice, language, audience, youtube_channel_id,
+                     type_, renderer=renderer, music=music, music_mood=music_mood, tts_provider=tts_provider)
     cid = channels.add(_channels_root(), name, activate=activate, **fields)
     typer.echo(f"Added channel '{cid}'" + (" and made it active." if activate else "."))
 
@@ -271,10 +281,16 @@ def channels_edit(channel_id: str = typer.Argument(None, help="Channel id (defau
                   description: str = typer.Option(None),
                   posts_per_week: int = typer.Option(None, "--posts-per-week"), voice: str = typer.Option(None),
                   language: str = typer.Option(None), audience: str = typer.Option(None),
-                  youtube_channel_id: str = typer.Option(None, "--youtube-channel-id")) -> None:
+                  youtube_channel_id: str = typer.Option(None, "--youtube-channel-id"),
+                  type_: str = typer.Option(None, "--type", help="business, history, kids or general."),
+                  renderer: str = typer.Option(None, help="2d or blender (3D); blank = default."),
+                  music: str = typer.Option(None, help="generated or none."),
+                  music_mood: str = typer.Option(None, "--music-mood", help="minor or major."),
+                  tts_provider: str = typer.Option(None, "--tts-provider", help="edge, eleven or silent.")) -> None:
     """Change fields on a channel."""
     from studio.growth import channels
-    fields = _fields(name, niche, description, posts_per_week, voice, language, audience, youtube_channel_id)
+    fields = _fields(name, niche, description, posts_per_week, voice, language, audience, youtube_channel_id,
+                     type_, renderer=renderer, music=music, music_mood=music_mood, tts_provider=tts_provider)
     channels.update(_channels_root(), channel_id, **fields)
     typer.echo("Saved.")
 
@@ -284,7 +300,10 @@ def channels_use(channel_id: str = typer.Argument(...)) -> None:
     """Switch the active channel."""
     from studio.growth import channels
     p = channels.switch(_channels_root(), channel_id)
-    typer.echo(f"Active channel: {p['name']}")
+    typer.echo(f"Active channel: {p['name']} ({p['type']})")
+    if channels.type_info(_channels_root())["mode"] == "kids":
+        typer.echo("This is a kids channel: make videos with the `kids` commands (`kids script`, `kids build`, "
+                   "`kids checklist`) and set every upload to Made for Kids.")
 
 
 @channels_app.command("show")
@@ -301,6 +320,110 @@ def channels_remove(channel_id: str = typer.Argument(...)) -> None:
     from studio.growth import channels
     channels.remove(_channels_root(), channel_id)
     typer.echo(f"Removed {channel_id}.")
+
+
+@channels_app.command("types")
+def channels_types() -> None:
+    """List the channel types and what each one does."""
+    from studio.growth import channel_types
+    for k, t in channel_types.TYPES.items():
+        typer.echo(f"{k:10} {t['label']} | mode: {t['mode']} | Made for Kids: {'yes' if t['made_for_kids'] else 'no'}")
+
+
+@channels_app.command("sign-in")
+def channels_sign_in(channel_id: str = typer.Argument(None, help="Channel id (default: the active one).")) -> None:
+    """Sign one channel in with its own Google login (its own token file) and remember its YouTube channel id."""
+    from studio.config import load_settings
+    from studio.growth import channels
+    from studio.manage import multi_analytics as m
+    settings = load_settings()
+    cid = channel_id or channels.active_id(settings.root)
+    r = m.sign_in(settings, cid)
+    typer.echo(f"Signed in '{cid}' as YouTube channel {r['title'] or r['youtube_channel_id'] or '(unknown)'}. "
+               f"Token saved to {r['token']}.")
+
+
+def _range(days, start, end):
+    from datetime import date
+
+    from studio.manage import multi_analytics as m
+    try:
+        a = date.fromisoformat(start) if start else None
+        b = date.fromisoformat(end) if end else None
+    except ValueError as exc:
+        raise typer.BadParameter("Dates must look like 2026-10-31.") from exc
+    return m.date_range(days, a, b)
+
+
+@channels_app.command("stats")
+def channels_stats(channel_id: str = typer.Argument(None, help="Channel id (default: the active one)."),
+                   days: int = typer.Option(28, help="Last N days (ends yesterday)."),
+                   start: str = typer.Option(None, "--from", help="Start date YYYY-MM-DD."),
+                   end: str = typer.Option(None, "--to", help="End date YYYY-MM-DD."),
+                   demo: bool = typer.Option(False, help="Show labelled sample data if not signed in.")) -> None:
+    """Analytics page for one channel: views, watch time, subscribers, retention, top videos."""
+    from studio.config import load_settings
+    from studio.growth import channels
+    from studio.manage import multi_analytics as m
+    settings = load_settings()
+    s, e = _range(days, start, end)
+    cid = channel_id or channels.active_id(settings.root)
+    typer.echo(m.format_text(m.channel_report(settings.root, cid, s, e, m.default_services(settings), demo)))
+
+
+@channels_app.command("compare")
+def channels_compare(days: int = typer.Option(28, help="Last N days (ends yesterday)."),
+                     start: str = typer.Option(None, "--from", help="Start date YYYY-MM-DD."),
+                     end: str = typer.Option(None, "--to", help="End date YYYY-MM-DD."),
+                     only: str = typer.Option(None, help="Comma-separated channel ids (default: all)."),
+                     demo: bool = typer.Option(False, help="Show labelled sample data if not signed in.")) -> None:
+    """All-channels overview: a side-by-side table, then each channel's details."""
+    from studio.config import load_settings
+    from studio.manage import multi_analytics as m
+    settings = load_settings()
+    s, e = _range(days, start, end)
+    reports = m.overview(settings.root, s, e, m.default_services(settings), demo,
+                         [x.strip() for x in only.split(",")] if only else None)
+    typer.echo(f"All channels, {s} to {e} (change = versus the {(e - s).days + 1} days before)\n")
+    typer.echo(m.format_comparison(m.comparison_rows(reports)))
+    for r in reports:
+        typer.echo("\n" + m.format_text(r))
+
+
+production_app = typer.Typer(no_args_is_help=True, help="Renderer, voice and music for a channel or one video "
+                             "(a video's own setting beats its channel's, which beats the type's default).")
+app.add_typer(production_app, name="production")
+
+
+@production_app.command("show")
+def production_show(video_id: int = typer.Argument(None, help="Video id; omit for the active channel.")) -> None:
+    """Show the effective settings and where each comes from."""
+    from studio import production
+    from studio.config import load_settings
+    typer.echo(production.describe(load_settings(), video_id))
+
+
+@production_app.command("set")
+def production_set(video_id: int, renderer: str = typer.Option(None, help="2d or blender."),
+                   voice: str = typer.Option(None, help="TTS voice name."),
+                   music: str = typer.Option(None, help="generated or none."),
+                   music_mood: str = typer.Option(None, "--music-mood", help="minor or major."),
+                   tts_provider: str = typer.Option(None, "--tts-provider", help="edge, eleven or silent.")) -> None:
+    """Override settings for one video. A blank value ('') clears that override."""
+    from studio import production
+    from studio.config import load_settings
+    production.set_video(load_settings(), video_id, renderer=renderer, voice=voice, music=music,
+                         music_mood=music_mood, tts_provider=tts_provider)
+    typer.echo(production.describe(load_settings(), video_id))
+
+
+@production_app.command("reset")
+def production_reset(video_id: int) -> None:
+    """Remove a video's overrides so it follows its channel again."""
+    from studio import production
+    from studio.config import load_settings
+    production.clear_video(load_settings(), video_id)
+    typer.echo(f"Video {video_id} now follows its channel.")
 
 
 @channels_app.command("export")
@@ -347,6 +470,30 @@ def kids_build(topic: str, force: bool = FORCE,
     from studio.kids import build as m
     from studio.kids.script import slugify
     typer.echo(f"Built {m.run(_ctx(), slugify(topic), force=force, renderer=renderer or None)}")
+
+
+@kids_app.command("sing")
+def kids_sing(topic: str, force: bool = FORCE,
+              open_in_openutau: bool = typer.Option(False, "--open", help="Also launch OpenUtau with the project."),
+              use: str = typer.Option("", "--use", help="WAV exported from OpenUtau."),
+              ) -> None:
+    """Optional sung melody (PC only): write MIDI/USTX/lyrics for OpenUtau, or import the exported vocal."""
+    from studio.kids import openutau, sing_step
+    from studio.kids.script import project_dir, slugify
+    ctx, slug = _ctx(), slugify(topic)
+    files = sing_step.run(ctx, slug, force=force)
+    sung = project_dir(ctx, slug) / "sung"
+    if use:
+        typer.echo(f"Vocal ready: {openutau.import_vocal(sung, Path(use))}")
+    for k, p in files.items():
+        typer.echo(f"{k}: {p}")
+    if open_in_openutau:
+        exe = openutau.find_openutau(ctx.settings.openutau_path)
+        if exe is None:
+            typer.echo("OpenUtau not found. Set OPENUTAU_PATH in .env or open song.ustx yourself (README).")
+        else:
+            openutau.open_project(exe, files["ustx"])
+    typer.echo(sing_step.status(ctx, slug))
 
 
 @kids_app.command("checklist")

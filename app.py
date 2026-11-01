@@ -12,15 +12,13 @@ from studio.stages import research
 from studio.stages import script as script_stage
 from studio.stages import story as story_stage
 from studio.stages.base import STAGES
-from studio.web import analytics_ui, handoff_ui, publish_ui, setup_ui, wizard_ui
+from studio.web import handoff_ui, publish_ui, setup_ui, wizard_ui
 from studio.web import service as svc
-from studio.web import setup_service as setup
 from studio.web.growth_ui import page_grow_factory
 
 ROOT = Path(os.getenv("STUDIO_HOME") or Path(__file__).parent).resolve()
-PAGES = ["🎬 Make a video", "Setup", "Analytics", "Home", "1. Topics", "2. Script", "3. Make the video",
-         "4. Review and download",
-         "5. Grow the channel", "Channels", "Settings", "🧸 Kids mode"]
+PAGES = ["🎬 Make a video", "Setup", "Home", "1. Topics", "2. Script", "3. Make the video", "4. Review and download",
+         "5. Grow the channel", "📊 Analytics", "Channels", "Settings", "🧸 Kids mode"]
 
 st.set_page_config(page_title="YouTube Channel Studio", page_icon="🎬", layout="wide")
 
@@ -84,6 +82,10 @@ def page_home() -> None:
              "video, then review and download it. Nothing is ever published without you typing `yes`.")
     st.button("🎬 Make a video (guided, one page)", type="primary", on_click=handoff_ui.goto,
               args=("🎬 Make a video",))
+    from studio.growth import channels
+    if channels.type_info(ROOT)["mode"] == "kids":
+        st.info("This is a **kids channel**. Make its videos on the **🧸 Kids mode** page, and set every upload to "
+                "Made for Kids in YouTube Studio. The pages below are for narrated explainer channels.")
     vids = svc.list_videos(ctx)
     if not vids:
         st.info("No videos yet. Start at **1. Topics**. Want a quick test with no keys? Use the demo below.")
@@ -221,6 +223,36 @@ def page_script() -> None:
                 st.rerun()
 
 
+def _production_box(ctx, video_id: int) -> None:
+    """Per-video renderer, voice and music (blank = follow the channel and its type)."""
+    from studio import production
+    from studio.growth import channel_types
+
+    with st.expander("Look and sound for this video (3D, voice, music)"):
+        st.code(production.describe(ctx.settings, video_id))
+        cur = production.video_overrides(ctx.settings, video_id)
+        with st.form(f"prod_{video_id}"):
+            vals = {"renderer": st.selectbox("Picture renderer", channel_types.CHOICES["renderer"],
+                                             index=channel_types.CHOICES["renderer"].index(cur.get("renderer", "")),
+                                             format_func=lambda x: x or "(follow channel)",
+                                             help="blender adds a 3D title intro (and 3D scenes in kids mode); "
+                                                  "falls back to 2D if Blender is missing."),
+                    "voice": st.text_input("Voice (edge-tts name)", cur.get("voice", "")),
+                    "music": st.selectbox("Music", channel_types.CHOICES["music"],
+                                          index=channel_types.CHOICES["music"].index(cur.get("music", "")),
+                                          format_func=lambda x: x or "(follow channel)"),
+                    "music_mood": st.selectbox("Music mood", channel_types.CHOICES["music_mood"],
+                                               index=channel_types.CHOICES["music_mood"].index(
+                                                   cur.get("music_mood", "")),
+                                               format_func=lambda x: x or "(follow channel)")}
+            if st.form_submit_button("Save for this video"):
+                production.set_video(ctx.settings, video_id, **vals)
+                st.rerun()
+        if cur and st.button("Follow the channel again"):
+            production.clear_video(ctx.settings, video_id)
+            st.rerun()
+
+
 def page_make() -> None:
     ctx = ctx_for()
     st.header("3. Make the video")
@@ -234,6 +266,7 @@ def page_make() -> None:
     nxt = svc.next_produce_stage(v)
     if nxt is None:
         st.success("Production is finished. Go to **4. Review and download**.")
+    _production_box(ctx, v.id)
     draft = st.checkbox("Fast draft (720p, quicker encode): about 2-3x faster editing, for checking the story",
                         key="draft", help="For the final version, untick this and redo 'Edit the video'.")
     c1, c2 = st.columns(2)
@@ -311,8 +344,35 @@ def page_review() -> None:
     publish_ui.render(ctx, ROOT, v, show)
 
 
+def _signin_row(c: dict) -> None:
+    """Show whether this channel has its own YouTube sign-in, with a Sign in button (works when run locally)."""
+    from studio.config import load_settings
+    from studio.manage import multi_analytics as ma
+    from studio.youtube import auth
+
+    s = load_settings(ROOT)
+    cs = auth.settings_for(s, c["id"])
+    st.caption(("✅ Signed in" if auth.is_signed_in(cs) else "⚪ Not signed in")
+               + f" · own token: {cs.token_path.name} · YouTube channel: {c['youtube_channel_id'] or 'not set yet'}")
+    if st.button("Sign in / switch account", key=f"signin_{c['id']}",
+                 help="Opens Google sign-in on the computer running the app. On a hosted app use "
+                      "`python -m studio.cli channels sign-in " + c["id"] + "` on your own computer."):
+        try:
+            r = ma.sign_in(s, c["id"])
+            st.success(f"Signed in as {r['title'] or r['youtube_channel_id']}.")
+            st.rerun()
+        except StudioError as exc:
+            st.error(str(exc))
+
+
+def page_analytics() -> None:
+    from studio.web import analytics_ui
+
+    analytics_ui.render(ROOT)
+
+
 def page_channels() -> None:
-    from studio.growth import channels
+    from studio.growth import channel_types, channels
 
     st.header("Channels")
     st.write("Add as many channels as you like and switch any time. Everything (prompts, voice, posting plan) "
@@ -324,24 +384,33 @@ def page_channels() -> None:
                 a, b = st.columns(2)
                 vals = {
                     "name": a.text_input("Channel name", c["name"]),
-                    "type": a.selectbox("Channel type", list(channels.TYPES), format_func=channels.TYPES.get,
-                                        index=list(channels.TYPES).index(c["type"]) if c["type"] in channels.TYPES
-                                        else 0, key=f"type_{c['id']}"),
                     "niche": a.text_input("Niche", c["niche"]),
                     "description": a.text_area("Description", c["description"]),
                     "audience": a.text_input("Target audience", c["audience"]),
+                    "type": a.selectbox("Channel type", list(channel_types.TYPES),
+                                        index=list(channel_types.TYPES).index(c["type"]),
+                                        format_func=lambda k: channel_types.TYPES[k]["label"],
+                                        help="Kids channels use Kids mode and Made for Kids. Others use the "
+                                             "narrated explainer pipeline."),
                     "language": b.text_input("Language", c["language"]),
                     "posts_per_week": b.number_input("Posting frequency (long videos per week)", 1, 14,
                                                      int(c["posts_per_week"])),
                     "voice": b.text_input("Voice (blank = default from settings)", c["voice"]),
                     "youtube_channel_id": b.text_input("YouTube channel ID (optional)", c["youtube_channel_id"]),
+                    "renderer": b.selectbox("Picture renderer", channel_types.CHOICES["renderer"],
+                                            index=channel_types.CHOICES["renderer"].index(c["renderer"]),
+                                            format_func=lambda x: x or "(default from settings)", key=f"r_{c['id']}"),
+                    "music": b.selectbox("Music", channel_types.CHOICES["music"],
+                                         index=channel_types.CHOICES["music"].index(c["music"]),
+                                         format_func=lambda x: x or "(automatic)", key=f"m_{c['id']}"),
+                    "music_mood": b.selectbox("Music mood", channel_types.CHOICES["music_mood"],
+                                              index=channel_types.CHOICES["music_mood"].index(c["music_mood"]),
+                                              format_func=lambda x: x or "(type default)", key=f"mm_{c['id']}"),
                 }
                 if st.form_submit_button("Save"):
                     channels.update(ROOT, c["id"], **vals)
                     st.rerun()
-            st.caption("Google sign-in for this channel: "
-                       + ("✅ signed in" if setup.signed_in_for(ROOT, c["id"]) else "⬜ not signed in")
-                       + (" (sign in on the Setup page)" if c["active"] else " (make it active, then use Setup)"))
+            _signin_row(c)
             b1, b2 = st.columns(2)
             if not c["active"] and b1.button("Make active", key=f"use_{c['id']}"):
                 channels.switch(ROOT, c["id"])
@@ -352,13 +421,14 @@ def page_channels() -> None:
     with st.form("add_channel"):
         st.subheader("Add a channel")
         name = st.text_input("Channel name")
-        ctype = st.selectbox("Channel type", list(channels.TYPES), format_func=channels.TYPES.get)
-        niche = st.text_input("Niche", placeholder="e.g. personal finance for students")
+        ctype = st.selectbox("Channel type", list(channel_types.TYPES),
+                             format_func=lambda k: channel_types.TYPES[k]["label"])
+        niche = st.text_input("Niche (blank = the type's default)", placeholder="e.g. personal finance for students")
         desc = st.text_area("Description")
         freq = st.number_input("Posting frequency (long videos per week)", 1, 14, 2)
         voice = st.text_input("Voice (edge-tts name, optional)", placeholder="en-US-AndrewNeural")
         if st.form_submit_button("Add and switch to it") and name.strip():
-            channels.add(ROOT, name, type=ctype, niche=niche or channels.DEFAULTS["niche"], description=desc,
+            channels.add(ROOT, name, type=ctype, niche=niche or None, description=desc,
                          posts_per_week=int(freq), voice=voice.strip())
             st.rerun()
     st.divider()
@@ -408,10 +478,6 @@ def page_setup() -> None:
     setup_ui.render(ctx_for, show)
 
 
-def page_analytics() -> None:
-    analytics_ui.render(ctx_for, show)
-
-
 def page_kids() -> None:
     from studio.kids import page
 
@@ -436,9 +502,10 @@ def main() -> None:
         st.rerun()
     page = st.sidebar.radio("Go to", PAGES, key="nav", label_visibility="collapsed")
     try:
-        {"🎬 Make a video": page_wizard, "Setup": page_setup, "Analytics": page_analytics,
+        {"🎬 Make a video": page_wizard, "Setup": page_setup,
          "Home": page_home, "1. Topics": page_topics, "2. Script": page_script, "3. Make the video": page_make,
          "4. Review and download": page_review, "5. Grow the channel": page_grow,
+         "📊 Analytics": page_analytics,
          "Channels": page_channels, "Settings": page_settings, "🧸 Kids mode": page_kids}[page]()
     except StudioError as exc:
         st.error(str(exc))

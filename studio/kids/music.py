@@ -41,14 +41,15 @@ def _tone(freq: float, seconds: float, volume: float, bright: float = 0.25) -> n
     return volume * wave_ * env
 
 
-def score(seed: str, tempo: int = 104) -> list[tuple[float, float, float, float]]:
-    """(start, length, frequency, volume) tuples for one 4-phrase loop (32 beats)."""
+def score(seed: str, tempo: int = 104, melody: bool = True) -> list[tuple[float, float, float, float]]:
+    """(start, length, frequency, volume) tuples for one 4-phrase loop (32 beats). `melody=False` keeps only the
+    bass and chords, a bed that a sung vocal can sit on."""
     rng = random.Random(int(hashlib.sha256(seed.encode()).hexdigest()[:12], 16))
     a, b = phrase(rng), phrase(rng)
     beat = 60.0 / tempo
     events = []
     for bar, ph in enumerate([a, a, b, a]):
-        for k, step in enumerate(ph):
+        for k, step in enumerate(ph if melody else []):
             octave, idx = divmod(step, 5)
             start = (bar * 8 + k) * beat
             events.append((start, beat * 0.95, _hz(PENTATONIC[idx], octave), 0.30))
@@ -61,9 +62,9 @@ def score(seed: str, tempo: int = 104) -> list[tuple[float, float, float, float]
     return events
 
 
-def render(seed: str, out: Path, tempo: int = 104) -> Path:
-    """Write the loop to `out` as a 16-bit mono WAV and return the path."""
-    events = score(seed, tempo)
+def render(seed: str, out: Path, tempo: int = 104, melody: bool = True) -> Path:
+    """Write the loop to `out` as a 16-bit mono WAV and return the path (`melody=False`: chords and bass only)."""
+    events = score(seed, tempo, melody)
     total = max(s + length for s, length, _, _ in events)
     buf = np.zeros(int(total * RATE) + 1)
     for start, length, freq, vol in events:

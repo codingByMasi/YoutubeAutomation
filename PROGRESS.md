@@ -68,11 +68,11 @@ Status values: `todo`, `in progress`, `blocked`, `done`
 
 ### M9 Web app as the single front end: `done` (2026-11-01)
 - [x] `Setup` page: doctor checklist with guided steps and a fix box per item (keys to `.env`, upload `client_secret.json`, channel ID, voice sample, 2D/3D picture style)
-- [x] Per-channel Google sign-in (`tokens/<channel>.json`; the default channel keeps `token.json`), sign in/out from the app
+- [x] Setup page sign-in uses the per-channel sign-in from M-multi-channel (`tokens/<channel>.json`)
 - [x] `Make a video` wizard (topic, script handoff with paste or upload, optional critique, voice, QA score, make, review, typed-yes approve, schedule/upload); resumes the newest unfinished video; kids channels route to the Kids builder
-- [x] `Analytics` page (pull from YouTube, latest per-channel report); channel type field; shared `publish_ui` and `handoff_ui`
+- [x] Shared `publish_ui` and `handoff_ui` (paste-or-upload box for Claude answers); Review page reuses them
 - [x] `run_app.bat` (Windows one-click: Python check, venv, packages, `.env`, ffmpeg offer) and `run_app.sh`
-- [x] Tests: `tests/test_web_setup_wizard.py` (231 tests total pass, ruff clean)
+- [x] Tests: `tests/test_web_setup_wizard.py` (298 tests total pass, ruff clean)
 - Not tested in a real run: the `.bat` on Windows, Google sign-in and upload, edge-tts voice sample (needs internet), Blender 3D, winget ffmpeg install.
 
 ### M8 Docs and hardening: `done` (2026-10-28)
@@ -225,3 +225,36 @@ Music and effects were checked for level and clipping, not by ear: listen once a
 - Active profile now drives: TTS voice and YouTube channel id (override `.env` when set), script/outline brief and topic-ideas prompt (once the profile is customised), growth prompts and posting plan.
 - Per-channel separation: ideas (and so videos, calendar, status, analytics report) carry `ideas.channel_id` (old databases upgrade in place; existing rows join `default`); series, performance, monetization and fact-check data live in `growth/c/<channel>/` (the `default` channel keeps the old `growth/` paths).
 - Topic discovery follows the channel: once a niche is customised, hands-off suggestions use the niche and the business-word fit filter is relaxed (junk words are still blocked).
+
+## 2026-11-01: optional sung melody via OpenUtau (kids mode)
+- Added `studio/kids/` `sing.py` (syllable-per-note melody plan, same tune for repeated lines, ends on the root),
+  `sing_files.py` (MIDI with lyric events + `.ustx` YAML), `openutau.py` (find app, launch, pick up the exported WAV),
+  `sing_mix.py` (ffmpeg mix command), `sing_step.py`, CLI `kids sing [--open] [--use wav]`, `OPENUTAU_PATH` setting,
+  chords-only bed (`music.render(melody=False)`), README "Optional sung melody" with Windows steps.
+- Decisions: OpenUtau has no documented CLI renderer, so rendering is a manual Export step; the build uses
+  `sung/vocal.wav` (or the newest `sung/Export/*.wav`) when present and otherwise keeps the old narration + tune path.
+  A sung vocal replaces the narration. The vocal is stretched to the video (x0.75-1.5) instead of re-timing scenes.
+  The `.ustx` sets no singer; the phonemizer id is a best guess and the owner picks both in the app.
+- Tests: 19 new (228 total) pass; ruff clean. MIDI also parsed with `mido`. The mix ran for real with ffmpeg using a
+  generated WAV as a stand-in vocal.
+- Not tested: OpenUtau itself (does it open the `.ustx`/launch argument cleanly, is the phonemizer id valid in the
+  current release), any voicebank, how the sung result sounds, Windows paths. Owner must: install OpenUtau + a
+  voicebank, check its licence, export once and report what happens.
+
+
+## Multi-channel types, analytics and per-channel production settings (2026-11-01)
+- Channel `type` (business, history, kids, general) in `studio/growth/channel_types.py`: drives prompt guidance, topic phrasing,
+  music mood, colours, pipeline mode (kids vs narrated) and `selfDeclaredMadeForKids` on upload. Each channel has its own
+  token (`tokens/<id>.json`; `default` keeps `token.json`) and `channels sign-in` records the YouTube channel id.
+- Analytics: `studio/manage/multi_analytics.py` + `channels stats|compare` + app page "📊 Analytics" (per channel, all-channels overview,
+  side-by-side table, date range, previous-period change, top videos, retention = average % viewed). Not-signed-in channels show a note,
+  or labelled SAMPLE data with `--demo`.
+- Production settings (`studio/production.py`): renderer, voice, tts provider, music, mood, colours resolved video > channel > type > `.env`;
+  CLI `production show|set|reset`, `channels add|edit --renderer/--music/--music-mood/--tts-provider`, app Channels page and per-video box.
+  Narrated videos get an optional Blender 3D title intro (`blender/title_card.py`); kids builds honour music none and the channel voice.
+- Decisions: 3D for narrated channels is a title intro only (economics charts and diagrams gain nothing from 3D scenes); the app's Sign in
+  button only works when the app runs on your own computer. Analytics for Made for Kids videos may be limited by YouTube.
+- Tests: new files `test_multi_analytics.py` and `test_production.py`; 259 tests pass and ruff is clean. The Blender title scene was rendered for real through `bpy` (Cycles CPU).
+- Not tested live: real YouTube Analytics API responses and metric availability (mocked), the Google sign-in browser flow with two accounts,
+  Eevee rendering and the Windows `blender` executable for the title card, the Streamlit Sign-in button in a real browser.
+- Owner must: run `channels sign-in <id>` once per channel (add your accounts as test users on the OAuth consent screen).
