@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import typer
@@ -28,6 +28,22 @@ def slots(start: date, weeks: int) -> list[tuple[date, str]]:
         elif d.weekday() in SHORT_DAYS:
             out.append((d, "short"))
     return out
+
+
+def suggest_publish(start: date, taken: list[date], publish_time: str = "16:00") -> datetime:
+    """Next free long-video slot at least 2 days after `start`, at the channel's `publish_time` (HH:MM).
+
+    Spacing matters more than the exact hour: a steady rhythm beats raw volume (growth-playbook.md section 6).
+    """
+    try:
+        hh, mm = (int(x) for x in publish_time.split(":"))
+    except ValueError:
+        hh, mm = 16, 0
+    for d, kind in slots(start + timedelta(days=2), 8):
+        if kind == "long" and d not in taken:
+            return datetime(d.year, d.month, d.day, hh, mm)
+    d = start + timedelta(days=3)
+    return datetime(d.year, d.month, d.day, hh, mm)
 
 
 def plan(start: date, weeks: int, scheduled: list[tuple[date, str]], queue: list[str]) -> list[tuple[date, str, str]]:
