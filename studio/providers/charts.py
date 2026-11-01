@@ -178,8 +178,12 @@ RENDERERS = {"bar": _bar, "line": _line, "pie": _pie, "flow": _flow, "number": _
 
 
 def render_chart(chart: dict, sources: list[dict], out_dir: Path, stem: str) -> list[Path]:
-    """Render step frames for a chart. Raises StudioError if it has no source."""
-    foot = source_line(chart, sources)
+    """Render step frames for a chart. Raises StudioError if it has no source.
+
+    Sources are validated here but not drawn on the frame; they go in the video description.
+    """
+    source_line(chart, sources)
+    foot = ""
     out_dir.mkdir(parents=True, exist_ok=True)
     try:
         return RENDERERS[chart["type"]](chart, foot, out_dir, stem)

@@ -318,6 +318,47 @@ def _production_box(ctx, video_id: int) -> None:
             st.rerun()
 
 
+def _plan_preview(ctx, video_id: int, draft: bool) -> bool:
+    """Show what the picture and edit steps will use; return True when the owner has approved this exact plan."""
+    from studio import plan_preview
+    from studio.stages.script import load_package, write_package
+
+    try:
+        pkg = load_package(ctx, video_id)
+    except StudioError:
+        return True
+    plan = plan_preview.build(ctx.settings, video_id, pkg, draft)
+    g, ok = plan["global"], plan_preview.is_approved(ctx.settings, video_id, plan)
+    with st.expander("Plan: what this video will use (check before making)", expanded=not ok):
+        c = st.columns(4)
+        c[0].metric("Length", f"{g['minutes']} min")
+        c[1].metric("Resolution", g["resolution"].split(" @")[0])
+        c[2].metric("3D / 2D scenes", f"{g['scenes_3d']} / {g['scenes_2d']}")
+        c[3].metric("Charts", g["charts"])
+        st.caption(f"Voice: {g['voice']} | Music: {g['music']} | Captions: {g['captions']}")
+        st.caption(f"Blender: {g['blender']} | Stock video: {g['stock_video']} | Photos: {g['photos']}")
+        for w in plan["warnings"]:
+            st.warning(w)
+        st.dataframe([{"#": r["n"], "sec": r["seconds"], "chapter": r["chapter"],
+                       "3D/2D scene": f"{r['scene']['mode'].upper()} {r['scene']['kind']}" if r["scene"] else "",
+                       "chart": f"{r['chart']['type']}: {r['chart']['title']}" if r["chart"] else "",
+                       "stock search": ", ".join(r["keywords"]), "pictures": r["picture"],
+                       "says": r["narration"]} for r in plan["segments"]], hide_index=True)
+        st.caption("Change a scene to 2D/3D in 'Look and sound' below. Change a stock search here:")
+        with st.form(f"plan_kw_{video_id}"):
+            pos = st.number_input("Segment", 1, max(1, len(plan["segments"])), 1)
+            words = st.text_input("New stock search words (comma separated)")
+            if st.form_submit_button("Save search words") and words.strip():
+                write_package(ctx, video_id, plan_preview.set_keywords(pkg, int(pos), words.split(",")))
+                st.rerun()
+        if ok:
+            st.success("You approved this plan.")
+        elif st.button("Approve this plan", type="primary", key=f"approve_{video_id}"):
+            plan_preview.approve(ctx.settings, video_id, plan)
+            st.rerun()
+    return ok
+
+
 def page_make() -> None:
     ctx = ctx_for()
     st.header("3. Make the video")
@@ -334,11 +375,15 @@ def page_make() -> None:
     _production_box(ctx, v.id)
     draft = st.checkbox("Fast draft (720p, quicker encode): about 2-3x faster editing, for checking the story",
                         key="draft", help="For the final version, untick this and redo 'Edit the video'.")
+    approved = _plan_preview(ctx, v.id, draft)
+    gated = bool(nxt) and not approved
+    if gated:
+        st.info("Open the plan above and press **Approve this plan** to start the picture and edit steps.")
     c1, c2 = st.columns(2)
-    if nxt and c1.button(f"Run next step: {svc.STAGE_LABEL[nxt]}"):
+    if nxt and (nxt == "voice" or not gated) and c1.button(f"Run next step: {svc.STAGE_LABEL[nxt]}"):
         with st.spinner(f"{svc.STAGE_LABEL[nxt]}..."):
             show(svc.run_stage_by_name(ctx, nxt, v.id, draft=draft), f"{svc.STAGE_LABEL[nxt]} done.")
-    if nxt and c2.button("Run everything to the end", type="primary"):
+    if nxt and not gated and c2.button("Run everything to the end", type="primary"):
         bar = st.progress(0.0)
         todo = svc.PRODUCE_STAGES[svc.PRODUCE_STAGES.index(nxt):]
         for n, name in enumerate(todo):
