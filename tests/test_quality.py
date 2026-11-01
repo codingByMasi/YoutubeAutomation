@@ -125,7 +125,8 @@ def test_review_yes_still_required_when_gate_passes(ctx):
 
 # ---------- feedback ----------
 def rec(video_id=1, hook_loss=0.45, **kw):
-    return {"video_id": video_id, "duration": 600, "curve": flat_curve(hook_loss), "ctr": 0.05, "source": "youtube", **kw}
+    return {"video_id": video_id, "duration": 600, "curve": flat_curve(hook_loss), "ctr": 0.05,
+            "source": "youtube", **kw}
 
 
 def test_curve_at_interpolates():
