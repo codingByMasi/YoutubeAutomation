@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
@@ -25,6 +26,19 @@ class FootageProvider(Protocol):
     """Anything with find(): first unused clip for the first keyword that returns results."""
 
     def find(self, keywords: list[str], exclude: set[int] | None = None) -> StockClip | None: ...
+
+
+STOP = {"a", "an", "the", "of", "in", "on", "at", "and", "or", "to", "for", "with", "by", "from", "view", "close", "up"}
+
+
+def is_relevant(keyword: str, text: str) -> bool:
+    """True when at least one meaningful word of `keyword` appears in the clip's tags/title/slug.
+
+    Stops stock search from returning unrelated footage (a PS4 for "Nvidia", lavender for "survived").
+    """
+    words = [w for w in re.findall(r"[a-z0-9]+", keyword.lower()) if w not in STOP and len(w) > 2]
+    hay = text.lower()
+    return not words or any(w in hay or (w.endswith("s") and w[:-1] in hay) for w in words)
 
 
 KEY_FOR = {"pexels": "PEXELS_API_KEY", "pixabay": "PIXABAY_API_KEY"}

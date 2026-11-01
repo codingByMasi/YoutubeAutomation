@@ -9,7 +9,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from studio.providers.footage import StockClip
+from studio.providers.footage import StockClip, is_relevant
 from studio.util.retry import with_retry
 
 SEARCH_URL = "https://pixabay.com/api/videos/"
@@ -73,7 +73,7 @@ class Pixabay:
         exclude = exclude if exclude is not None else set()
         for kw in keywords:
             for v in self.search(kw):
-                if v["id"] in exclude:
+                if v["id"] in exclude or not is_relevant(kw, v.get("tags", "")):
                     continue
                 clip = self.download(v)
                 if clip:
