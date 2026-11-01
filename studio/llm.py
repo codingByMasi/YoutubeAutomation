@@ -7,13 +7,12 @@ command validates the answer and continues. API providers are optional plug-ins.
 
 from __future__ import annotations
 
-import json
-import re
 from collections.abc import Callable
 from pathlib import Path
 
 from studio.config import API_LLM_PROVIDERS, Settings
 from studio.errors import InvalidAnswer, PendingLLMResponse, StudioError
+from studio.util.answer_json import parse_answer
 from studio.util.retry import with_retry
 
 Validator = Callable[[dict], list[str]]  # returns a list of problems; empty means valid
@@ -27,25 +26,29 @@ def prompt_paths(work_dir: Path, task: str) -> tuple[Path, Path]:
 
 
 def _extract_json(text: str) -> dict:
-    """Parse the first JSON object in text (tolerates ```json fences)."""
-    m = re.search(r"```(?:json)?\s*(\{.*\})\s*```", text, re.DOTALL)
-    raw = m.group(1) if m else text[text.find("{"): text.rfind("}") + 1]
-    return json.loads(raw)
+    """Parse the first JSON object in text (tolerates fences, chatter, smart quotes, trailing commas)."""
+    return parse_answer(text)
 
 
 def _load_response(path: Path, validate: Validator | None) -> dict:
     try:
         data = _extract_json(path.read_text(encoding="utf-8"))
-    except (ValueError, json.JSONDecodeError) as exc:
-        raise StudioError(f"{path} is not valid JSON.", str(exc), f"Fix or delete {path.name} and re-run.") from exc
-    problems = validate(data) if validate else []
+    except StudioError as exc:
+        raise StudioError(f"{path.name}: {exc.what}", exc.why, exc.next_step) from exc
+    try:
+        problems = validate(data) if validate else []
+    except (AttributeError, TypeError, KeyError, ValueError, IndexError) as exc:
+        keys = ", ".join(sorted(map(str, data))[:12]) or "none"
+        problems = [f"the answer is not shaped as the request asked ({type(exc).__name__}: {exc}). "
+                    f"Top-level keys found: {keys}"]
     if problems:
         bullet = "\n  - ".join(problems)
+        prompt_name = path.name.replace(".response.json", ".prompt.md")
         raise InvalidAnswer(
-            f"The answer in {path} failed validation:\n  - {bullet}",
+            f"The answer in {path.name} failed validation:\n  - {bullet}",
             "The output must follow the rules in the prompt file.",
-            f"Ask Claude Code to fix {path} using {path.with_name(path.name.replace('.response.json', '.prompt.md'))},"
-            " then re-run the command.",
+            f"Ask Claude to fix exactly the points above (it has the request), then paste the corrected JSON "
+            f"(or in Claude Code: fix {path} using {prompt_name}).",
             problems, str(path),
         )
     return data

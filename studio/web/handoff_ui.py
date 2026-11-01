@@ -18,3 +18,52 @@ def answer_box(key: str, label: str = "Claude's answer (JSON)", height: int = 28
 def goto(page: str) -> None:
     """Button callback: jump to another page of the app (the sidebar radio is keyed 'nav')."""
     st.session_state["nav"] = page
+
+
+def show_flash() -> None:
+    """Show (once) the message left by the last successful 'Save and apply'; it survives the st.rerun()."""
+    msg = st.session_state.pop("flash_ok", None)
+    if msg:
+        st.success("✅ " + msg["summary"])
+        if msg.get("log"):
+            with st.expander("What the studio did"):
+                st.code(msg["log"])
+
+
+def show_problems(res) -> None:
+    """Validation problems in plain words, with a copy-able request asking Claude to fix exactly those points."""
+    from studio.web import service as svc
+
+    st.error("❌ Claude's answer has a few problems, so it was not applied. Your answer is not lost: "
+             "it stays in the box and is kept in 'Your last answer' below.")
+    for line in svc.plain_problems(res.problems):
+        st.markdown(f"- {line}")
+    st.markdown("**Fix it:** copy this (copy icon, top right of the box), send it to Claude, "
+                "then paste the corrected answer back.")
+    st.code(svc.fix_request(res.problems), language="markdown", wrap_lines=True)
+
+
+def apply_answer(ctx, video_id: int, task: str, pasted: str, fn, args: tuple, idea_id: int | None = None) -> bool:
+    """Save a pasted answer and run its step, always telling the user what happened.
+
+    `task` is script, outline or critique. Success is flashed (so it shows after the rerun) and True is returned;
+    the caller then calls st.rerun(). A failure is shown right here with the reason and what to fix.
+    """
+    from studio.web import service as svc
+
+    with st.spinner("Checking your answer..."):
+        if task == "script":
+            res = svc.submit_script(ctx, idea_id, video_id, pasted)
+        else:
+            res = svc.submit_task(ctx, video_id, task, pasted, fn, *args)
+    if res.ok:
+        st.session_state["flash_ok"] = {"summary": res.summary or "Saved and applied.", "log": res.log.strip()}
+        return True
+    if res.problems:
+        show_problems(res)
+        return False
+    st.error("❌ Could not apply this answer, so nothing was saved.\n\n" + (res.error or "Unknown problem."))
+    if res.log.strip():
+        with st.expander("Details"):
+            st.code(res.log)
+    return False

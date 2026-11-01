@@ -45,7 +45,7 @@ def test_script_handoff_and_paste_flow(make_ctx):
     assert prompt and "How to answer" not in prompt and "ONLY the JSON" in prompt
 
     bad = svc.submit_script(ctx, idea.id, video.id, "not json")
-    assert not bad.ok and "valid JSON" in bad.error
+    assert not bad.ok and "no JSON object" in bad.error
     good = svc.submit_script(ctx, idea.id, video.id, SAMPLE.read_text(encoding="utf-8"))
     assert good.ok, good.error
     assert ctx.session.get(Video, video.id).stage == "scripted"
@@ -193,8 +193,8 @@ def test_rejected_answer_is_kept_and_explained(make_ctx):
                                            "source_ids": []}
     text = json.dumps(broken)
     res = svc.submit_script(ctx, idea.id, video.id, text)
-    assert not res.ok and len(res.problems) == 2 and res.answer == text
-    assert svc.rejected_answer(ctx, video.id, "script") == text
+    assert not res.ok and len(res.problems) == 2 and json.loads(res.answer) == broken
+    assert json.loads(svc.rejected_answer(ctx, video.id, "script")) == broken
     plain = svc.plain_problems(res.problems)
     assert plain[0].startswith("Segment 3 uses the beat 'banana'")
     req = svc.fix_request(res.problems)

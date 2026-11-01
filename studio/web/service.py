@@ -19,6 +19,7 @@ from studio.errors import InvalidAnswer, PendingLLMResponse, StudioError
 from studio.llm import prompt_paths
 from studio.models import Idea, Title, Video
 from studio.stages.base import STAGES
+from studio.util.answer_json import normalize_answer
 
 # Settings that may come from Streamlit secrets or the Settings page (names match .env).
 SECRET_KEYS = ("PEXELS_API_KEY", "PIXABAY_API_KEY", "ELEVENLABS_API_KEY", "LLM_PROVIDER", "LLM_API_KEY",
@@ -40,6 +41,7 @@ class Outcome:
     pending: bool = False  # True when a prompt file was written and an answer is awaited
     problems: list[str] = field(default_factory=list)  # individual validation problems of a pasted answer
     answer: str = ""  # the rejected answer text, kept so it is never lost
+    summary: str = ""  # one friendly line saying what was saved (set on success by the paste-back helpers)
 
 
 def apply_secrets(values: Mapping[str, object]) -> list[str]:
@@ -72,6 +74,12 @@ def capture(fn: Callable[..., object], *args, **kwargs) -> Outcome:
             return Outcome(False, out.getvalue() + err.getvalue(), str(exc), problems=list(exc.problems))
         except StudioError as exc:
             return Outcome(False, out.getvalue() + err.getvalue(), str(exc))
+        except Exception as exc:  # noqa: BLE001 - the web app must show a message, never a traceback
+            return Outcome(False, out.getvalue() + err.getvalue(),
+                           f"Something unexpected went wrong: {type(exc).__name__}: {exc}\n"
+                           "Why: the answer or the video files are not in the shape this step expects.\n"
+                           "Next: check the pasted answer against the request (all keys present, nothing cut off), "
+                           "then try again.")
     return Outcome(True, out.getvalue() + err.getvalue())
 
 
@@ -204,10 +212,9 @@ def read_prompt(ctx: Ctx, video_id: int, task: str = "script") -> str:
 
 def save_response(ctx: Ctx, video_id: int, text: str, task: str = "script") -> Path:
     """Write a pasted answer to the response file the CLI would read."""
-    if not text.strip():
-        raise StudioError("The pasted answer is empty.", "", "Paste the JSON that Claude wrote, then save.")
+    clean = normalize_answer(text)  # raises a StudioError saying what is wrong and where
     _, rf = prompt_paths(ctx.settings.project_dir(video_id), task)
-    rf.write_text(text, encoding="utf-8")
+    rf.write_text(clean, encoding="utf-8")
     return rf
 
 
@@ -256,6 +263,21 @@ def rejected_answer(ctx: Ctx, video_id: int, task: str = "script") -> str:
     return f.read_text(encoding="utf-8") if f.exists() else ""
 
 
+_TASK_NAME = {"script": "script", "outline": "story outline", "critique": "script review and rewrite"}
+
+
+def _with_summary(res: Outcome, ctx: Ctx, video_id: int, task: str) -> Outcome:
+    """On success add a line saying what was saved and where; on failure make clear nothing was kept."""
+    if res.ok:
+        name = _TASK_NAME.get(task, task)
+        lines = [ln.strip() for ln in res.log.splitlines() if ln.strip()]
+        facts = " ".join(lines[:2])[:300]
+        res.summary = f"Saved your {name} answer for video #{video_id}. {facts}".strip()
+    elif not res.pending and "nothing was saved" not in res.error.lower():
+        res.error += "\n(Nothing was saved. Fix the points above and paste the answer again.)"
+    return res
+
+
 def _reject(rf: Path, res: Outcome) -> Outcome:
     """A bad answer is moved aside (never deleted) so a new one can be pasted."""
     if rf.exists():
@@ -274,7 +296,7 @@ def submit_script(ctx: Ctx, idea_id: int, video_id: int, pasted: str) -> Outcome
     except StudioError as exc:
         return Outcome(False, "", str(exc))
     res = capture(script.run, ctx, idea_id)
-    return res if res.ok else _reject(rf, res)
+    return _with_summary(res if res.ok else _reject(rf, res), ctx, video_id, "script")
 
 
 def submit_task(ctx: Ctx, video_id: int, task: str, pasted: str, fn: Callable[..., object], *args) -> Outcome:
@@ -284,7 +306,7 @@ def submit_task(ctx: Ctx, video_id: int, task: str, pasted: str, fn: Callable[..
     except StudioError as exc:
         return Outcome(False, "", str(exc))
     res = capture(fn, ctx, *args)
-    return res if res.ok else _reject(rf, res)
+    return _with_summary(res if res.ok else _reject(rf, res), ctx, video_id, task)
 
 
 def project_files(ctx: Ctx, video_id: int) -> dict[str, list[Path]]:

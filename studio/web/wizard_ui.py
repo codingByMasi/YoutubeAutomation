@@ -47,7 +47,7 @@ def step_topic(ctx, show) -> None:
         st.rerun()
 
 
-def _critique_box(ctx, v, show) -> None:
+def _critique_box(ctx, v) -> None:
     prompt = svc.read_prompt(ctx, v.id, "critique")
     if st.button("Write the review request", key=f"wz_creq{v.id}"):
         show_local = svc.capture(story_stage.run_critique, ctx, v.id)
@@ -57,13 +57,9 @@ def _critique_box(ctx, v, show) -> None:
     if prompt:
         st.code(prompt, language="markdown", wrap_lines=True)
         pasted = handoff_ui.answer_box(f"wz_cans{v.id}", height=200)
-        if st.button("Apply the rewrite", key=f"wz_capply{v.id}", disabled=not pasted.strip()):
-            res = svc.submit_task(ctx, v.id, "critique", pasted, story_stage.run_critique, v.id)
-            if res.ok:
-                st.success("Script improved.")
+        if st.button("Apply the rewrite", key=f"wz_capply{v.id}"):
+            if handoff_ui.apply_answer(ctx, v.id, "critique", pasted, story_stage.run_critique, (v.id,)):
                 st.rerun()
-            else:
-                show(res)
 
 
 def step_script(ctx, v, show) -> None:
@@ -78,10 +74,8 @@ def step_script(ctx, v, show) -> None:
         st.code(prompt, language="markdown", wrap_lines=True)
         st.markdown("**3.** Paste Claude's JSON answer here, or upload the file.")
         pasted = handoff_ui.answer_box(f"wz_sans{v.id}")
-        if st.button("Save script and check it", type="primary", key="wz_ssave", disabled=not pasted.strip()):
-            res = svc.submit_script(ctx, v.idea_id, v.id, pasted)
-            show(res, "Script accepted.")
-            if res.ok:
+        if st.button("Save script and check it", type="primary", key="wz_ssave"):
+            if handoff_ui.apply_answer(ctx, v.id, "script", pasted, None, (), idea_id=v.idea_id):
                 st.rerun()
         kept = svc.rejected_answer(ctx, v.id)
         if kept:
@@ -125,7 +119,7 @@ def step_make(ctx, v, show, production_box=None) -> None:
     if v.stage == "scripted":
         with st.expander("Optional but recommended: have Claude score and rewrite the script first"):
             st.write("Claude scores hook, stakes, pacing and ending, then returns a stronger script.")
-            _critique_box(ctx, v, show)
+            _critique_box(ctx, v)
         with st.expander("Optional: read the script"):
             sd = ctx.settings.project_dir(v.id) / "script.md"
             if sd.exists():

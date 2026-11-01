@@ -59,12 +59,7 @@ def show(res: svc.Outcome, success: str = "Done.") -> None:
     elif res.pending:
         st.info("Waiting for the script. Follow the steps below.")
     elif res.problems:
-        st.error("Claude's answer has a few problems. Nothing was lost: your answer is kept below.")
-        for line in svc.plain_problems(res.problems):
-            st.markdown(f"- {line}")
-        st.markdown("**Fix it:** copy this (copy icon, top right of the box) and send it to Claude, "
-                    "then paste the corrected answer back.")
-        st.code(svc.fix_request(res.problems), language="markdown", wrap_lines=True)
+        handoff_ui.show_problems(res)
     else:
         st.error(res.error)
     if res.log.strip():
@@ -194,9 +189,7 @@ def task_block(ctx, v, title: str, help_text: str, task: str, fn, arg: int) -> N
             st.code(prompt, language="markdown", wrap_lines=True)
             pasted = handoff_ui.answer_box(f"ans_{task}{v.id}", height=240)
             if st.button("Save and apply", key=f"save_{task}{v.id}"):
-                res = svc.submit_task(ctx, v.id, task, pasted, fn, arg)
-                show(res, "Done.")
-                if res.ok:
+                if handoff_ui.apply_answer(ctx, v.id, task, pasted, fn, (arg,)):
                     st.rerun()
 
 
@@ -232,9 +225,7 @@ def page_script() -> None:
         st.markdown("**Step 3.** Paste Claude's JSON answer here. Length is up to you; there is no maximum.")
         pasted = handoff_ui.answer_box(f"resp{v.id}", height=300)
         if st.button("Save script and check it", type="primary"):
-            res = svc.submit_script(ctx, v.idea_id, v.id, pasted)
-            show(res, "Script accepted.")
-            if res.ok:
+            if handoff_ui.apply_answer(ctx, v.id, "script", pasted, None, (), idea_id=v.idea_id):
                 st.rerun()
 
 
@@ -565,6 +556,7 @@ def main() -> None:
         channels.switch(ROOT, chosen)
         st.rerun()
     page = st.sidebar.radio("Go to", PAGES, key="nav", label_visibility="collapsed")
+    handoff_ui.show_flash()
     try:
         {"🎬 Make a video": page_wizard, "Setup": page_setup,
          "Home": page_home, "1. Topics": page_topics, "2. Script": page_script, "3. Make the video": page_make,
