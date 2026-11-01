@@ -19,7 +19,7 @@ from studio.web.growth_ui import page_grow_factory
 
 ROOT = Path(os.getenv("STUDIO_HOME") or Path(__file__).parent).resolve()
 PAGES = ["Home", "1. Topics", "2. Script", "3. Make the video", "4. Review and download",
-         "5. Grow the channel", "📊 Analytics", "Channels", "Settings", "🧸 Kids mode"]
+         "5. Grow the channel", "📊 Analytics", "Channels", "Settings", "Data", "🧸 Kids mode"]
 
 st.set_page_config(page_title="YouTube Channel Studio", page_icon="🎬", layout="wide")
 
@@ -542,8 +542,17 @@ def page_kids() -> None:
 page_grow = page_grow_factory(ctx_for, video_picker, show)
 
 
+def page_data() -> None:
+    from studio.web import data_ui
+
+    data_ui.render(ctx_for, ROOT)
+
+
 def main() -> None:
     gate()
+    from studio.web import data_ui
+
+    data_ui.boot(ROOT, _secrets())
     st.sidebar.title("🎬 Studio")
     from studio.growth import channels
 
@@ -560,9 +569,11 @@ def main() -> None:
         {"Home": page_home, "1. Topics": page_topics, "2. Script": page_script, "3. Make the video": page_make,
          "4. Review and download": page_review, "5. Grow the channel": page_grow,
          "📊 Analytics": page_analytics,
-         "Channels": page_channels, "Settings": page_settings, "🧸 Kids mode": page_kids}[page]()
+         "Channels": page_channels, "Settings": page_settings, "Data": page_data,
+         "🧸 Kids mode": page_kids}[page]()
     except StudioError as exc:
         st.error(str(exc))
+    data_ui.tick(ROOT)
 
 
 main()

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 
 import typer
 
@@ -125,6 +126,44 @@ def qa(video_id: int) -> None:
 
 
 @app.command()
+def gate(video_id: int, thumb: int = typer.Option(1, help="Thumbnail variant to check (1-3).")) -> None:
+    """Score script, hook, pacing, visuals, audio and metadata for this channel's type; pass, warn or block."""
+    from studio.quality import gate as m
+    m.run(_ctx(), video_id, thumb=thumb, echo=typer.echo)
+
+
+feedback_app = typer.Typer(no_args_is_help=True, help="Retention feedback: learn per-channel script and edit rules "
+                           "from YouTube retention data.")
+app.add_typer(feedback_app, name="feedback")
+
+
+@feedback_app.command("learn")
+def feedback_learn(mock: bool = typer.Option(False, "--mock", help="Use mock retention curves (no YouTube login)."),
+                   live: bool = typer.Option(False, "--live", help="Require real YouTube Analytics data."),
+                   apply_mock: bool = typer.Option(False, "--apply-mock", help="Let mock rules affect scripts."),
+                   days: int = typer.Option(28, min=7, max=90)) -> None:
+    """Read retention/CTR, derive rules for the active channel, and save them for the next script and build."""
+    from studio.quality import feedback as m
+    m.run(_ctx(), mode="mock" if mock else "live" if live else "auto", apply_mock=apply_mock, days=days,
+          echo=typer.echo)
+
+
+@feedback_app.command("show")
+def feedback_show() -> None:
+    """Show the active channel's learned rules."""
+    from studio.quality import rules
+    r = rules.load(_ctx().settings.root)
+    if not r["lessons"]:
+        typer.echo("No rules learned yet. Run `feedback learn`.")
+        return
+    typer.echo(f"Source: {r['source']} ({r['videos']} video(s)), updated {r['updated']}; "
+               f"{'applied' if rules.trusted(r) else 'ADVISORY ONLY (mock data)'}")
+    for x in r["lessons"]:
+        typer.echo(f"- [{x['area']}] {x['text']}")
+    typer.echo(f"Gate tuning: {r['tuning'] or 'none'}; edit rules: {r['edit'] or 'none'}")
+
+
+@app.command()
 def shorts(video_id: int, count: int = typer.Option(3, min=2, max=3), force: bool = FORCE) -> None:
     """Cut 2-3 vertical 9:16 Shorts from a built video."""
     from studio.stages import shorts as m
@@ -143,10 +182,12 @@ def thumbnail(video_id: int, force: bool = FORCE) -> None:
 def review(video_id: int,
            thumb: int = typer.Option(1, help="Which thumbnail variant to use (1-3)."),
            title: str | None = typer.Option(None, help="Override the picked title."),
+           accept_weak: bool = typer.Option(False, "--accept-weak",
+                                            help="Go on even if the quality gate says block (typed yes still needed)."),
            force: bool = FORCE) -> None:
-    """Show the pre-publish checklist and require a typed 'yes'."""
+    """Show the pre-publish checklist and quality gate, then require a typed 'yes'."""
     from studio.stages import review as m
-    m.run(_ctx(), video_id, thumb=thumb, title=title, force=force)
+    m.run(_ctx(), video_id, thumb=thumb, title=title, force=force, accept_weak=accept_weak)
 
 
 @app.command()
@@ -486,6 +527,30 @@ def kids_build(topic: str, force: bool = FORCE,
     from studio.kids import build as m
     from studio.kids.script import slugify
     typer.echo(f"Built {m.run(_ctx(), slugify(topic), force=force, renderer=renderer or None)}")
+
+
+@kids_app.command("sing")
+def kids_sing(topic: str, force: bool = FORCE,
+              open_in_openutau: bool = typer.Option(False, "--open", help="Also launch OpenUtau with the project."),
+              use: str = typer.Option("", "--use", help="WAV exported from OpenUtau."),
+              ) -> None:
+    """Optional sung melody (PC only): write MIDI/USTX/lyrics for OpenUtau, or import the exported vocal."""
+    from studio.kids import openutau, sing_step
+    from studio.kids.script import project_dir, slugify
+    ctx, slug = _ctx(), slugify(topic)
+    files = sing_step.run(ctx, slug, force=force)
+    sung = project_dir(ctx, slug) / "sung"
+    if use:
+        typer.echo(f"Vocal ready: {openutau.import_vocal(sung, Path(use))}")
+    for k, p in files.items():
+        typer.echo(f"{k}: {p}")
+    if open_in_openutau:
+        exe = openutau.find_openutau(ctx.settings.openutau_path)
+        if exe is None:
+            typer.echo("OpenUtau not found. Set OPENUTAU_PATH in .env or open song.ustx yourself (README).")
+        else:
+            openutau.open_project(exe, files["ustx"])
+    typer.echo(sing_step.status(ctx, slug))
 
 
 @kids_app.command("checklist")

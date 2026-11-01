@@ -40,6 +40,9 @@ Or double-click `run_app.bat`. It opens http://localhost:8501. On macOS/Linux: `
 3. Deploy. Free hosting has about 1 GB RAM and temporary disk, so **download each video from step 4 before the app
    sleeps**. Long videos build slowly there; for long videos run the app locally.
 
+**Where to host for free and keep your data:** see [HOSTING.md](HOSTING.md). All data lives in one folder
+(`STUDIO_HOME`); the **Data** page exports, imports and deletes it, and `STORAGE_BACKEND` adds an automatic backup.
+
 **What works where**
 
 | Feature | Local | Streamlit Cloud |
@@ -106,6 +109,36 @@ Windows setup (one time):
 
 Scenes are 24 fps, 1280x720, flat colours (no image textures) and use the same script, narration and captions as 2D.
 Blender is used for the pictures only; the Pexels/Pixabay stages and the main (non-kids) pipeline are unchanged.
+
+### Optional sung melody (OpenUtau, your PC only)
+Kids songs normally use the narrator plus an original background tune. If you want the words actually *sung*, the
+`kids sing` step writes a melody and lyrics for OpenUtau (free, open source) and the build mixes the vocal you export.
+It is optional: with no exported vocal the build is exactly as before.
+
+What is automatic and what is by hand:
+- Automatic: `kids sing "<topic>"` turns the script into one note per syllable (a pentatonic tune; repeated chorus
+  lines get the identical tune) and writes `projects/kids_<slug>/sung/` with `song.ustx` (OpenUtau project),
+  `song.mid`, `lyrics.txt` and `sing_plan.json`. `kids build` then mixes `sung/vocal.wav` over a chords-and-bass bed
+  and drops the spoken narration.
+- By hand (OpenUtau has no documented command-line renderer): open the project, pick a singer, export the WAV.
+
+Windows setup (one time):
+1. Download OpenUtau from github.com/stakira/OpenUtau/releases (the Windows x64 zip; unzip it anywhere, for example
+   `C:\Tools\OpenUtau`, and run `OpenUtau.exe`). Put the path in `.env` as `OPENUTAU_PATH=C:\Tools\OpenUtau\OpenUtau.exe`
+   if you want `--open` to launch it.
+2. Install a free English singing voicebank: in OpenUtau use Singers > Install Singer (or Singers > Get more) and pick a
+   DiffSinger or classic English voicebank. **Read that voicebank's licence yourself before monetising**; each one has
+   its own terms (commercial use, credit line, no use for kids content, and so on). Save the licence text beside the video.
+3. Run `python -m studio.cli kids sing "counting five little ducks" --open` (or open `sung\song.ustx` in OpenUtau).
+4. In OpenUtau choose your singer for the track. If the words sound wrong, change the track's Phonemizer (the file
+   asks for "English Arpasing+"; a DiffSinger voicebank may need its own phonemizer). Press play to check it.
+5. Save, then **File > Export Audio > Mixdown To Wav File**. OpenUtau writes into an `Export` folder next to the
+   project; the build finds the newest WAV there, or run `kids sing "<topic>" --use C:\path\to\song.wav`.
+6. `python -m studio.cli kids build "counting five little ducks" --force` mixes it in.
+
+Notes: the vocal is time-stretched to the video length (within x0.75 to x1.5; a note says if it was not enough, then
+change the tempo in OpenUtau). A 4 GB GPU is not needed for classic voicebanks; DiffSinger voicebanks run on CPU
+(slower) or GPU. Disclose AI/synthetic voices in YouTube's "altered content" setting where it applies.
 
 ### 3D or 2D scenes for narrated channels (history, business, general)
 Every narrated video can have animated scenes, drawn either as **3D (Blender)** or as **2D motion graphics**. You choose
@@ -322,9 +355,11 @@ python -m studio.cli run-all "how cruise lines make money"
 | `build <video_id>` | Assemble the final MP4 with captions and music |
 | `shorts <video_id>` | Cut vertical Shorts from the video |
 | `thumbnail <video_id>` | Generate 3 thumbnail variants |
-| `review <video_id>` | Checklist and typed approval gate |
+| `gate <video_id>` | Quality gate: scores script, hook, pacing, visuals, audio, metadata for the channel's type (pass / warn / block) |
+| `review <video_id>` | Checklist, quality gate and typed approval gate (`--accept-weak` overrides a gate block, never the typed yes) |
 | `publish <video_id> --at "<datetime>"` | Upload and schedule after review |
 | `analytics` | Pull 28-day metrics and write a plain-English report |
+| `feedback learn [--mock] [--live]` | Turn retention/CTR into per-channel script and edit rules; `feedback show` lists them |
 | `ab-log <video_id>` | Record title/thumbnail changes with before/after metrics |
 | `comments <video_id>` | Draft comment replies to a file (never posts) |
 | `comments post <file>` | Post edited replies, one typed `yes` per reply |
