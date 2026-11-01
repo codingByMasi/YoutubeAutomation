@@ -61,7 +61,6 @@ def test_bar_and_line_charts_become_3d_only_when_asked(style, override, drawn):
 
 def test_other_charts_and_plain_segments_are_untouched():
     assert scenes.plan({}, "3d") is None
-    assert scenes.plan({"chart_data": {"type": "pie", "labels": ["a"], "values": [1]}}, "3d") is None
     assert scenes.plan({"chart_data": {"type": "flow", "labels": ["a", "b"], "values": [1, 2]}}, "3d", "3d") is None
 
 
@@ -353,3 +352,12 @@ def test_cli_scene_style_for_channel_video_and_segment(root, monkeypatch):
 def test_encode_command_makes_silent_30fps_video(tmp_path):
     cmd = render3d.encode_cmd(tmp_path, tmp_path / "o.mp4")
     assert "-an" in cmd and cmd[cmd.index("-r") + 1] == "30" and cmd[-1].endswith("o.mp4")
+
+
+def test_mixed_style_turns_pie_charts_into_3d_too():
+    """A script with no scenes still gets 3D: bar, line and pie charts all become 3D charts in mixed/3d style."""
+    from studio import scenes
+    seg = {"chart_data": {"type": "pie", "title": "Share", "labels": ["A", "B"], "values": [60, 40], "unit": "%"}}
+    pl = scenes.plan(seg, "mixed")
+    assert pl and pl["mode"] == "3d" and [i["label"] for i in pl["scene"]["items"]] == ["A", "B"]
+    assert scenes.plan(seg, "2d") is None

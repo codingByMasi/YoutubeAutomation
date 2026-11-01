@@ -345,3 +345,11 @@ Music and effects were checked for level and clipping, not by ear: listen once a
 - `prompts/script.md` states the growth rules so Claude writes scripts that pass them.
 - Decisions: thresholds are tunable defaults (explainer stock max 60%, similarity 25%); new dimensions can raise block/warn on old videos.
 - Owner must: nothing to configure. Add a real viewpoint per script; disclose realistic synthetic voices/footage on upload; run title/thumbnail tests.
+## 2026-11-01 Fix: irrelevant stock footage and clipped big numbers
+- Cause: stock video was taken from the first search hit with no relevance check (PS4 for "Nvidia", lavender for "survived"; photos were tag-filtered, videos were not).
+  Number cards printed units like "trillion US$" as "5.03 trillion US" at a fixed 180 pt, so the figure ran off the frame.
+- Fix: `footage.is_relevant` (Pixabay tags / Pexels slug must contain a keyword word), applied in both providers; irrelevant clips are skipped so
+  the segment falls back to its chart or card. `charts.fmt` turns "trillion US$/USD/dollars" into "$5.03 trillion"; number cards auto-size.
+- Found while diagnosing: the owner's Downloads copy is older than PR #24 (no render_report.py / chart_anim.py), so animated charts and the render report were absent.
+  Owner must: `git pull origin main` or re-download, then rebuild (non-draft).
+- Also: in `mixed`/`3d` style, pie charts now become 3D charts too (`scenes.chart_items`), so scripts with few explicit scenes are still mostly 3D. Flow and number charts stay 2D.
