@@ -21,6 +21,7 @@ DEFAULTS: dict = {
     "name": "My Channel",
     "niche": "Business-model and economics explainers",
     "description": "",
+    "channel_type": "explainer",  # explainer | story | kids: picks the quality-gate thresholds
     "language": "English",
     "audience": "Curious adults 18-44 who want to understand how companies make money",
     "posts_per_week": 2,

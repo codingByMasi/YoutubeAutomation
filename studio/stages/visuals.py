@@ -11,6 +11,7 @@ from studio.models import Asset, Segment
 from studio.providers.charts import render_chart, source_line, text_card
 from studio.providers.footage import make_footage
 from studio.providers.images import make_images
+from studio.quality import rules
 from studio.stages.base import get_video, run_stage
 from studio.stages.script import CHART_GAP_MAX, load_package, timeline, write_package
 from studio.stages.timing import shot_max_for, shots_needed, split_segment
@@ -85,6 +86,7 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
         clips_dir, charts_dir = out / "clips", out / "charts"
         clips_dir.mkdir(exist_ok=True)
         pkg = load_package(ctx, video_id)
+        limits = rules.edit_limits(ctx.settings.root)
         s.query(Asset).filter(Asset.video_id == video_id, Asset.kind.in_(["clip", "image", "card", "chart"])).delete()
         rows = {r.position: r for r in s.query(Segment).filter_by(video_id=video_id)}
         used: set[int] = set()
@@ -97,7 +99,7 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
             duration = float(seg.get("real_seconds") or seg["est_seconds"])
             bg_seconds, _ = split_segment(duration, bool(seg.get("chart_data")))
             found = []
-            for k in range(max(1, shots_needed(bg_seconds, shot_max=shot_max_for(pos)))):
+            for k in range(max(1, shots_needed(bg_seconds, shot_max=shot_max_for(pos, limits)))):
                 # alternate video and photo so the picture type changes with every shot; fall back to the other
                 order = [("clip", stock, used), ("image", images, used_img)]
                 got = False

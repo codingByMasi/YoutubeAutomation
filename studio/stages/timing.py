@@ -20,9 +20,15 @@ def split_segment(duration: float, has_chart: bool) -> tuple[float, float]:
     return lead, duration - lead
 
 
-def shot_max_for(position: int) -> float:
-    """Longest allowed shot for the segment at 1-based `position`: the hook cuts faster than the rest."""
-    return HOOK_SHOT_MAX if position == 1 else SHOT_MAX
+def shot_max_for(position: int, limits: dict | None = None) -> float:
+    """Longest allowed shot for the segment at 1-based `position`: the hook cuts faster than the rest.
+
+    `limits` are the channel's learned edit rules (shot_max_seconds, hook_shot_max_seconds); they can only tighten.
+    """
+    limits = limits or {}
+    if position == 1:
+        return min(HOOK_SHOT_MAX, float(limits.get("hook_shot_max_seconds", HOOK_SHOT_MAX)))
+    return min(SHOT_MAX, float(limits.get("shot_max_seconds", SHOT_MAX)))
 
 
 def shots_needed(bg_seconds: float, cap: int | None = None, shot_max: float = SHOT_MAX) -> int:

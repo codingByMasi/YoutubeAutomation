@@ -161,12 +161,21 @@ def print_checklist(d: dict, problems: list[str]) -> None:
             typer.secho(f"  - {p}", fg=typer.colors.RED)
 
 
-def run(ctx: Ctx, video_id: int, thumb: int = 1, title: str | None = None, force: bool = False) -> None:
+def run(ctx: Ctx, video_id: int, thumb: int = 1, title: str | None = None, force: bool = False,
+        accept_weak: bool = False) -> None:
     video = get_video(ctx.session, video_id)
 
     def work() -> None:
         data, problems = collect(ctx, video_id, thumb, title)
+        from studio.quality import gate
+        report = gate.check_video(ctx, video_id, thumb)
         print_checklist(data, problems)
+        gate.show(report, typer.echo)
+        if report["verdict"] == "block" and not accept_weak:
+            problems += [f"quality gate: {r}" for r in gate.blocking_reasons(report)] or [
+                f"quality gate score {report['score']}/100 is below the block line"]
+            problems.append("quality gate: fix the above, or re-run with --accept-weak to publish anyway "
+                            "(the typed yes is still required)")
         if problems:
             raise StudioError(f"Review failed for video {video_id}: {len(problems)} problem(s) listed above.",
                               "Publishing is blocked until every problem is fixed.",

@@ -125,6 +125,44 @@ def qa(video_id: int) -> None:
 
 
 @app.command()
+def gate(video_id: int, thumb: int = typer.Option(1, help="Thumbnail variant to check (1-3).")) -> None:
+    """Score script, hook, pacing, visuals, audio and metadata for this channel's type; pass, warn or block."""
+    from studio.quality import gate as m
+    m.run(_ctx(), video_id, thumb=thumb, echo=typer.echo)
+
+
+feedback_app = typer.Typer(no_args_is_help=True, help="Retention feedback: learn per-channel script and edit rules "
+                           "from YouTube retention data.")
+app.add_typer(feedback_app, name="feedback")
+
+
+@feedback_app.command("learn")
+def feedback_learn(mock: bool = typer.Option(False, "--mock", help="Use mock retention curves (no YouTube login)."),
+                   live: bool = typer.Option(False, "--live", help="Require real YouTube Analytics data."),
+                   apply_mock: bool = typer.Option(False, "--apply-mock", help="Let mock rules affect scripts."),
+                   days: int = typer.Option(28, min=7, max=90)) -> None:
+    """Read retention/CTR, derive rules for the active channel, and save them for the next script and build."""
+    from studio.quality import feedback as m
+    m.run(_ctx(), mode="mock" if mock else "live" if live else "auto", apply_mock=apply_mock, days=days,
+          echo=typer.echo)
+
+
+@feedback_app.command("show")
+def feedback_show() -> None:
+    """Show the active channel's learned rules."""
+    from studio.quality import rules
+    r = rules.load(_ctx().settings.root)
+    if not r["lessons"]:
+        typer.echo("No rules learned yet. Run `feedback learn`.")
+        return
+    typer.echo(f"Source: {r['source']} ({r['videos']} video(s)), updated {r['updated']}; "
+               f"{'applied' if rules.trusted(r) else 'ADVISORY ONLY (mock data)'}")
+    for x in r["lessons"]:
+        typer.echo(f"- [{x['area']}] {x['text']}")
+    typer.echo(f"Gate tuning: {r['tuning'] or 'none'}; edit rules: {r['edit'] or 'none'}")
+
+
+@app.command()
 def shorts(video_id: int, count: int = typer.Option(3, min=2, max=3), force: bool = FORCE) -> None:
     """Cut 2-3 vertical 9:16 Shorts from a built video."""
     from studio.stages import shorts as m
@@ -143,10 +181,12 @@ def thumbnail(video_id: int, force: bool = FORCE) -> None:
 def review(video_id: int,
            thumb: int = typer.Option(1, help="Which thumbnail variant to use (1-3)."),
            title: str | None = typer.Option(None, help="Override the picked title."),
+           accept_weak: bool = typer.Option(False, "--accept-weak",
+                                            help="Go on even if the quality gate says block (typed yes still needed)."),
            force: bool = FORCE) -> None:
-    """Show the pre-publish checklist and require a typed 'yes'."""
+    """Show the pre-publish checklist and quality gate, then require a typed 'yes'."""
     from studio.stages import review as m
-    m.run(_ctx(), video_id, thumb=thumb, title=title, force=force)
+    m.run(_ctx(), video_id, thumb=thumb, title=title, force=force, accept_weak=accept_weak)
 
 
 @app.command()
@@ -236,9 +276,11 @@ def _channels_root():
     return load_settings().root
 
 
-def _fields(name, niche, description, posts_per_week, voice, language, audience, youtube_channel_id) -> dict:
+def _fields(name, niche, description, posts_per_week, voice, language, audience, youtube_channel_id,
+            channel_type=None) -> dict:
     given = dict(name=name, niche=niche, description=description, posts_per_week=posts_per_week, voice=voice,
-                 language=language, audience=audience, youtube_channel_id=youtube_channel_id)
+                 language=language, audience=audience, youtube_channel_id=youtube_channel_id,
+                 channel_type=channel_type)
     return {k: v for k, v in given.items() if v is not None}
 
 
@@ -257,10 +299,12 @@ def channels_add(name: str = typer.Argument(..., help="Channel name."),
                  posts_per_week: int = typer.Option(None, "--posts-per-week"), voice: str = typer.Option(None),
                  language: str = typer.Option(None), audience: str = typer.Option(None),
                  youtube_channel_id: str = typer.Option(None, "--youtube-channel-id"),
+                 channel_type: str = typer.Option(None, "--type", help="explainer, story or kids."),
                  activate: bool = typer.Option(True, help="Switch to the new channel.")) -> None:
     """Add a channel profile."""
     from studio.growth import channels
-    fields = _fields(None, niche, description, posts_per_week, voice, language, audience, youtube_channel_id)
+    fields = _fields(None, niche, description, posts_per_week, voice, language, audience, youtube_channel_id,
+                     channel_type)
     cid = channels.add(_channels_root(), name, activate=activate, **fields)
     typer.echo(f"Added channel '{cid}'" + (" and made it active." if activate else "."))
 
@@ -271,10 +315,12 @@ def channels_edit(channel_id: str = typer.Argument(None, help="Channel id (defau
                   description: str = typer.Option(None),
                   posts_per_week: int = typer.Option(None, "--posts-per-week"), voice: str = typer.Option(None),
                   language: str = typer.Option(None), audience: str = typer.Option(None),
-                  youtube_channel_id: str = typer.Option(None, "--youtube-channel-id")) -> None:
+                  youtube_channel_id: str = typer.Option(None, "--youtube-channel-id"),
+                  channel_type: str = typer.Option(None, "--type", help="explainer, story or kids.")) -> None:
     """Change fields on a channel."""
     from studio.growth import channels
-    fields = _fields(name, niche, description, posts_per_week, voice, language, audience, youtube_channel_id)
+    fields = _fields(name, niche, description, posts_per_week, voice, language, audience, youtube_channel_id,
+                     channel_type)
     channels.update(_channels_root(), channel_id, **fields)
     typer.echo("Saved.")
 

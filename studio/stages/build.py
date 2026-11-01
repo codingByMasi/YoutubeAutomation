@@ -13,6 +13,7 @@ from studio.context import Ctx
 from studio.models import Asset
 from studio.providers import captions, sound
 from studio.providers.whisper import cues_from_words, script_cues, to_srt, whisper_words
+from studio.quality import rules
 from studio.stages.base import get_video, run_stage
 from studio.stages.qa import quality_report, write_report
 from studio.stages.script import load_package, timeline, write_package
@@ -89,7 +90,8 @@ def sfx_events(segs: list[dict], plans: list[list[tuple[Path, float]]]) -> list[
     return events
 
 
-def render_picture(segs: list[dict], work: Path) -> tuple[list[Path], list[list[tuple[Path, float]]]]:
+def render_picture(segs: list[dict], work: Path,
+                   limits: dict | None = None) -> tuple[list[Path], list[list[tuple[Path, float]]]]:
     """Render every shot, cross-dissolve the shots inside each segment, and return (segment clips, plans).
 
     Segments are joined by a hard cut (with a whoosh); shots within a segment dissolve into each other.
@@ -101,7 +103,7 @@ def render_picture(segs: list[dict], work: Path) -> tuple[list[Path], list[list[
     for pos, seg in enumerate(segs, 1):
         backgrounds, frames = visual_paths(seg)
         plan = plan_segment(float(seg.get("real_seconds") or seg["est_seconds"]), backgrounds, frames,
-                            shot_max=shot_max_for(pos))
+                            shot_max=shot_max_for(pos, limits))
         plans.append(plan)
         for k, (src, secs) in enumerate(plan, 1):
             extra = ff.XFADE_SECONDS if (k < len(plan) and not p.draft) else 0.0
@@ -154,7 +156,7 @@ def run(ctx: Ctx, video_id: int, force: bool = False) -> None:
         assets = ctx.settings.assets_dir
 
         # 1. picture track
-        seg_clips, plans = render_picture(segs, tmp)
+        seg_clips, plans = render_picture(segs, tmp, rules.edit_limits(ctx.settings.root))
         ff.run(ff.concat_cmd(ff.concat_list(seg_clips, tmp / "parts.txt"), tmp / "picture.mp4",
                              reencode=False), "joining segments")
 
