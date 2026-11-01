@@ -57,11 +57,11 @@ def find_valid(prov, keywords: list[str], seen: set, kind: str, hashes: list[int
 
 
 def scene_note(seg: dict, scene: dict, sources: list[dict]) -> str:
-    """Source line for a scene: its own source_ids, else its chart's, else none."""
+    """On-screen note for a scene: always empty. Sources are checked but shown in the description."""
     if scene.get("source_ids"):
-        return source_line({"source_ids": scene["source_ids"], "title": scene.get("title", "")}, sources)
-    if scene["kind"] == "chart3d" and seg.get("chart_data"):
-        return source_line(seg["chart_data"], sources)
+        source_line({"source_ids": scene["source_ids"], "title": scene.get("title", "")}, sources)
+    elif scene["kind"] == "chart3d" and seg.get("chart_data"):
+        source_line(seg["chart_data"], sources)
     return ""
 
 
@@ -153,8 +153,7 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
                 frames = render_chart(seg["chart_data"], pkg["sources"], charts_dir, f"seg_{pos:03d}")
                 vis["chart_frames"] = [str(f) for f in frames]
                 if os.getenv("STUDIO_NO_CHART_ANIM", "") not in ("1", "true", "yes"):
-                    foot = source_line(seg["chart_data"], pkg["sources"])
-                    anims = chart_anim.animate(seg["chart_data"], frames, foot, charts_dir)
+                    anims = chart_anim.animate(seg["chart_data"], frames, "", charts_dir)
                     animated += len(anims)
                 for f in frames:
                     s.add(Asset(video_id=video_id, kind="chart", path=str(f),

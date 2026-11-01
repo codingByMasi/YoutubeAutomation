@@ -345,6 +345,15 @@ Music and effects were checked for level and clipping, not by ear: listen once a
 - `prompts/script.md` states the growth rules so Claude writes scripts that pass them.
 - Decisions: thresholds are tunable defaults (explainer stock max 60%, similarity 25%); new dimensions can raise block/warn on old videos.
 - Owner must: nothing to configure. Add a real viewpoint per script; disclose realistic synthetic voices/footage on upload; run title/thumbnail tests.
+## 2026-11-01: plan preview before building
+- New `studio/plan_preview.py` and CLI `plan <video_id> [--draft]`: lists per segment the length, 3D/2D scene, chart type,
+  stock search words and picture source, plus resolution, voice, music, captions, Blender and stock/photo availability,
+  and plain warnings (unsourced chart, no stock key, Blender unusable, 3D clips are 1280x720 @ 15 fps, no charts at all).
+  Reads only `script.json`, settings and `.env`; nothing is rendered or fetched.
+- Make video page: "Plan: what this video will use" box above the run buttons. Search words can be edited there; scene 2D/3D
+  stays in "Look and sound". "Approve this plan" is stored as a fingerprint in `plan_approval.json`; changing keywords, scenes,
+  charts or settings asks again. The run buttons (except Voiceover) wait for approval in the app; the CLI is not gated.
+- Tests: `tests/test_plan_preview.py`. Not tested: the Streamlit box in a browser.
 ## 2026-11-01 Fix: irrelevant stock footage and clipped big numbers
 - Cause: stock video was taken from the first search hit with no relevance check (PS4 for "Nvidia", lavender for "survived"; photos were tag-filtered, videos were not).
   Number cards printed units like "trillion US$" as "5.03 trillion US" at a fixed 180 pt, so the figure ran off the frame.
@@ -353,3 +362,7 @@ Music and effects were checked for level and clipping, not by ear: listen once a
 - Found while diagnosing: the owner's Downloads copy is older than PR #24 (no render_report.py / chart_anim.py), so animated charts and the render report were absent.
   Owner must: `git pull origin main` or re-download, then rebuild (non-draft).
 - Also: in `mixed`/`3d` style, pie charts now become 3D charts too (`scenes.chart_items`), so scripts with few explicit scenes are still mostly 3D. Flow and number charts stay 2D.
+
+## Decision: sources in the description, not on screen
+Charts, scene cards and 3D scenes no longer draw "Source: ..." footers. Sources are still required and validated
+in `script.json`, and the generated YouTube description lists every source under "Sources" (`build_description`).

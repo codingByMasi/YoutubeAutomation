@@ -112,6 +112,16 @@ def visuals(video_id: int, force: bool = FORCE) -> None:
 
 
 @app.command()
+def plan(video_id: int, draft: bool = typer.Option(False, "--draft", help="Show the fast-draft resolution.")) -> None:
+    """Show what `visuals` and `build` will use (scenes, charts, search words, resolution, tools) before rendering."""
+    from studio import plan_preview
+    from studio.stages.script import load_package
+    c = _ctx()
+    for line in plan_preview.to_lines(plan_preview.build(c.settings, video_id, load_package(c, video_id), draft)):
+        typer.echo(line)
+
+
+@app.command()
 def build(video_id: int, force: bool = FORCE) -> None:
     """Assemble the final 1080p MP4 with captions, music, intro and outro."""
     from studio.stages import build as m

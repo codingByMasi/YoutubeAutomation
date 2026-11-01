@@ -282,7 +282,7 @@ def test_3d_chart_replaces_the_2d_chart_and_keeps_its_source(ctx, monkeypatch):
     pkg = sc.load_package(ctx, v.id)
     bar = pkg["segments"][2]["visual"]  # the sample's only bar chart
     assert bar["scene_clip"] and "chart_frames" not in bar
-    assert calls[0][0] == "chart3d" and "Source:" in calls[0][2]
+    assert calls[0][0] == "chart3d" and "Source:" not in calls[0][2]  # sources live in the description
     assert pkg["segments"][0]["visual"].get("chart_frames")  # the number card stays 2D
 
 
