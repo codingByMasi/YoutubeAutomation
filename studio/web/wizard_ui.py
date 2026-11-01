@@ -33,13 +33,23 @@ def step_topic(ctx, show) -> None:
     if st.button("✨ Suggest topics for me", type="primary", key="wz_suggest"):
         with st.spinner("Looking for fresh ideas..."):
             show(svc.auto_suggest_topics(ctx), "New ideas added below.")
-    ideas = [i for i in svc.ideas_for(ctx) if i.status != "approved"][:6]
-    for i in ideas:
+    ideas = svc.pending_ideas(ctx)
+    for i in ideas[:6]:
         c1, c2 = st.columns([6, 2])
         c1.write(i.topic)
         if c2.button("Use this", key=f"wz_use{i.id}"):
             _set_video(research.approve(ctx, i.id).id)
             st.rerun()
+    if len(ideas) > 6:
+        with st.expander(f"Older topics ({len(ideas) - 6})"):
+            for i in ideas[6:]:
+                st.checkbox(f"{i.topic}  ·  {i.created_at:%b %d}", key=f"wz_old{i.id}")
+            picked = [i.id for i in ideas[6:] if st.session_state.get(f"wz_old{i.id}")]
+            if st.button(f"Approve selected ({len(picked)})", disabled=not picked, key="wz_old_go"):
+                vids = svc.approve_ideas(ctx, picked)
+                _set_video(vids[0].id)
+                st.success(f"Approved {len(vids)}. The first is open now; the rest are in your video list.")
+                st.rerun()
     st.markdown("**Or type your own topic**")
     own = st.text_input("Topic", placeholder="how Costco makes money", key="wz_own", label_visibility="collapsed")
     if st.button("Use my topic", disabled=not own.strip(), key="wz_own_btn"):

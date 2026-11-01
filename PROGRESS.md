@@ -393,3 +393,9 @@ in `script.json`, and the generated YouTube description lists every source under
   Invalid pasted answers keep their existing plain list + copy-able fix request.
 - Decision: "release lock" flushes the SQLite log and checks a write works; it never breaks a lock held by a running step, it says to wait.
 - Not tested: the Streamlit buttons in a browser. Layered on main so it can merge with the database-lock thread's change.
+
+## Database lock hardening (2026-11-01)
+- SQLite now opens in WAL mode with a 30 s busy timeout (`studio/db.py`).
+- Pictures step collects assets in memory and writes them in one short transaction (no write lock during downloads/Blender).
+- `Ctx.close()`; the web app closes every context at the end of each rerun and rolls back sessions after failed steps.
+- "database is locked" gets a plain message (app and CLI subprocess output), plus tools to find/stop other Studio processes and clear stale journal files (`studio/util/dblock.py`, needs `psutil`: run `pip install -r requirements.txt`).
