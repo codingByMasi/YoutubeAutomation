@@ -60,4 +60,6 @@ def build_ctx(root: Path | None = None, verbose: bool = False) -> Ctx:
     engine = make_engine(settings.db_path)
     init_db(engine)
     session = sessionmaker(bind=engine, expire_on_commit=False, future=True)()
+    from studio.growth import channels
+    session.info["channel_id"] = channels.active_id(settings.root)
     return Ctx(settings=settings, engine=engine, session=session)

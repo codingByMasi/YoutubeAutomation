@@ -75,3 +75,48 @@ def test_cli_channels(root, monkeypatch):
     assert r.invoke(app, ["channels", "export", str(f)]).exit_code == 0
     assert r.invoke(app, ["channels", "remove", "tech-bits"]).exit_code == 0
     assert "tech-bits" in r.invoke(app, ["channels", "import", str(f)]).output
+
+
+def test_data_is_separated_per_channel(make_ctx, root):
+    from studio.context import build_ctx
+    from studio.growth import series as series_mod
+    from studio.web import service as svc
+
+    a = build_ctx(root)
+    svc.add_manual_topic(a, "topic for default")
+    series_mod.create(root, "Default series", "", ["x"])
+    channels.add(root, "Other", niche="Gardening")
+    b = build_ctx(root)  # new context follows the newly active channel
+    assert b.session.info["channel_id"] == "other"
+    assert svc.ideas_for(b) == [] and svc.list_videos(b) == []
+    assert series_mod.load(root) == []
+    svc.add_manual_topic(b, "grow tomatoes")
+    series_mod.create(root, "Garden series", "", ["y"])
+    assert [i.topic for i in svc.ideas_for(b)] == ["grow tomatoes"]
+    channels.switch(root, "default")
+    a2 = build_ctx(root)
+    assert [i.topic for i in svc.ideas_for(a2)] == ["topic for default"]
+    assert [s["name"] for s in series_mod.load(root)] == ["Default series"]
+
+
+def test_old_database_gets_channel_column(tmp_path):
+    from sqlalchemy import create_engine, inspect, text
+
+    from studio.db import init_db
+    eng = create_engine(f"sqlite:///{tmp_path / 'old.db'}")
+    with eng.begin() as c:
+        c.execute(text("CREATE TABLE ideas (id INTEGER PRIMARY KEY, seed VARCHAR(200), topic VARCHAR(300), "
+                       "demand_score FLOAT, competition_score FLOAT, outlier_score FLOAT, status VARCHAR(20), "
+                       "created_at DATETIME)"))
+        c.execute(text("INSERT INTO ideas (seed, topic) VALUES ('s', 't')"))
+    init_db(eng)
+    assert "channel_id" in {c["name"] for c in inspect(eng).get_columns("ideas")}
+    with eng.connect() as c:
+        assert c.execute(text("SELECT channel_id FROM ideas")).scalar() == "default"
+
+
+def test_custom_niche_relaxes_topic_filter(root):
+    from studio.stages.discover import clean_topics, fits_channel
+    assert not fits_channel("best tomato varieties")
+    assert clean_topics(["best tomato varieties"], "gardening", strict=False) == ["best tomato varieties"]
+    assert not fits_channel("tomato game cheats", strict=False)

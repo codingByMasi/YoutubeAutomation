@@ -23,6 +23,7 @@ def make_engine(db_path: Path | str) -> Engine:
 def init_db(engine: Engine) -> None:
     """Create missing tables and record the schema version. Never drops anything."""
     Base.metadata.create_all(engine)
+    _add_missing_columns(engine)
     with Session(engine) as s:
         row = s.query(SchemaVersion).order_by(SchemaVersion.id.desc()).first()
         if row is None:
@@ -37,6 +38,14 @@ def init_db(engine: Engine) -> None:
     missing = set(Base.metadata.tables) - set(inspect(engine).get_table_names())
     if missing:
         raise StudioError(f"Tables missing after init: {sorted(missing)}", "", "Check file permissions on studio.db.")
+
+
+def _add_missing_columns(engine: Engine) -> None:
+    """Upgrade older databases in place: ideas.channel_id (existing rows join the "default" channel)."""
+    cols = {c["name"] for c in inspect(engine).get_columns("ideas")}
+    if "channel_id" not in cols:
+        with engine.begin() as conn:
+            conn.exec_driver_sql("ALTER TABLE ideas ADD COLUMN channel_id VARCHAR(64) NOT NULL DEFAULT 'default'")
 
 
 @contextmanager

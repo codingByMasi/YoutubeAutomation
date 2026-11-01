@@ -16,6 +16,7 @@ from datetime import UTC, datetime, timedelta
 
 import typer
 
+from studio import scope
 from studio.context import Ctx
 from studio.errors import StudioError
 from studio.models import Idea, Video, utcnow
@@ -140,7 +141,7 @@ def run(ctx: Ctx, seed: str, force: bool = False, limit: int = 15, suggest=None,
     competitors = competitors or fetch_competitor_stats
     s = ctx.session
     today = utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-    existing = s.query(Idea).filter(Idea.seed == seed, Idea.created_at >= today).all()
+    existing = scope.ideas(s).filter(Idea.seed == seed, Idea.created_at >= today).all()
     if existing and not force:
         typer.echo(f"Using today's research for {seed!r} (use --force to fetch again).")
         _print_ideas(existing, limit)
@@ -151,11 +152,12 @@ def run(ctx: Ctx, seed: str, force: bool = False, limit: int = 15, suggest=None,
     if not topics:
         raise StudioError(f"No topic ideas found for {seed!r}.", "Search suggestions returned nothing.",
                           "Try a broader seed, e.g. 'how airlines make money'.")
-    from studio.stages.discover import clean_topics
-    topics = [seed] + clean_topics([t for t in topics if t.lower() != seed.lower()], seed, known=[seed])
+    from studio.stages.discover import _custom_niche, clean_topics
+    topics = [seed] + clean_topics([t for t in topics if t.lower() != seed.lower()], seed, known=[seed],
+                                   strict=not _custom_niche(ctx))
     outliers = sorted((v for v in videos if v.is_outlier), key=lambda v: v.ratio, reverse=True)
     from studio.stages.discover import is_duplicate, key_tokens
-    seen = [key_tokens(i.topic) for i in s.query(Idea).all()]
+    seen = [key_tokens(i.topic) for i in scope.ideas(s).all()]
     ideas = []
     for pos, topic in enumerate(topics):
         if is_duplicate(topic, seen):

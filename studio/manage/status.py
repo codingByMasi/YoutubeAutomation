@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import typer
 
+from studio import scope
 from studio.context import Ctx
 from studio.models import Idea, Title, Video
 from studio.stages.base import STAGE_COMMAND, STAGES, advance
@@ -20,7 +21,7 @@ def next_step(v: Video) -> str:
 
 def sync_live(ctx: Ctx) -> int:
     """Mark scheduled videos that are now public as live. Returns how many changed."""
-    vids = ctx.session.query(Video).filter_by(stage="scheduled").all()
+    vids = scope.videos(ctx.session).filter_by(stage="scheduled").all()
     if not vids:
         return 0
     data, _ = ctx.youtube("status")
@@ -39,7 +40,7 @@ def run(ctx: Ctx, sync: bool = False) -> list[Video]:
     s = ctx.session
     if sync:
         typer.echo(f"Synced with YouTube: {sync_live(ctx)} video(s) now live.")
-    vids = s.query(Video).order_by(Video.id).all()
+    vids = scope.videos(s).order_by(Video.id).all()
     if not vids:
         typer.echo("No videos yet. Start with: research \"<seed>\"")
         return []

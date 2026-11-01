@@ -46,13 +46,13 @@ def _clean(values: dict) -> dict:
 
 
 def _path(root: Path) -> Path:
-    return store.channel_file(root, NAME)
+    return store.global_file(root, NAME)
 
 
 def _load(root: Path) -> dict:
     data = store.load(_path(root), None)
     if data is None:  # first use: migrate the old single profile, if any
-        legacy = store.load(store.channel_file(root, "profile"), {})
+        legacy = store.load(store.global_file(root, "profile"), {})
         data = {"active": DEFAULT_ID, "channels": {DEFAULT_ID: _clean(legacy)}}
     if not data.get("channels"):
         data["channels"] = {DEFAULT_ID: {}}

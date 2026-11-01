@@ -10,6 +10,7 @@ from pathlib import Path
 
 import typer
 
+from studio import scope
 from studio.context import Ctx
 from studio.models import Idea, MetricDaily, Title, Video
 from studio.stages.review import mmss
@@ -126,7 +127,7 @@ def run(ctx: Ctx, days: int = 28, today: date | None = None) -> Path:
     s = ctx.session
     end = (today or date.today()) - timedelta(days=1)
     start = end - timedelta(days=days - 1)
-    vids = s.query(Video).filter(Video.youtube_video_id.isnot(None)).all()
+    vids = scope.videos(s).filter(Video.youtube_video_id.isnot(None)).all()
     _, ya = ctx.youtube("analytics") if vids else (None, None)
     rows = []
     for v in vids:
@@ -157,10 +158,11 @@ def run(ctx: Ctx, days: int = 28, today: date | None = None) -> Path:
             "drop": drop, "drop_chapter": _chapter_at(ctx.settings.project_dir(v.id) / "review.json", drop[0])
             if drop else "",
         })
-    waiting = [i.topic for i in s.query(Idea).filter_by(status="approved").all()
+    waiting = [i.topic for i in scope.ideas(s).filter_by(status="approved").all()
                if not s.query(Video).filter(Video.idea_id == i.id, Video.youtube_video_id.isnot(None)).first()]
     report = build_report(rows, waiting, days)
-    out = ctx.settings.root / "reports" / f"analytics_{(today or date.today()).isoformat()}.md"
+    tag = "" if scope.channel_of(s) == "default" else f"_{scope.channel_of(s)}"
+    out = ctx.settings.root / "reports" / f"analytics{tag}_{(today or date.today()).isoformat()}.md"
     out.parent.mkdir(exist_ok=True)
     out.write_text(report, encoding="utf-8")
     typer.echo(report)
