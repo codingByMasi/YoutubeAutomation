@@ -13,7 +13,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from studio.blender import provider as blender
-from studio.config import FOOTAGE_PROVIDERS, RENDERERS, TTS_PROVIDERS, Settings
+from studio.config import FOOTAGE_PROVIDERS, RENDERERS, TTS_PROVIDERS, Settings, clean_secret
 from studio.context import Ctx
 from studio.errors import StudioError
 from studio.manage import doctor
@@ -64,6 +64,11 @@ def checks(settings: Settings) -> list[doctor.Check]:
     return sorted(doctor.run_checks(settings), key=lambda c: order[c.level])
 
 
+def test_footage_keys(settings: Settings, opener=None) -> list[doctor.Check]:
+    """Live test of the saved Pixabay/Pexels keys for the Setup page button."""
+    return doctor.test_footage_keys(settings, opener)
+
+
 def blocking(settings: Settings) -> list[doctor.Check]:
     """Only the failures that stop a video from being made (upload items are not needed to make one)."""
     return [c for c in doctor.run_checks(settings)
@@ -82,7 +87,11 @@ def _parse_env(text: str) -> tuple[list[str], dict[str, int]]:
 
 def save_env(root: Path, updates: dict[str, str]) -> list[str]:
     """Write allowed settings into `<root>/.env` (kept for next time) and the running process. Returns names saved."""
-    clean = {k: str(v).strip() for k, v in updates.items() if k in ENV_KEYS}
+    if any("\n" in str(v).strip() or "\r" in str(v).strip() for k, v in updates.items() if k in ENV_KEYS):
+        raise StudioError("A value contains a line break.", "Keys and names are single-line.",
+                          "Paste only the value itself.")
+    clean = {k: (clean_secret(str(v)) if k.endswith("_API_KEY") else str(v).strip())
+             for k, v in updates.items() if k in ENV_KEYS}
     if "TTS_PROVIDER" in clean and clean["TTS_PROVIDER"] not in TTS_PROVIDERS:
         raise StudioError("Unknown voice provider.", f"Got {clean['TTS_PROVIDER']!r}.",
                           f"Choose one of: {', '.join(sorted(TTS_PROVIDERS))}.")

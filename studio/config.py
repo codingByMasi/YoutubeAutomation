@@ -123,22 +123,40 @@ def _apply_active_channel(s: Settings) -> None:
     s.made_for_kids = channels.type_info(s.root)["made_for_kids"]
 
 
+def clean_secret(value: str | None) -> str:
+    """Strip whitespace, surrounding quotes and a stray `KEY=` prefix from a value read from .env."""
+    v = (value or "").strip()
+    while len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'`":
+        v = v[1:-1].strip()
+    v = v.strip("\"'`\u200b\ufeff ")
+    return "".join(v.split())  # keys never contain spaces; pasted ones sometimes do
+
+
+def _env_key(name: str, *aliases: str) -> str:
+    """Cleaned key from `name`, or from a common misspelling of it (PIXABAY_KEY, PIXABAY_APIKEY...)."""
+    for n in (name, *aliases):
+        v = clean_secret(os.getenv(n))
+        if v:
+            return v
+    return ""
+
+
 def load_settings(root: Path | None = None) -> Settings:
     """Load `.env` from the project root and validate values that are always required."""
     root = Path(root or os.getenv("STUDIO_HOME") or Path.cwd()).resolve()
-    load_dotenv(root / ".env", override=False)
+    load_dotenv(root / ".env", override=False, encoding="utf-8-sig")
     s = Settings(
         root=root,
         llm_provider=(os.getenv("LLM_PROVIDER") or "claude_code").strip().lower(),
-        llm_api_key=os.getenv("LLM_API_KEY", "").strip(),
+        llm_api_key=clean_secret(os.getenv("LLM_API_KEY")),
         llm_model=os.getenv("LLM_MODEL", "").strip(),
         channel_id=os.getenv("CHANNEL_ID", "").strip(),
         google_client_secret_path=os.getenv("GOOGLE_CLIENT_SECRET_PATH", "./client_secret.json").strip(),
-        pexels_api_key=os.getenv("PEXELS_API_KEY", "").strip(),
-        pixabay_api_key=os.getenv("PIXABAY_API_KEY", "").strip(),
+        pexels_api_key=_env_key("PEXELS_API_KEY", "PEXELS_KEY", "PEXELS_APIKEY", "PEXELS"),
+        pixabay_api_key=_env_key("PIXABAY_API_KEY", "PIXABAY_KEY", "PIXABAY_APIKEY", "PIXABAY"),
         footage_provider=(os.getenv("FOOTAGE_PROVIDER") or "auto").strip().lower(),
         image_provider=(os.getenv("IMAGE_PROVIDER") or "auto").strip().lower(),
-        elevenlabs_api_key=os.getenv("ELEVENLABS_API_KEY", "").strip(),
+        elevenlabs_api_key=clean_secret(os.getenv("ELEVENLABS_API_KEY")),
         tts_provider=(os.getenv("TTS_PROVIDER") or "edge").strip().lower(),
         renderer=(os.getenv("RENDERER") or "2d").strip().lower(),
         blender_path=os.getenv("BLENDER_PATH", "").strip(),

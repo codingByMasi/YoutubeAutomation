@@ -53,10 +53,11 @@ def make_footage(settings) -> tuple[str, FootageProvider | None]:
     """(provider name, instance). Instance is None when only generated cards will be used."""
     name = resolve_provider(settings)
     cache = settings.assets_dir / "cache" / name
+    from studio.providers.guard import Guarded
     if name == "pexels":
         from studio.providers.pexels import Pexels
-        return name, Pexels(settings.pexels_api_key, cache)
+        return name, Guarded(Pexels(settings.pexels_api_key, cache), "Pexels", "PEXELS_API_KEY")
     if name == "pixabay":
         from studio.providers.pixabay import Pixabay
-        return name, Pixabay(settings.pixabay_api_key, cache)
+        return name, Guarded(Pixabay(settings.pixabay_api_key, cache), "Pixabay", "PIXABAY_API_KEY")
     return "none", None

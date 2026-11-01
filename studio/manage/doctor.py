@@ -40,6 +40,43 @@ def _client_secret(settings: Settings) -> Check:
     return Check("YouTube upload", OK, "Google OAuth client file found.")
 
 
+def test_footage_keys(settings: Settings, opener=None) -> list[Check]:
+    """Live key test (one tiny request per keyed service). Never raises; says what to fix on failure."""
+    import urllib.error
+    import urllib.parse
+    import urllib.request
+    opener = opener or urllib.request.urlopen
+    out: list[Check] = []
+    if not (settings.pixabay_api_key or settings.pexels_api_key):
+        return [Check("Visuals", WARN, "No Pixabay or Pexels key to test.",
+                      "Add PIXABAY_API_KEY=yourkey to .env (no quotes, no spaces).", "footage")]
+    tests = []
+    if settings.pixabay_api_key:
+        qs = urllib.parse.urlencode({"key": settings.pixabay_api_key, "q": "city", "per_page": 3})
+        tests.append(("Pixabay", "PIXABAY_API_KEY", f"https://pixabay.com/api/?{qs}", {}))
+    if settings.pexels_api_key:
+        tests.append(("Pexels", "PEXELS_API_KEY", "https://api.pexels.com/v1/search?query=city&per_page=1",
+                      {"Authorization": settings.pexels_api_key}))
+    for service, var, url, headers in tests:
+        req = urllib.request.Request(url, headers={"User-Agent": "yt-studio/0.1", **headers})
+        try:
+            with opener(req, timeout=15) as r:
+                r.read()
+            out.append(Check("Visuals", OK, f"{service} key works.", action="footage"))
+        except urllib.error.HTTPError as e:
+            if e.code in (400, 401, 403):
+                out.append(Check("Visuals", FAIL, f"{service} rejected the key (HTTP {e.code}).",
+                                 f"Copy the key again from the {service} site. In .env use exactly {var}=yourkey "
+                                 "with no quotes or spaces. Until fixed, generated visuals are used.", "footage"))
+            else:
+                out.append(Check("Visuals", WARN, f"{service} answered HTTP {e.code}; could not test the key.",
+                                 "Try again in a few minutes.", "footage"))
+        except Exception as e:  # noqa: BLE001 - offline, DNS, timeout: report, don't crash
+            out.append(Check("Visuals", WARN, f"Could not reach {service} to test the key ({type(e).__name__}).",
+                             "Check your internet connection and try again.", "footage"))
+    return out
+
+
 def run_checks(settings: Settings) -> list[Check]:
     """All readiness checks, in the order the owner should fix them."""
     out: list[Check] = []

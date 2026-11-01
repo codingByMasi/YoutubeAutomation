@@ -78,6 +78,14 @@ def _footage(ctx) -> None:
     if st.button("Save footage keys", key="save_footage") and (pix or pex):
         _save(ctx.settings.root, {**({"PIXABAY_API_KEY": pix} if pix else {}),
                                   **({"PEXELS_API_KEY": pex} if pex else {})})
+    st.caption("In .env the line must be exactly `PIXABAY_API_KEY=yourkey` (no quotes, no spaces).")
+    if st.button("Test my footage key", key="test_footage"):
+        from studio.config import load_settings
+        with st.spinner("Testing..."):
+            results = setup.test_footage_keys(load_settings(ctx.settings.root))
+        for c in results:
+            msg = c.message + (f" {c.fix}" if c.fix else "")
+            (st.success if c.level == "ok" else st.warning if c.level == "warn" else st.error)(msg)
 
 
 def _client_secret(ctx) -> None:

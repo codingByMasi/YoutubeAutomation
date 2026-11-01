@@ -3,7 +3,7 @@ import urllib.error
 
 import pytest
 
-from studio.errors import PendingLLMResponse, StudioError
+from studio.errors import PendingLLMResponse, RequestRejected, StudioError
 from studio.llm import ask_json, prompt_paths
 from studio.util.logging import RedactSecrets
 from studio.util.retry import with_retry
@@ -40,7 +40,7 @@ def test_retry_does_not_retry_client_errors():
         calls.append(1)
         raise urllib.error.HTTPError("u", 400, "bad", {}, None)
 
-    with pytest.raises(urllib.error.HTTPError):
+    with pytest.raises(RequestRejected):
         with_retry(bad, "x", sleep=lambda s: None)
     assert len(calls) == 1
 

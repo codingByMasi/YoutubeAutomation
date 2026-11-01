@@ -8,7 +8,7 @@ import urllib.error
 from collections.abc import Callable
 from typing import TypeVar
 
-from studio.errors import StudioError
+from studio.errors import RequestRejected, StudioError
 from studio.util.logging import get_logger
 
 T = TypeVar("T")
@@ -38,6 +38,13 @@ def with_retry(fn: Callable[[], T], what: str, attempts: int = MAX_ATTEMPTS, sle
             return fn()
         except Exception as exc:
             if not is_retryable(exc):
+                if isinstance(exc, urllib.error.HTTPError):  # 4xx: retrying cannot help; give a plain error
+                    raise RequestRejected(
+                        f"{what} was rejected (HTTP {exc.code} {exc.reason}).",
+                        code=exc.code,
+                        why="The service refused the request; with 400/401/403 this usually means an invalid API key.",
+                        next_step="Check the key in .env (Setup page > Footage), then re-run.",
+                    ) from exc
                 raise
             if attempt == attempts:
                 raise StudioError(
