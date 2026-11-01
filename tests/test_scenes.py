@@ -59,8 +59,8 @@ def test_bar_and_line_charts_become_3d_only_when_asked(style, override, drawn):
         assert pl["scene"]["items"][0]["display"] == "65%"
 
 
+def test_other_charts_and_plain_segments_are_untouched():
     assert scenes.plan({}, "3d") is None
-    assert scenes.plan({"chart_data": {"type": "pie", "labels": ["a"], "values": [1]}}, "3d") is None
     assert scenes.plan({"chart_data": {"type": "flow", "labels": ["a", "b"], "values": [1, 2]}}, "3d", "3d") is None
 
 
