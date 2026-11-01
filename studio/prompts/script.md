@@ -112,3 +112,11 @@ You are writing a complete YouTube video package for a faceless, narrated explai
 }}
 Chart types: `bar`/`pie`/`line` need equal-length labels and values; `flow` needs labels (steps in order,
 values optional); `number` needs one label and one value.
+
+## Growth rules (content-aware, checked by the quality gate)
+- Pick visuals from what the segment says: a segment with 3+ figures gets `chart_data` (or a number card), a run of dates gets a
+  `timeline` scene, a mechanism gets a diagram or `artifact` scene. Never read figures over generic stock footage.
+- `visual_keywords` name the exact thing discussed (not "handshake", "skyline", "laptop typing").
+- The picked title's idea must be stated in the first two segments (the hook keeps the title's promise).
+- Fill `originality_note` with this video's own angle in one sentence, and vary the chapter structure from earlier videos.
+- Give 3+ titles and 2+ thumbnail texts (1-4 words each) so the owner can run a title/thumbnail test.

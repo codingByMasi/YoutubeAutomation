@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-DIMENSIONS = ("script", "hook", "pacing", "visuals", "audio", "metadata")
+DIMENSIONS = ("script", "hook", "pacing", "visuals", "audio", "metadata", "fit", "packaging", "originality")
 
 # Every number here is a rule of thumb, not a YouTube rule; owners tune them per channel through feedback rules.
 TYPES: dict[str, dict] = {
@@ -11,21 +11,30 @@ TYPES: dict[str, dict] = {
         "beat_gap_max": 40, "sentence_max_words": 22, "card_share_max": 0.3, "min_minutes": 6,
         "min_open_loops": 2, "min_tags": 5, "lufs_target": -16.0, "lufs_tolerance": 2.5,
         "block_below": 55, "pass_at": 75, "needs_cta": True, "needs_sources": True,
-        "weights": {"script": 1.0, "hook": 1.5, "pacing": 1.2, "visuals": 1.0, "audio": 0.8, "metadata": 0.8},
+        "fit_checks": True, "stock_share_max": 0.6, "similarity_max": 0.25, "originality_checks": True,
+        "series_hint": True,
+        "weights": {"script": 1.0, "hook": 1.5, "pacing": 1.2, "visuals": 1.0, "audio": 0.8, "metadata": 0.8,
+                    "fit": 1.2, "packaging": 1.0, "originality": 1.0},
     },
     "story": {
         "label": "Narrative / documentary story", "hook_max_seconds": 20, "hook_first_sentence_words": 16,
         "beat_gap_max": 50, "sentence_max_words": 24, "card_share_max": 0.25, "min_minutes": 6,
         "min_open_loops": 3, "min_tags": 5, "lufs_target": -16.0, "lufs_tolerance": 2.5,
         "block_below": 55, "pass_at": 75, "needs_cta": True, "needs_sources": True,
-        "weights": {"script": 1.2, "hook": 1.5, "pacing": 1.0, "visuals": 1.2, "audio": 1.0, "metadata": 0.6},
+        "fit_checks": True, "stock_share_max": 0.8, "similarity_max": 0.25, "originality_checks": True,
+        "series_hint": True,
+        "weights": {"script": 1.2, "hook": 1.5, "pacing": 1.0, "visuals": 1.2, "audio": 1.0, "metadata": 0.6,
+                    "fit": 1.0, "packaging": 1.0, "originality": 1.0},
     },
     "kids": {
         "label": "Kids songs and learning", "hook_max_seconds": 8, "hook_first_sentence_words": 8,
         "beat_gap_max": 20, "sentence_max_words": 12, "card_share_max": 0.1, "min_minutes": 2,
         "min_open_loops": 0, "min_tags": 5, "lufs_target": -16.0, "lufs_tolerance": 2.0,
         "block_below": 60, "pass_at": 80, "needs_cta": False, "needs_sources": False,
-        "weights": {"script": 0.6, "hook": 1.0, "pacing": 1.2, "visuals": 1.6, "audio": 1.6, "metadata": 0.8},
+        "fit_checks": False, "stock_share_max": 1.0, "similarity_max": 0.4, "originality_checks": False,
+        "series_hint": False,
+        "weights": {"script": 0.6, "hook": 1.0, "pacing": 1.2, "visuals": 1.6, "audio": 1.6, "metadata": 0.8,
+                    "fit": 0.5, "packaging": 0.8, "originality": 0.5},
     },
 }
 DEFAULT_TYPE = "explainer"
