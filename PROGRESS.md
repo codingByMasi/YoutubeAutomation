@@ -2,7 +2,7 @@
 
 Claude Code: update this file at the end of every milestone and whenever you make a decision. Read it first in every new session.
 
-**Last updated:** 2026-10-31
+**Last updated:** 2026-11-01
 **Current milestone:** M8 done; next is the owner's setup and the first real video
 **Overall status:** Build complete. 93 tests pass (`pytest -q`), `ruff check .` is clean, and `demo` builds a playable 1080p MP4
 
@@ -79,6 +79,7 @@ Record any choice made without asking the owner, with date and reason.
 
 | Date | Decision | Reason |
 |---|---|---|
+| 2026-11-01 | Added `doctor` (go/no-go check, files and settings only), `suggest`, `add-topic`, and FIRST_VIDEO.md runbook. | Owner wants one clear path to the first real video with their own topic or a suggested one. |
 | 2026-10-31 | Review page plays a 480p browser-safe `preview.mp4` (H.264 main, yuv420p, AAC, faststart) made from `final.mp4` on first view, warns if the full file is not browser-compatible, and falls back to download buttons on any preview error. Intro/outro re-encode now sets yuv420p and faststart. | Player did not play the built video on the hosted app; the cause could not be checked without the file, so the preview is guaranteed-compatible and small. |
 | 2026-10-31 | Web stages run in a child process (an out-of-memory kill shows an error instead of crashing the app). Build speedups: captions are the only full re-encode (audio mix copies the picture), shots render 2 at a time, narration synthesis 4 at a time, Pexels/Pixabay clips stream to disk and are capped at 1920 px, a failing image source is dropped after 2 failures. `STUDIO_DRAFT=1` / the Fast draft checkbox gives 720p. | Hosted app crashed after the voice step on a ~1 GB host (log ended with no traceback) and builds were slow. |
 | 2026-10-31 | Added a Streamlit web app (`app.py`, `studio/web/service.py`) that calls the existing stages; no pipeline logic was duplicated. Script step keeps the file handoff: copy prompt, paste JSON answer. Hosted target is Streamlit Community Cloud, not Vercel. Typed `yes` gates are fed from text boxes and still refuse anything else. YouTube upload is local-only (OAuth desktop flow). | Owner asked for an app instead of the CLI, deployable on Streamlit or Vercel. Vercel cannot run long ffmpeg jobs. Owner request overrides the old SPEC 12 "web dashboard" exclusion for the pipeline UI. |

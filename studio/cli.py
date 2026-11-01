@@ -37,6 +37,36 @@ def research(seed: str = typer.Argument(..., help="Seed topic, e.g. 'how cruise 
     m.run(_ctx(), seed, force=force, limit=limit)
 
 
+@app.command("suggest")
+def suggest(count: int = typer.Option(8, min=1, max=25, help="How many new ideas to add.")) -> None:
+    """Suggest fresh channel-fit topics with no seed typed (skips ones you already have)."""
+    from studio.stages import discover
+    ideas = discover.auto_suggest(_ctx(), count=count)
+    print(f"Added {len(ideas)} new topic ideas. Approve one with `approve-idea <id>`:")
+    for i in ideas:
+        print(f"  {i.id:>4}  {i.topic}")
+
+
+@app.command("add-topic")
+def add_topic(topic: str = typer.Argument(..., help="Your own topic, e.g. 'how Costco makes money'."),
+              approve: bool = typer.Option(False, "--approve", help="Approve it straight away.")) -> None:
+    """Use your own topic instead of a suggestion."""
+    from studio.stages import research as m
+    from studio.web import service as svc
+    idea = svc.add_manual_topic(_ctx(), topic)
+    print(f"Saved topic {idea.id}: {idea.topic}")
+    if approve:
+        m.approve(_ctx(), idea.id)
+
+
+@app.command()
+def doctor() -> None:
+    """Go/no-go readiness check before your first real video (tools, keys, YouTube sign-in)."""
+    from studio.manage import doctor as m
+    if not m.run(_ctx().settings):
+        raise typer.Exit(1)
+
+
 @app.command("approve-idea")
 def approve_idea(idea_id: int = typer.Argument(..., help="Idea id from the research table.")) -> None:
     """Approve a topic and create its video record."""
