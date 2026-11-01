@@ -226,6 +226,15 @@ Music and effects were checked for level and clipping, not by ear: listen once a
 - Per-channel separation: ideas (and so videos, calendar, status, analytics report) carry `ideas.channel_id` (old databases upgrade in place; existing rows join `default`); series, performance, monetization and fact-check data live in `growth/c/<channel>/` (the `default` channel keeps the old `growth/` paths).
 - Topic discovery follows the channel: once a niche is customised, hands-off suggestions use the niche and the business-word fit filter is relaxed (junk words are still blocked).
 
+
+## Quality gate and retention feedback (2026-11-01)
+- `studio/quality/`: `profiles.py` (channel types `explainer` (business, general), `story` (history), `kids`; set with `channels add|edit --type business|history|kids|general`, guessed from the niche otherwise), `gate.py` (six scored dimensions: script, hook, pacing, visuals, audio, metadata; verdict pass / warn / block), `rules.py` and `feedback.py` (retention loop).
+- CLI: `gate <id>`; `review` now runs the gate and refuses on `block` unless `--accept-weak` (typed `yes` is unchanged and still required). `feedback learn [--mock|--live|--apply-mock]`, `feedback show`.
+- Loop: retention curve + CTR per published video -> hook retention at 0:30, worst mid-video drop (mapped to the chapter), average viewed, end retention -> per-channel `rules.json` in the channel's growth folder: gate threshold tuning (hook length, beat gap, sentence length), edit limits (`shot_max_seconds`, `hook_shot_max_seconds`, respected by `visuals` and `build`), and lessons appended to the script/outline brief.
+- Decisions: mock retention data (used automatically when YouTube Analytics is unavailable) is labelled and stays advisory; it changes nothing unless `--apply-mock`. Rules only tighten limits. Audio uses ffmpeg `ebur128` on `final.mp4`; when unmeasurable it is noted, not failed. Every threshold is a rule of thumb, not a YouTube rule.
+- Tests: `tests/test_quality.py` (APIs mocked). Not tested live: real YouTube Analytics retention curves (`audienceWatchRatio`), ffmpeg loudness on a real build, how well the thresholds match this channel's real audience.
+- Owner must: set the channel type; run `feedback learn` after each video has a few days of data.
+
 ## 2026-11-01: optional sung melody via OpenUtau (kids mode)
 - Added `studio/kids/` `sing.py` (syllable-per-note melody plan, same tune for repeated lines, ends on the root),
   `sing_files.py` (MIDI with lyric events + `.ustx` YAML), `openutau.py` (find app, launch, pick up the exported WAV),
