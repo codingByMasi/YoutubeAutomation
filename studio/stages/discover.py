@@ -141,10 +141,16 @@ def auto_suggest(ctx: Ctx, count: int = 8, suggest: Callable[[str], list[str]] |
 def ideas_prompt(ctx: Ctx, count: int = 10) -> str:
     """Text to paste into Claude (claude.ai or Claude Code) asking for new channel-fit topics."""
     avoid = "\n".join(f"- {t}" for t in known_topics(ctx)[-60:]) or "- (none yet)"
-    return f"""You are the topic researcher for a faceless YouTube channel that explains business models and
-economics in English with charts and diagrams. Every figure in a video needs a public source.
+    from studio.growth import channels
+    custom = channels.brief(ctx.settings.root)
+    about = custom or ("a faceless YouTube channel that explains business models and economics in English "
+                       "with charts and diagrams")
+    return f"""You are the topic researcher for this YouTube channel: {about}.
+Every figure in a video needs a public source.
 
-Suggest {count} NEW video topics. Mix Indian and global companies and industries. Prefer the shapes
+Suggest {count} NEW video topics. Stay inside the channel's niche. For the default business channel, mix Indian and
+global
+companies and industries. Prefer the shapes
 "How X really makes money", "Why X is so cheap/expensive", "The economics of X", "Why X failed".
 Pick topics people search for and that can be explained with real, citable numbers. Search the web to check
 the topic is real and current. Do not copy any creator's video; topics only.

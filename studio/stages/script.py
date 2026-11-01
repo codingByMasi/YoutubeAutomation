@@ -152,6 +152,12 @@ def pacing_warnings(segs: list[dict], key: str = "est_seconds") -> list[str]:
 
 
 # ---------- prompt ----------
+def _brief(root: Path) -> str:
+    """The active channel's brief if the owner customised it, else SPEC section 1."""
+    from studio.growth import channels
+    return channels.brief(root) or _spec_section(root, 1, DEFAULT_BRIEF)
+
+
 def _spec_section(root: Path, number: int, default: str) -> str:
     spec = root / "SPEC.md"
     if not spec.exists():
@@ -172,7 +178,7 @@ def prompt_text(name: str) -> str:
 def build_prompt(root: Path, topic: str, outline: dict | None = None) -> str:
     lo, hi = LENGTH_RANGE_MIN
     return prompt_text("script").format(
-        topic=topic, brief=_spec_section(root, 1, DEFAULT_BRIEF), style=_spec_section(root, 9, DEFAULT_STYLE),
+        topic=topic, brief=_brief(root), style=_spec_section(root, 9, DEFAULT_STYLE),
         banned=", ".join(f'"{p}"' for p in BANNED_PHRASES), min_minutes=lo, max_minutes=hi,
         hooks=prompt_text("hooks"),
         outline=json.dumps(outline, indent=2, ensure_ascii=False) if outline else NO_OUTLINE)
