@@ -82,8 +82,24 @@ def _save(root: Path, data: dict) -> None:
     store.save(_path(root), data)
 
 
+def _heal(values: dict) -> dict:
+    """Replace a niche/audience that is another type's stock default with this type's own.
+
+    Adding a kids channel copies the kids niche into it; switching its type to business used to keep that text, so
+    topic suggestions stayed nursery rhymes. A stock default of a different type is never the owner's own text."""
+    t = channel_types.info(values.get("type"))
+    out = dict(values)
+    for key in ("niche", "audience"):
+        stock_other = {x[key] for k, x in channel_types.TYPES.items() if x is not t}
+        stock_other.add(DEFAULTS[key])
+        if out.get(key) in stock_other and out.get(key) != t[key]:
+            out[key] = t[key]
+    return out
+
+
 def _full(values: dict) -> dict:
-    return {**DEFAULTS, **_clean(values)}
+    full = {**DEFAULTS, **_clean(values)}
+    return _heal(full)
 
 
 def list_channels(root: Path) -> list[dict]:
@@ -132,7 +148,7 @@ def update(root: Path, channel_id: str | None = None, **values) -> dict:
     d = _load(root)
     cid = channel_id or d["active"]
     get(root, cid)
-    d["channels"][cid] = {**d["channels"][cid], **_clean(values)}
+    d["channels"][cid] = _heal({**_full(d["channels"][cid]), **_clean(values)})
     _save(root, d)
     return _full(d["channels"][cid])
 

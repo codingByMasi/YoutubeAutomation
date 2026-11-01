@@ -292,3 +292,9 @@ Music and effects were checked for level and clipping, not by ear: listen once a
 
 
 - 2026-11-01: Launchers (`run_app.bat`/`run_app.sh`) pre-write `~/.streamlit/credentials.toml` (empty email) so Streamlit's first-run email prompt never blocks; friendlier errors for Python, pip, winget/ffmpeg; `.env` created even without `.env.example`.
+
+## 2026-11-01 Fix: topics stuck on nursery rhymes
+- Cause: the Channels edit form resubmits the niche text; changing a kids channel to business kept the kids niche, so
+  suggestions followed it. Fix: a niche/audience that is another type's stock text is replaced by the channel type's own
+  (on save and on read, which also repairs saved channels). Business channels on the stock niche use the business subject list.
+- Topics page now shows the active channel, type and niche, and resets its seed when the channel changes.
