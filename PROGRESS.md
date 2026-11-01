@@ -334,6 +334,17 @@ Music and effects were checked for level and clipping, not by ear: listen once a
 - Setup page > Footage has a "Test my footage key" button (`doctor.test_footage_keys`). Tests: `tests/test_key_errors.py`.
 - Owner must: use `PIXABAY_API_KEY=yourkey` in `.env`, no quotes or spaces.
 
+## 2026-11-01 Growth playbook built into the gate
+- Research summary with sources: `docs/growth-playbook.md` (numbers are blog rules of thumb; only the July 2025 inauthentic-content policy is from YouTube).
+- Quality gate gained three dimensions (`studio/quality/growth.py`): `fit` (visuals match what the segment says: figures over stock,
+  date runs without timeline, cliche stock keywords, off-topic footage, stock share), `packaging` (title promise appears in the hook,
+  title checklist, >=3 titles / >=2 thumbnail texts, thumbnail <=4 words, series hint), `originality` (script/structure repeats the
+  channel's recent videos, missing `originality_note`). Kids skip fit/originality. Peers = last 10 scripted videos of the channel.
+- Shorts plan: 25-55 s windows, hook line cut to <=12 words, CTA + related video, posts staggered at +2/+9/+16 days.
+- `calendar.suggest_publish` (next free long slot at `publish_time`) added; not yet wired into the review screen.
+- `prompts/script.md` states the growth rules so Claude writes scripts that pass them.
+- Decisions: thresholds are tunable defaults (explainer stock max 60%, similarity 25%); new dimensions can raise block/warn on old videos.
+- Owner must: nothing to configure. Add a real viewpoint per script; disclose realistic synthetic voices/footage on upload; run title/thumbnail tests.
 ## 2026-11-01: plan preview before building
 - New `studio/plan_preview.py` and CLI `plan <video_id> [--draft]`: lists per segment the length, 3D/2D scene, chart type,
   stock search words and picture source, plus resolution, voice, music, captions, Blender and stock/photo availability,

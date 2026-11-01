@@ -84,7 +84,7 @@ def test_shorts_plan_picks_hook_first(make_ctx):
     ctx = make_ctx()
     v = scripted(ctx)
     plan = g.shorts_for(ctx, v.id)
-    assert plan and all(20 <= s["seconds"] <= 45 for s in plan)
+    assert plan and all(25 <= s["seconds"] <= 55 for s in plan)
     segs = [{"narration": f"Sentence {i}. More.", "est_seconds": 12, "chart_data": {} if i != 2 else {"x": 1},
              "beat": None, "chapter": "c"} for i in range(8)]
     assert shorts_plan.plan({"segments": segs})[0]["segments"][0] == 0
@@ -150,3 +150,79 @@ def test_grow_page_renders(root, monkeypatch):
     at = AppTest.from_file(str(Path(__file__).parent.parent / "app.py"), default_timeout=30).run()
     at.sidebar.radio[0].set_value("5. Grow the channel").run()
     assert not at.exception
+
+
+# ---------- growth checks (fit / packaging / originality / shorts / scheduling) ----------
+def _gpkg():
+    import copy
+    import json as _j
+    from pathlib import Path as _P
+    return copy.deepcopy(_j.loads((_P(__file__).parent.parent / "studio/samples/sample_script.json").read_text()))
+
+
+def test_fit_flags_figures_over_stock_and_generic_keywords():
+    from studio.quality import gate
+    p = _gpkg()
+    for seg in p["segments"]:
+        seg["visual_keywords"] = ["handshake", "city skyline"]
+        seg["visual"] = {"kind": "clip", "paths": ["x.mp4"]}
+        seg["chart_data"] = None
+    p["segments"][2]["narration"] = "Rent is $1,800, milk is $400 and labour is 2,500 a month."
+    r = gate.evaluate(p, "explainer")
+    texts = " ".join(i["text"] for i in r["issues"] if i["dimension"] == "fit")
+    assert "figures over stock" in texts and "generic stock" in texts and r["dimensions"]["fit"] < 70
+
+
+def test_fit_is_clean_when_charts_carry_numbers_and_skipped_for_kids():
+    from studio.quality import gate
+    p = _gpkg()
+    for seg in p["segments"]:
+        seg["visual"] = {"kind": "chart" if seg.get("chart_data") else "card", "paths": []}
+    assert gate.evaluate(p, "explainer")["dimensions"]["fit"] == 100
+    p["segments"][2]["narration"] = "x 1 2 3"
+    assert gate.evaluate(p, "kids")["dimensions"]["fit"] == 100
+
+
+def test_packaging_catches_title_not_in_hook_and_missing_variants():
+    from studio.quality import gate
+    p = _gpkg()
+    p["titles"] = [{"text": "Private Equity Leverage Buyouts Decoded", "is_pick": True}]
+    p["thumbnail_texts"] = ["one two three four five six"]
+    r = gate.evaluate(p, "explainer", in_series=False)
+    t = " ".join(i["text"] + " " + i["fix"] for i in r["issues"] if i["dimension"] == "packaging")
+    assert "promise" in t and "Test & Compare" in t and "over 4 words" in t and "not part of a series" in t
+    assert not [i for i in gate.evaluate(_gpkg(), "explainer")["issues"] if i["dimension"] == "packaging"]
+
+
+def test_originality_flags_copy_and_same_structure():
+    from studio.quality import gate
+    p = _gpkg()
+    r = gate.evaluate(p, "explainer", peers=[("video #1", _gpkg())])
+    assert any(i["severity"] == "critical" and "repeats" in i["text"] for i in r["issues"])
+    assert r["verdict"] == "block" or r["dimensions"]["originality"] < 60
+    other = _gpkg()
+    for seg in other["segments"]:
+        seg["narration"] = "Totally different words about another subject entirely " + seg["chapter"] * 2
+    r2 = gate.evaluate(p, "explainer", peers=[("video #2", other)])
+    assert any("Chapter structure" in i["text"] for i in r2["issues"])
+    p["originality_note"] = ""
+    assert any("originality_note" in i["text"] for i in gate.evaluate(p, "explainer")["issues"])
+
+
+def test_shorts_plan_has_short_hook_cta_and_staggered_days():
+    segs = [{"narration": "Word " * 20 + ". More.", "est_seconds": 14, "chart_data": None, "beat": None, "chapter": "c"}
+            for _ in range(10)]
+    out = shorts_plan.plan({"segments": segs}, long_video_title="Big video")
+    assert out and len(out[0]["hook_line"].split()) <= shorts_plan.HOOK_WORDS + 1
+    assert out[0]["related_video"] == "Big video" and "pinned comment" in out[0]["cta"]
+    assert [s["post_day_offset"] for s in out][:3] == [2, 9, 16][:len(out)]
+
+
+def test_suggest_publish_picks_next_free_long_slot():
+    from datetime import date
+
+    from studio.manage import calendar
+    first = calendar.suggest_publish(date(2026, 11, 2), [], "17:30")
+    assert first.weekday() in calendar.LONG_DAYS and first.hour == 17 and first.minute == 30
+    second = calendar.suggest_publish(date(2026, 11, 2), [first.date()])
+    assert second.date() > first.date() and calendar.suggest_publish(date(2026, 11, 2), [], "bad").hour == 16

@@ -13,7 +13,7 @@ import subprocess
 from pathlib import Path
 
 from studio.context import Ctx
-from studio.quality import profiles, rules
+from studio.quality import growth, profiles, rules
 from studio.stages.qa import CTA_WORDS, HOOK_TRIGGERS, TEASER, WEAK_OPENERS, segment_flags
 from studio.stages.script import banned_in, pacing_warnings, timeline, validate_package, validate_title
 from studio.stages.visuals import chart_gaps
@@ -206,12 +206,15 @@ def check_metadata(pkg: dict, t: dict, thumb: Path | None) -> list[dict]:
 
 
 def evaluate(pkg: dict, ctype: str = profiles.DEFAULT_TYPE, tuning: dict | None = None,
-             audio: dict | None = None, thumb: Path | None = None) -> dict:
+             audio: dict | None = None, thumb: Path | None = None, peers: list[tuple[str, dict]] | None = None,
+             in_series: bool | None = None) -> dict:
     """Score a package. Returns {score, verdict (pass|warn|block), dimensions, issues, channel_type, thresholds}."""
     t = profiles.thresholds(ctype, tuning)
     checks = {"script": check_script(pkg, t), "hook": check_hook(pkg, t), "pacing": check_pacing(pkg, t),
               "visuals": check_visuals(pkg, t), "audio": check_audio(pkg, t, audio),
-              "metadata": check_metadata(pkg, t, thumb)}
+              "metadata": check_metadata(pkg, t, thumb), "fit": growth.check_fit(pkg, t),
+              "packaging": growth.check_packaging(pkg, t, in_series),
+              "originality": growth.check_originality(pkg, t, peers)}
     dims, issues = {}, []
     for name, found in checks.items():
         dims[name] = max(0, 100 - sum(PENALTY[i["severity"]] for i in found))
@@ -232,9 +235,26 @@ def blocking_reasons(report: dict) -> list[str]:
             for i in ranked if i["severity"] != "minor"][:8]
 
 
+def _peers(ctx: Ctx, video_id: int, limit: int = 10) -> list[tuple[str, dict]]:
+    """The channel's other recent scripted videos, for the originality check. Unreadable ones are skipped."""
+    from studio import scope
+    from studio.stages.script import load_package
+    out = []
+    for v in sorted(scope.videos(ctx.session).all(), key=lambda v: -v.id):
+        if v.id == video_id:
+            continue
+        try:
+            out.append((f"video #{v.id}", load_package(ctx, v.id)))
+        except Exception:  # noqa: BLE001 - a video without a script just is not a peer
+            continue
+        if len(out) >= limit:
+            break
+    return out
+
+
 def check_video(ctx: Ctx, video_id: int, thumb: int = 1) -> dict:
     """Evaluate a video against its channel's type and learned rules; writes projects/<id>/gate.json."""
-    from studio.growth import channels
+    from studio.growth import channels, series
     from studio.stages.base import get_video
     from studio.stages.script import load_package
     get_video(ctx.session, video_id)
@@ -242,7 +262,8 @@ def check_video(ctx: Ctx, video_id: int, thumb: int = 1) -> dict:
     out = ctx.settings.project_dir(video_id)
     ctype = profiles.channel_type(channels.get(root))
     report = evaluate(load_package(ctx, video_id), ctype, rules.tuning(rules.load(root)),
-                      audio=measure_audio(out / "final.mp4"), thumb=out / "thumbs" / f"thumb_{thumb}.jpg")
+                      audio=measure_audio(out / "final.mp4"), thumb=out / "thumbs" / f"thumb_{thumb}.jpg",
+                      peers=_peers(ctx, video_id), in_series=series.position(root, video_id) is not None)
     report["video_id"] = video_id
     (out / "gate.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
     return report
