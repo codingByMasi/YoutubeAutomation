@@ -388,3 +388,16 @@ in `script.json`, and the generated YouTube description lists every source under
 - Pictures step collects assets in memory and writes them in one short transaction (no write lock during downloads/Blender).
 - `Ctx.close()`; the web app closes every context at the end of each rerun and rolls back sessions after failed steps.
 - "database is locked" gets a plain message (app and CLI subprocess output), plus tools to find/stop other Studio processes and clear stale journal files (`studio/util/dblock.py`, needs `psutil`: run `pip install -r requirements.txt`).
+
+## Slow 3D pictures step (2026-11-01)
+- Cause found on the owner's PC: video 3 was in `3d`/`mixed` style, so all 13 bar/pie charts became Blender scenes. Eevee on that PC
+  needs ~2.5 s per frame; a 20 s scene is 300 frames (~12 min), so the step needed ~2.5 h with no progress shown. It was working, not hung.
+- Fix (all videos): per-scene progress and time left (`projects/<id>/progress.json`, shown in the app and CLI), per-scene limit
+  `SCENE_3D_TIMEOUT` (default 600 s) and total 3D budget `SCENE_3D_TOTAL` (default 3600 s). Blender speed is measured; a scene that would
+  overrun is stopped early, re-tried shorter (min 6 s, the build loops the clip) or drawn in 2D. Finished identical scenes are reused on re-run
+  (resume). Cancel: `python -m studio.cli cancel <id>` or the app's Cancel button; the rest of the scenes are drawn in 2D.
+- Code: `studio/scenes/budget.py`, `studio/util/progress.py`, `provider.render_frames` (polling, timeout, kill), `scenes/stage.py`, `visuals.py`.
+- Tests: `tests/test_render_budget.py` (Blender replaced by tiny scripts). Not tested: the Streamlit buttons in a browser, real Blender.
+- Live progress panel (all long steps): voice, pictures, edit and thumbnails write `projects/<id>/progress.json` via `studio/util/progress.py`
+  (`tracking`/`Run`). The app shows a checklist (done / running now / waiting), items done and to go, percent, time left and a Cancel
+  button, refreshing every 3 s (`st.fragment`); `web.service.panel_model` builds it (tested). Works for every channel.

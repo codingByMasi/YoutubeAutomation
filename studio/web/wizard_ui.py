@@ -123,6 +123,35 @@ def _voice_picker(ctx, v) -> None:
     st.caption("Hear samples on the Setup page. Saved for this channel.")
 
 
+def _panel_body(m: dict) -> None:
+    """The checklist, counts, percent and time left (see service.panel_model)."""
+    icon = {"done": "✅", "now": "▶️", "waiting": "⬜"}
+    word = {"done": "done", "now": "running now", "waiting": "waiting"}
+    for i in m["items"]:
+        st.write(f"{icon[i['state']]} **{i['label']}** · {word[i['state']]}")
+    st.progress(min(max(m["step_fraction"], 0.0), 1.0), text=f"{m['headline']} ({round(m['step_fraction'] * 100)}%)")
+    st.caption(" · ".join(x for x in (m["counts"], m["eta"], f"running for {m['elapsed']}" if m.get("elapsed") else "")
+                          if x))
+    st.caption(f"Whole video: {round(m['overall'] * 100)}% of the steps done.")
+
+
+def _live_panel(ctx, v) -> None:
+    """Progress of a step that is already running, refreshed every 3 seconds, with the Cancel button."""
+    def body() -> None:
+        rec = svc.render_status(ctx, v.id)
+        if not rec:
+            st.success("The step finished. Reloading...")
+            st.rerun()
+            return
+        _panel_body(svc.panel_model(v.stage, rec))
+        if rec.get("stage") == "visuals" and st.button("⏹ Cancel 3D rendering (draw the rest in 2D)", key="wz_cancel"):
+            svc.cancel_render(ctx, v.id)
+            st.warning("Cancel requested. The current 3D scene stops in a few seconds.")
+
+    st.info("Working on your video. This panel refreshes by itself.")
+    st.fragment(run_every=3)(body)()
+
+
 def step_make(ctx, v, show, production_box=None) -> None:
     st.subheader("Step 3 · Make the video")
     nxt = svc.next_produce_stage(v)
@@ -142,12 +171,25 @@ def step_make(ctx, v, show, production_box=None) -> None:
     labels = [f"{'✅' if STAGES.index(v.stage) > STAGES.index(d) else '⬜'} {svc.STAGE_LABEL[s]}"
               for s, d in zip(svc.PRODUCE_STAGES, ["scripted", "voiced", "visuals_ready", "built"])]
     st.write("  →  ".join(labels))
-    if nxt and st.button("🎬 Make my video", type="primary", key="wz_make"):
+    running = svc.render_status(ctx, v.id)
+    if running:  # a step started earlier is still working (the page was refreshed); never start a second one
+        _live_panel(ctx, v)
+    if nxt and st.button("🎬 Make my video", type="primary", key="wz_make", disabled=bool(running)):
+        st.caption("To cancel slow 3D rendering, reload the page: the Cancel button appears with the live panel.")
         bar = st.progress(0.0)
+        box = st.empty()
         todo = svc.PRODUCE_STAGES[svc.PRODUCE_STAGES.index(nxt):]
+
+        def tick() -> None:
+            rec = svc.render_status(ctx, v.id)
+            if rec:
+                bar.progress(min(max(svc.panel_model(v.stage, rec)["overall"], 0.0), 1.0), text=svc.progress_text(rec))
+                with box.container():
+                    _panel_body(svc.panel_model(v.stage, rec))
+
         for n, name in enumerate(todo):
             bar.progress(n / len(todo), text=f"{svc.STAGE_LABEL[name]}... (this can take a few minutes)")
-            res = svc.run_stage_by_name(ctx, name, v.id, draft=draft)
+            res = svc.run_stage_by_name(ctx, name, v.id, draft=draft, on_tick=tick)
             if not res.ok:
                 show(res)
                 break

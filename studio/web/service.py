@@ -8,6 +8,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import zipfile
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
@@ -19,6 +20,7 @@ from studio.errors import LOCKED_HELP, InvalidAnswer, PendingLLMResponse, Studio
 from studio.llm import prompt_paths
 from studio.models import Idea, Title, Video
 from studio.stages.base import STAGES
+from studio.util import progress
 from studio.util.answer_json import normalize_answer
 
 # Settings that may come from Streamlit secrets or the Settings page (names match .env).
@@ -110,23 +112,96 @@ def outcome_from_process(returncode: int, output: str) -> Outcome:
     return Outcome(False, output, f"The step failed (exit code {returncode}).\n{tail}")
 
 
-def run_cli(root: Path, args: list[str], draft: bool = False) -> Outcome:
+def run_cli(root: Path, args: list[str], draft: bool = False, on_tick: Callable[[], None] | None = None) -> Outcome:
     """Run `python -m studio.cli <args>` in a child process.
 
     A crash or out-of-memory kill then ends only the child, so the web app stays up and shows an error.
+    `on_tick` is called about every 2 s while the child runs (the app uses it to show progress).
     """
     repo = Path(__file__).resolve().parents[2]
     env = {**os.environ, "STUDIO_HOME": str(root), "PYTHONPATH": str(repo)}
     if draft:
         env["STUDIO_DRAFT"] = "1"  # 720p, 24 fps, fastest encode
-    p = subprocess.run([sys.executable, "-m", "studio.cli", *args], cwd=repo, env=env,
-                       capture_output=True, text=True)
-    return outcome_from_process(p.returncode, (p.stdout or "") + (p.stderr or ""))
+    cmd = [sys.executable, "-m", "studio.cli", *args]
+    if on_tick is None:
+        p = subprocess.run(cmd, cwd=repo, env=env, capture_output=True, text=True)
+        return outcome_from_process(p.returncode, (p.stdout or "") + (p.stderr or ""))
+    with tempfile.TemporaryFile("w+", encoding="utf-8", errors="replace") as log:
+        proc = subprocess.Popen(cmd, cwd=repo, env=env, stdout=log, stderr=subprocess.STDOUT, text=True)
+        while True:
+            try:
+                proc.wait(timeout=2)
+                break
+            except subprocess.TimeoutExpired:
+                on_tick()
+        log.seek(0)
+        return outcome_from_process(proc.returncode, log.read())
 
 
-def run_stage_by_name(ctx: Ctx, name: str, video_id: int, force: bool = False, draft: bool = False) -> Outcome:
+def render_status(ctx: Ctx, video_id: int) -> dict | None:
+    """Live progress of a running step for this video (see studio.util.progress), or None when nothing runs."""
+    folder = ctx.settings.project_dir(video_id)
+    return progress.read(folder) if progress.is_active(folder) else None
+
+
+def progress_text(rec: dict) -> str:
+    """One line for the screen: 'Step: 3D scene 4 of 13 (segment 10, frame 120 of 300), about 1 h 20 min left'."""
+    text = rec.get("label", "Working")
+    if rec.get("detail"):
+        text += f" ({rec['detail']})"
+    if rec.get("eta_seconds"):
+        text += f", about {progress.fmt_duration(rec['eta_seconds'])} left"
+    return text
+
+
+def panel_model(video_stage: str, rec: dict | None) -> dict:
+    """What the progress panel shows: a checklist of the steps (done / now / waiting), the running step's counts,
+    the overall percent, and the time left for the running step.
+
+    `video_stage` is the video's finished stage; `rec` the live record from `render_status` (None: nothing runs).
+    """
+    needs = dict(zip(PRODUCE_STAGES, ["scripted", "voiced", "visuals_ready", "built"]))
+    items = []
+    for name in PRODUCE_STAGES:
+        cur = rec.get("stage") if rec else None
+        if STAGES.index(video_stage) > STAGES.index(needs[name]) or (
+                cur in PRODUCE_STAGES and PRODUCE_STAGES.index(name) < PRODUCE_STAGES.index(cur)):
+            state = "done"
+        elif rec and rec.get("stage") == name:
+            state = "now"
+        else:
+            state = "waiting"
+        items.append({"name": name, "label": STAGE_LABEL[name], "state": state})
+    total = rec.get("total") or 0 if rec else 0
+    frac = min(max((rec["done"] / total) if total else 0.0, 0.0), 1.0) if rec else 0.0
+    if rec and rec.get("frames"):  # inside a long item (a 3D scene): count its frames too
+        frac = min(1.0, (rec["done"] + rec.get("frame", 0) / rec["frames"]) / total) if total else frac
+    n_done = sum(i["state"] == "done" for i in items)
+    out = {"items": items, "step_fraction": frac, "overall": (n_done + (frac if rec else 0)) / len(items),
+           "running": bool(rec), "headline": "", "counts": "", "eta": ""}
+    if rec:
+        nxt = rec.get("noun", "items")
+        out["headline"] = rec.get("label", "Working")
+        out["counts"] = f"{rec.get('done', 0)} of {total} {nxt} done, {max(total - rec.get('done', 0), 0)} to go"
+        if rec.get("detail"):
+            out["counts"] += f" · now: {rec['detail']}"
+        if rec.get("eta_seconds"):
+            out["eta"] = f"about {progress.fmt_duration(rec['eta_seconds'])} left for this step"
+        if rec.get("elapsed_seconds"):
+            out["elapsed"] = progress.fmt_duration(rec["elapsed_seconds"])
+    return out
+
+
+def cancel_render(ctx: Ctx, video_id: int) -> None:
+    """Ask the running step to stop slow 3D rendering; the remaining scenes are drawn in 2D."""
+    progress.request_cancel(ctx.settings.project_dir(video_id))
+
+
+def run_stage_by_name(ctx: Ctx, name: str, video_id: int, force: bool = False, draft: bool = False,
+                      on_tick: Callable[[], None] | None = None) -> Outcome:
     """Run one production stage (voice, visuals, build, thumbnail, shorts) in a child process."""
-    return run_cli(ctx.settings.root, [name, str(video_id)] + (["--force"] if force else []), draft=draft)
+    return run_cli(ctx.settings.root, [name, str(video_id)] + (["--force"] if force else []), draft=draft,
+                   on_tick=on_tick)
 
 
 def log_tail(ctx: Ctx, lines: int = 80) -> str:

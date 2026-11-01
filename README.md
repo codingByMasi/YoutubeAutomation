@@ -123,6 +123,13 @@ Windows setup (one time):
 Scenes are 24 fps, 1280x720, flat colours (no image textures) and use the same script, narration and captions as 2D.
 Blender is used for the pictures only; the Pexels/Pixabay stages and the main (non-kids) pipeline are unchanged.
 
+### If the pictures step takes a long time
+3D scenes render frame by frame on your PC (often 1 to 3 seconds a frame; a 20 s scene is about 300 frames). The app shows
+"3D scene 4 of 13 ... about 1 h 20 min left" while it works. Limits keep it from running for hours: `SCENE_3D_TIMEOUT`
+(seconds per scene, default 600) and `SCENE_3D_TOTAL` (seconds for all 3D scenes, default 3600) in `.env`. A scene that
+would be too slow is shortened or drawn in 2D, and finished scenes are reused if you run the step again. To stop early,
+press **Cancel 3D rendering** in the app or run `python -m studio.cli cancel <video id>`: the rest is drawn in 2D.
+
 ### 3D for narrated channels (business, history) on Windows
 If a finished video looks like moving photos and flat charts, 3D was not used. The app now says so: on **3. Make the video**
 the "Look and sound for this video" box shows whether the video would be 3D or 2D and why (Blender missing, scene style 2D,
