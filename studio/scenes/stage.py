@@ -12,7 +12,7 @@ from studio.stages.timing import split_segment
 
 
 def draw(pl: dict, seg: dict, pos: int, out: Path, charts: Path, blender: render3d.Blender3D, footnote: str,
-         duration: float) -> dict:
+         duration: float, audio: Path | None = None) -> dict:
     """Render the planned scene for segment `pos`: 3D clips go in `out`, 2D step frames in `charts`.
 
     Returns {"mode": "2d"|"3d", "frames": [...], "clip": path|None, "fell_back": bool, "kind": kind}. A 3D scene
@@ -29,7 +29,7 @@ def draw(pl: dict, seg: dict, pos: int, out: Path, charts: Path, blender: render
             replaces_chart = scene["kind"] == "chart3d"
             secs = duration if replaces_chart or not seg.get("chart_data") else split_segment(duration, True)[0]
             try:
-                render3d.render(exe, scene, secs, footnote, clip_out, out / f"{stem}_frames")
+                render3d.render(exe, scene, secs, footnote, clip_out, out / f"{stem}_frames", audio)
                 return {"mode": "3d", "frames": [], "clip": clip_out, "fell_back": False, "kind": scene["kind"],
                         "replaces_chart": replaces_chart}
             except StudioError as exc:

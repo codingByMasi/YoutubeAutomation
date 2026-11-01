@@ -43,6 +43,7 @@ DEFAULTS: dict = {
     # identity (see studio/growth/identity.py): positioning, host character, look, playlists
     "niche_statement": "",  # one sentence: who it is for, what they get, what makes it different
     "tagline": "",
+    "host_scenes": "auto",  # "auto": the mascot acts out some segments as a 3D host scene (3d/mixed style); "off"
     "mascot": {},  # name, kind, color, look, personality, catchphrase, intro_line, outro_line, on_thumbnail
     "theme": {},  # bg, accent, accent2, text, heading_font, intro_style, outro_style, thumbnail_style, motion
     "playlists": [],  # name, description, title_pattern, topics, youtube_id

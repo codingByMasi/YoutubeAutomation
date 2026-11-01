@@ -35,9 +35,13 @@ def size_for(profile) -> tuple[int, int]:
     return min(profile.w, MAX_SIZE[0]), min(profile.h, MAX_SIZE[1])
 
 
-def scene_config(scene: dict, seconds: float, size: tuple[int, int], footnote: str = "") -> dict:
+def scene_config(scene: dict, seconds: float, size: tuple[int, int], footnote: str = "",
+                 mouth: list | None = None) -> dict:
     """The JSON handed to Blender (see scene_script.build_scene) with the current channel colours."""
-    return {"kind": "scene", "scene": scene["kind"], "title": scene.get("title", ""), "items": scene["items"],
+    host = {"action": scene.get("action", "present"), "set": scene.get("set", "studio"),
+            "props": scene.get("props", []), "mascot": scene.get("mascot") or {}, "mouth": mouth or []}
+    return {**(host if scene["kind"] == "host" else {}),
+            "kind": "scene", "scene": scene["kind"], "title": scene.get("title", ""), "items": scene.get("items", []),
             "footnote": footnote, "bg": brand.BG, "fg": brand.FG, "muted": brand.MUTED, "accent": brand.ACCENT,
             "panel": "#1E293B" if brand.BG.lower() == "#0f172a" else brand.BG, "series": list(brand.SERIES),
             "duration": min(max(seconds, 2.0), MAX_SECONDS), "fps": FPS_3D, "width": size[0], "height": size[1]}
@@ -49,10 +53,17 @@ def encode_cmd(frames_dir: Path, out: Path) -> list[str]:
             "-r", "30", "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "20", str(out)]
 
 
-def render(exe: Path, scene: dict, seconds: float, footnote: str, out: Path, work: Path) -> Path:
-    """Render one scene to `out` (MP4, no audio) through Blender."""
+def render(exe: Path, scene: dict, seconds: float, footnote: str, out: Path, work: Path,
+           audio: Path | None = None) -> Path:
+    """Render one scene to `out` (MP4, no audio) through Blender. A host scene's mouth follows `audio` if given."""
     out.parent.mkdir(parents=True, exist_ok=True)
-    cfg = scene_config(scene, seconds, size_for(ff.profile()), footnote)
+    mouth = None
+    if scene["kind"] == "host":
+        from studio.scenes import host
+
+        secs = min(max(seconds, 2.0), MAX_SECONDS)
+        mouth = host.envelope(audio, secs, FPS_3D)
+    cfg = scene_config(scene, seconds, size_for(ff.profile()), footnote, mouth)
     frames = provider.render_frames(exe, cfg, work)
     ff.run(encode_cmd(frames[0].parent, out), "encoding the 3D scene")
     return out

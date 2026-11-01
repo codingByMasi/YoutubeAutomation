@@ -173,7 +173,7 @@ def test_every_artifact_shape_draws(tmp_path, shape):
 # ---- 3D with and without Blender --------------------------------------------------------------------------------
 
 def _fake_render(calls):
-    def fake(exe, scene, seconds, footnote, out, work):
+    def fake(exe, scene, seconds, footnote, out, work, audio=None):
         calls.append((scene["kind"], round(seconds, 1), footnote))
         out.write_bytes(b"mp4")
         return out
