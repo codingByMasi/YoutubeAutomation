@@ -30,6 +30,7 @@ DEFAULT_FLAGS: dict[str, bool] = {
     "footage_reuse_ledger": True,
     "mood_music": True,          # per-chapter mood, stingers, drop before the twist
     "title_judge": True,         # deterministic title ranking + promise check
+    "cast_scenes": False,        # history: scene/cast/speech keys per segment are validated (studio/history/cast.py)
     "feedback_loop": True,       # auto learn after analytics and feed top/bottom hooks into prompts
 }
 
@@ -70,23 +71,52 @@ PACKS: dict[str, dict] = {
         "music_default": "neutral", "extra_banned": [],
     },
     "history": {
-        "label": "History / story", "gate_type": "story", "pack": "history",
-        "audience": "Curious learners 16-55 who like cinematic stories about the past",
+        "label": "History / animated storytelling", "gate_type": "story", "pack": "history",
+        "audience": "Curious learners 16-55 who like clear, funny or gripping animated stories about the past",
         "region": "global",
-        "beat_sheet": ["cold open in second person: you are there", "the world before: calm", "the first crack",
-                       "escalation: dread builds slowly", "sudden reveal", "the cost: human scale",
-                       "chapter-end cliffhanger (every chapter)", "aftermath", "what it still means today"],
-        "hook_formulas": ["cold_open", "hidden_answer", "contradiction", "before_after", "challenge_guess",
+        # tone: "blend" = dramatic story with light comic asides; "comedic" or "dramatic" push one way.
+        "tone": "blend",
+        "beat_sheet": ["cold open: one scene that states the problem or promise (20 seconds at most)",
+                       "title card, then rewind to the person or cause that explains it",
+                       "chapter 1: who wants what, and the first decision with a cost",
+                       "info beat: how the thing worked, as a short numbered diagram",
+                       "chapter 2: it goes wrong; a reversal or a betrayal",
+                       "a cast scene: 2-4 spoken lines that show the stakes",
+                       "chapter-end turn (every chapter ends on a turn the next one answers)",
+                       "the cost: one named person after any big number",
+                       "ending: land the beat, name the next threat, point to the next part"],
+        "hook_formulas": ["scene_cold_open", "birth_of_a_legend", "absurd_summary", "rewind_to_the_cause",
+                          "cold_open", "hidden_answer", "contradiction", "before_after", "challenge_guess",
                           "villain_system"],
-        "min_minutes": 8, "max_minutes": 15, "shot_interval": (5, 8), "sentence_max_words": 20,
-        "loop_distance": (30, 180), "min_loops_first_60s": 2, "analogy_every_seconds": 150,
+        "min_minutes": 8, "max_minutes": 15, "shot_interval": (3, 6), "sentence_max_words": 20,
+        "wps": 2.6, "loop_distance": (30, 180), "min_loops_first_60s": 2, "analogy_every_seconds": 150,
+        "chapter_seconds": (60, 120), "max_explain_seconds": 40, "map_every_seconds": (45, 60),
+        "cast": True,
+        "depiction": {
+            "rules": [
+                "Original characters only: the recurring cast plus new figures built with the same body system.",
+                "Every historical figure keeps one faction colour, one letter badge, one headwear and one prop "
+                "for the whole video, so viewers can tell similar figures apart.",
+                "Stylised, never a real likeness; no photographs of living people; archive images only for "
+                "things (places, documents, objects) and at most one per chapter.",
+                "Atrocity, death and torture are never shown: cut to a map, a silhouette or the host at the "
+                "lectern and state the human cost in one plain sentence.",
+                "Invented dialogue is for tone only. Real quotes go in the narration with a source; disputed "
+                "claims are staged with a question mark above the speaker.",
+                "Anachronism is allowed in the narrator's tone and skit jokes, never in a stated fact, date or "
+                "number.",
+            ],
+        },
         "compliance": ["Fact accuracy: dates and numbers carry fact ids; mark disputed points as disputed.",
                        "Demonetization-safe wording for graphic events: describe consequences, not gore; "
                        "no graphic violence detail, no slurs, no glorifying perpetrators.",
+                       "Learn structure and style from references only: never reuse another creator's jokes, "
+                       "scripts, characters or art.",
                        "Second-person POV is a device, never a claim that the viewer did something real."],
-        "ending_style": "land the emotional beat, connect to today, tease the next story",
+        "ending_style": "land the emotional beat, name the next threat, point to the next part",
         "needs_disclaimer": False, "number_first_hooks": False, "kids": False,
         "music_default": "tense", "drop_before_twist": True,
+        "flag_overrides": {"cast_scenes": True},
         "extra_banned": ["little did they know", "and the rest is history", "history would never be the same"],
     },
     "kids": {

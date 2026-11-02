@@ -124,4 +124,7 @@ def profile_problems(pkg: dict, profile: dict) -> list[str]:
         out += wordcount_problems(pkg, profile)
     if enabled(profile, "sentence_rules"):
         out += sentence_problems(pkg, profile) + banned_problems(pkg, profile) + readability_problems(pkg, profile)
+    if enabled(profile, "cast_scenes"):
+        from studio.history import cast
+        out += cast.scene_problems(pkg, profile)
     return out

@@ -128,3 +128,12 @@ No new key is required. `LLM_CRITIC_PROVIDER` (optional, uses your API key and b
 - Heavy tools are detect-and-fallback stubs: Manim templates, ComfyUI workflow, open_clip image scoring, WhisperX.
 - Kids song videos (`kids script/build/sing`) keep their own pipeline; they share the banned/safety lists only.
 - Tests that render full 8-15 minute videos are opt-in (`STUDIO_SLOW_TESTS=1`, about 2 minutes each).
+
+## History channel: animated storytelling profile (2026-11-02)
+- Analysis of three reference videos (structure, pacing, visuals, sound; style only): `docs/history-style-report.md`.
+- `PACKS["history"]` now describes animated storytelling: cold open, rewind, 60-120 s chapters ending on a turn, an
+  info beat per chapter, shots every 3-6 s, 2.6 words per second, four new hook formulas, `tone`, `cast` and
+  `depiction` keys. Test expectation for history `shot_interval` is now (3, 6).
+- `studio/history/cast.py`: six original recurring characters, a figure builder for historical figures (sprite
+  contract of `studio/kids/sprites.py`), scene types and `scene_problems`; flag `cast_scenes` (on for history only).
+- `{cast_block}` and `{tone}` placeholders in the history prompts; docs in `docs/history-cast-system.md`.
