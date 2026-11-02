@@ -69,6 +69,24 @@ def _rollback_ctxs(args: tuple, kwargs: dict) -> None:
             a.session.rollback()
 
 
+def _root_of(args: tuple, kwargs: dict):
+    for a in (*args, *kwargs.values()):
+        s = getattr(a, "settings", None)
+        if s is not None and getattr(s, "root", None) is not None:
+            return s.root
+    return None
+
+
+def _log_issue(args: tuple, kwargs: dict, exc: BaseException, fn: Callable) -> None:
+    try:
+        from studio import health
+        root = _root_of(args, kwargs)
+        if root is not None:
+            health.record(root, getattr(fn, "__module__", "step").rsplit(".", 1)[-1], exc)
+    except Exception:  # noqa: BLE001 - logging a problem must never hide the problem
+        pass
+
+
 def capture(fn: Callable[..., object], *args, **kwargs) -> Outcome:
     """Run a stage, capturing everything it prints. StudioErrors become readable messages."""
     out, err = io.StringIO(), io.StringIO()
@@ -81,9 +99,11 @@ def capture(fn: Callable[..., object], *args, **kwargs) -> Outcome:
             return Outcome(False, out.getvalue() + err.getvalue(), str(exc), problems=list(exc.problems))
         except StudioError as exc:
             _rollback_ctxs(args, kwargs)
+            _log_issue(args, kwargs, exc, fn)
             return Outcome(False, out.getvalue() + err.getvalue(), str(exc))
         except Exception as exc:  # noqa: BLE001 - the web app must show a message, never a traceback
             _rollback_ctxs(args, kwargs)  # a failed flush must not poison the shared session
+            _log_issue(args, kwargs, exc, fn)
             if is_locked_error(exc):
                 return Outcome(False, out.getvalue() + err.getvalue(), LOCKED_HELP)
             return Outcome(False, out.getvalue() + err.getvalue(),
@@ -290,7 +310,8 @@ def rejected_answer(ctx: Ctx, video_id: int, task: str = "script") -> str:
     return f.read_text(encoding="utf-8") if f.exists() else ""
 
 
-_TASK_NAME = {"script": "script", "outline": "story outline", "critique": "script review and rewrite"}
+_TASK_NAME = {"script": "script", "outline": "story outline", "critique": "script review and rewrite",
+              "story_plan": "story plan (facts, outline, hooks)", "story_review": "story review and rewrite"}
 
 
 def _with_summary(res: Outcome, ctx: Ctx, video_id: int, task: str) -> Outcome:
@@ -333,6 +354,10 @@ def submit_task(ctx: Ctx, video_id: int, task: str, pasted: str, fn: Callable[..
     except StudioError as exc:
         return Outcome(False, "", str(exc))
     res = capture(fn, ctx, *args)
+    if res.pending:  # story engine: this answer was good and the NEXT request is now waiting
+        res = Outcome(True, res.log, summary=f"Saved your {_TASK_NAME.get(task, task)} answer. "
+                      "The next request is ready below.")
+        return res
     return _with_summary(res if res.ok else _reject(rf, res), ctx, video_id, task)
 
 

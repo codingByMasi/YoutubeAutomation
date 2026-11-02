@@ -161,6 +161,17 @@ def run(ctx: Ctx, days: int = 28, today: date | None = None) -> Path:
     waiting = [i.topic for i in scope.ideas(s).filter_by(status="approved").all()
                if not s.query(Video).filter(Video.idea_id == i.id, Video.youtube_video_id.isnot(None)).first()]
     report = build_report(rows, waiting, days)
+    try:  # learn automatically from this report's data (mock curves stay advisory), then add the heatmap
+        from studio.quality import feedback
+        from studio.story import feedback_loop
+        if ya is not None:
+            feedback.learn(ctx, feedback.fetch_live(ctx, ya, days, today))
+        report += "\n".join(feedback_loop.heatmap_lines(ctx.settings.root)) + "\n"
+    except Exception as exc:  # noqa: BLE001 - the report itself must still be written
+        from studio import health
+        from studio.errors import StudioError
+        if not isinstance(exc, StudioError):
+            health.record(ctx.settings.root, "feedback (auto learn)", exc)
     tag = "" if scope.channel_of(s) == "default" else f"_{scope.channel_of(s)}"
     out = ctx.settings.root / "reports" / f"analytics{tag}_{(today or date.today()).isoformat()}.md"
     out.parent.mkdir(exist_ok=True)

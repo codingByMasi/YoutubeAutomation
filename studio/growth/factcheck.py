@@ -56,9 +56,33 @@ def toggle(project_dir: Path, item_id: str, value: bool) -> None:
     store.save(store.video_file(project_dir, "factcheck"), {"checked": sorted(ticked)})
 
 
+def auto_done(project_dir: Path, pkg: dict) -> set[str]:
+    """Items the code already proved from facts.json: verified source pages, figures that trace to verified facts."""
+    from studio.story import facts as fm
+    facts = fm.load_facts(project_dir)
+    if not facts:
+        return set()
+    good = {str(f["id"]): f for f in facts if f.get("status") in ("verified", "manual")}
+    urls = {f.get("source_url") for f in good.values()}
+    done = {f"src:{s.get('id')}" for s in pkg.get("sources", []) if s.get("url_or_note") in urls}
+    for i, seg in enumerate(pkg.get("segments", [])):
+        figs = [v for fid in seg.get("fact_ids") or [] if fid in good and (v := fm.to_number(good[fid].get("figure"))) is not None]  # noqa: E501
+        for sent in re.split(r"(?<=[.!?])\s+", seg.get("narration", "")):
+            if FIGURE.search(sent):
+                nums = fm.narration_numbers(sent)
+                if nums and all(any(fm.numbers_match(val, g) for g in figs) for _, val in nums):
+                    done.add(f"fig:{i}:{hashlib.md5(sent.encode()).hexdigest()[:8]}")
+    if fm.trace_problems(pkg, facts) == [] and all(
+            f.get("status") in ("verified", "manual") or f.get("is_estimate") for f in facts):
+        done.add("std:charts")
+    return done
+
+
 def status(project_dir: Path, pkg: dict) -> dict:
-    """{items, checked, remaining, problems, passed}. Passed means every item ticked and no auto problems."""
-    items, done = build_items(pkg), set(load(project_dir)["checked"])
+    """{items, checked, remaining, problems, passed}. Passed means every item ticked and no auto problems.
+
+    Items proved by the fact ledger (verified source, figure traced to a verified fact) are ticked automatically."""
+    items, done = build_items(pkg), set(load(project_dir)["checked"]) | auto_done(project_dir, pkg)
     remaining = [i for i in items if i["id"] not in done]
     problems = auto_problems(pkg)
     return {"items": items, "checked": done, "remaining": remaining, "problems": problems,

@@ -190,6 +190,12 @@ def learn(ctx: Ctx, records: list[dict], apply_mock: bool = False, now: datetime
             "updated": (now or datetime.now(UTC)).isoformat(timespec="seconds"), "evidence": feats,
             "applied_mock": bool(apply_mock and source == "mock"), **derive(feats, ctype, source)}
     rules.save(root, data)
+    try:  # story metrics only ever come from real curves (mock records are skipped inside)
+        from studio.story import feedback_loop
+        feedback_loop.record_metrics(ctx, records, feats)
+    except Exception as exc:  # noqa: BLE001 - extra learning must never break `feedback learn`
+        from studio import health
+        health.record(root, "feedback (story metrics)", exc)
     return data
 
 

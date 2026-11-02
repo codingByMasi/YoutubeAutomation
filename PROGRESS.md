@@ -398,3 +398,17 @@ in `script.json`, and the generated YouTube description lists every source under
 - Decisions: the mouth is loudness-driven (no phoneme lip-sync); no real logos (generic labelled blocks); 2D fallback
   shows the mascot picture. Owner must choose the default character per channel (`channels identity --file`).
 - Tests: `tests/test_host.py`; the bpy smoke test runs only where `pip install bpy` is available.
+## 2026-11-02: story quality and retention upgrade (phases 1-6)
+- Status: done. Details, flags and decisions: `docs/CHANGELOG.md`.
+- New: `studio/story/` (profile, facts, loops, hooks, ledger, engine, narration, mood, safety, titles, feedback loop),
+  `studio/health.py` (issue log + fix buttons), TTS fallback chain, prompt packs under `studio/prompts/<pack>/`.
+- Owner must: `pip install -r requirements.txt` (pydantic, faster-whisper, requests now required). Optional extras:
+  `requirements-optional.txt`. First real video: `python -m studio.cli script <idea_id> --auto`, answer each prompt file
+  (story_plan, script, story_review), re-run the same command, then `voice`, `visuals`, `build`, `gate`.
+- Tests: `tests/test_story_units.py`, `tests/test_story_engine.py` (fake LLM in `tests/fake_llm.py`), opt-in `tests/test_dry_run.py`.
+
+## 2026-11-02: history channel profile from reference videos
+Status: done (profile, prompts, cast module, tests). Not done: a 2D history scene renderer that draws the cast
+(see docs/history-cast-system.md). Decisions: history pack changed from dread/second-person to animated storytelling
+(tone `blend`); loop distance left at 30-180 s; no sponsor slots; cast names are placeholders for the owner to rename.
+Owner must configure: nothing; optionally set `story.tone` (`blend`, `comedic`, `dramatic`) on the history channel.

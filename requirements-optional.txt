@@ -1,0 +1,29 @@
+# Optional tools. Every one has a built-in fallback: the studio never crashes when one is missing.
+# Install with:  pip install -r requirements-optional.txt   (or one line, e.g. pip install rapidfuzz)
+
+# Fact checking and writing checks
+trafilatura>=1.8        # cleaner page text when verifying facts (fallback: built-in tag stripper)
+rapidfuzz>=3.6          # fuzzy quote matching (fallback: word-coverage match)
+textstat>=0.7           # reading-grade check (fallback: built-in Flesch-Kincaid)
+sentence-transformers>=2.7   # semantic similarity for originality + stock relevance (fallback: 5-gram / tag overlap)
+
+# Narration (order: Kokoro, Edge, Piper; set TTS_ORDER in .env)
+kokoro>=0.9             # CPU voice; needs soundfile
+soundfile>=0.12
+piper-tts>=1.2          # offline voice; also set PIPER_MODEL=<path to .onnx voice>
+whisperx>=3.1           # alternative forced alignment (faster-whisper is already required)
+
+# Visuals and audio
+open-clip-torch>=2.24   # image/text relevance ranking for stock candidates (flag: semantic_visuals)
+manim>=0.18             # animated timelines/flows/counters instead of static cards (fallback: matplotlib)
+pyloudnorm>=0.1         # loudness measurement fallback when ffmpeg ebur128 is unavailable
+diffusers>=0.27         # AI_IMAGE_PROVIDER=diffusers (needs a GPU; off by default)
+
+# Safety screening (kids and history)
+detoxify>=0.5           # text toxicity check (fallback: keyword list)
+nudenet>=3.0            # NSFW frame check (skipped when not installed)
+
+# LLM API providers (only if you set LLM_CRITIC_PROVIDER or LLM_PROVIDER)
+# anthropic>=0.40
+# openai>=1.40
+# google-genai>=1.0
