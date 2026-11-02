@@ -157,6 +157,31 @@ PACKS: dict[str, dict] = {
 }
 
 
+# One-line length presets for a channel's `story` override, e.g. `channels edit --story '{"preset": "short60"}'`.
+# short60: a native ~60 s video (not a cut-down long video): fewer, shorter beats and two open loops.
+PRESETS: dict[str, dict] = {
+    "short60": {"min_minutes": 0.8, "max_minutes": 1.4, "min_beats": 5, "max_beats": 10, "beat_seconds": (4, 20),
+                "min_loops": 2, "min_loops_first_60s": 1, "loop_distance": (8, 40), "fact_count": "4-6",
+                "short_form": True, "chapter_seconds": (15, 30), "map_every_seconds": (15, 25)},
+}
+
+
+def short_form_note(prof: dict) -> str:
+    """Extra prompt text for short-form profiles ('' for normal ones); it overrides the long-video numbers above."""
+    if not prof.get("short_form"):
+        return ""
+    lo, hi = prof["beat_seconds"]
+    return (f"\n\n# SHORT FORM OVERRIDE (this wins over any length, beat or fact count written above)\n"
+            f"The whole video is {prof['min_minutes'] * 60:.0f}-{prof['max_minutes'] * 60:.0f} seconds of narration "
+            f"(about {int(prof['min_minutes'] * 60 * prof['wps'])}-"
+            f"{int(prof['max_minutes'] * 60 * prof['wps'])} words). "
+            f"Use {prof['min_beats']}-{prof['max_beats']} beats of {lo:g}-{hi:g} seconds each (beat 1 is the hook, at "
+            f"most 8 seconds), {prof['fact_count']} facts, {prof['min_loops']} open loops with the first planted "
+            f"inside "
+            f"the first {prof['loop_distance'][0] + 10:g} seconds, and ONE chapter turn. Segments are "
+            f"{lo:g}-{hi:g} seconds. Keep every fact exact; cut context before you cut a source.\n")
+
+
 def pack_name(channel_type: str | None) -> str:
     """Prompt-pack name for a channel type (unknown types fall back to 'general')."""
     return PACK_FOR_TYPE.get((channel_type or "business").strip().lower(), "general")
@@ -172,6 +197,11 @@ def get(pack: str, overrides: dict | None = None) -> dict:
     flags = dict(DEFAULT_FLAGS)
     flags.update(pk.get("flag_overrides") or {})
     ov = copy.deepcopy(overrides or {})
+    preset = ov.pop("preset", None)
+    if preset:
+        if preset not in PRESETS:
+            raise ValueError(f"story preset {preset!r} not in {sorted(PRESETS)}")
+        ov = {**copy.deepcopy(PRESETS[preset]), **ov}
     flags.update({k: bool(v) for k, v in (ov.pop("flags", None) or {}).items() if k in DEFAULT_FLAGS})
     for k, v in ov.items():
         if isinstance(v, dict) and isinstance(base.get(k), dict):

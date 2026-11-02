@@ -176,12 +176,18 @@ def run(ctx: Ctx, video_id: int, force: bool = False) -> list[Path]:
         at = (spans[idx][0] + 1.0) if idx is not None else spans[-1][1] / 2
         clean = Path(pkg.get("build", {}).get("clean") or ctx.settings.project_dir(video_id) / "clean.mp4")
         frame = grab_frame(clean, at, out / "frame.png") if clean.exists() else None
-        images = [layout_split(texts[0], frame, assets), layout_fullbleed(texts[1], frame, assets),
-                  layout_number(texts[2], headline_number(pkg), assets)]
         from studio.growth import channels, identity
-        prof = channels.get(ctx.settings.root)  # the channel's mascot appears in a corner, reacting differently
-        images = [identity.paste_mascot(img, prof, size, "tr", mood)
-                  for img, size, mood in zip(images, (150, 260, 200), ("happy", "surprised", "thinking"))]
+        from studio.story import profile as sprofile
+        prof = channels.get(ctx.settings.root)
+        if sprofile.enabled(sprofile.for_channel(ctx.settings.root), "cast_scenes"):
+            from studio.history import thumb as cast_thumb  # cast characters over a dramatic backdrop
+            images = cast_thumb.make(pkg, texts, out)
+        else:
+            images = [layout_split(texts[0], frame, assets), layout_fullbleed(texts[1], frame, assets),
+                      layout_number(texts[2], headline_number(pkg), assets)]
+            # the channel's mascot appears in a corner, reacting differently
+            images = [identity.paste_mascot(img, prof, size, "tr", mood)
+                      for img, size, mood in zip(images, (150, 260, 200), ("happy", "surprised", "thinking"))]
         for i, img in enumerate(images, 1):
             p = save_under_limit(_overlay(img, assets), out / f"thumb_{i}.jpg")
             problems = validate_thumb(p)

@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <title>benny</title>
+  <ellipse cx="200" cy="372" rx="110" ry="14" fill="#000" opacity="0.12"/>
+  <circle cx="122" cy="96" r="38" fill="#9a6234"/><circle cx="278" cy="96" r="38" fill="#9a6234"/>
+  <circle cx="122" cy="98" r="20" fill="#e8c99a"/><circle cx="278" cy="98" r="20" fill="#e8c99a"/>
+  <ellipse cx="200" cy="278" rx="112" ry="92" fill="#9a6234"/>
+  <ellipse cx="200" cy="292" rx="72" ry="62" fill="#e8c99a"/>
+  <path d="M120 300 Q200 380 280 300 L286 368 Q200 384 114 368 Z" fill="#3b6fd1"/><rect x="132" y="236" width="22" height="80" fill="#3b6fd1" transform="rotate(-8 143 276)"/><rect x="246" y="236" width="22" height="80" fill="#3b6fd1" transform="rotate(8 257 276)"/>
+  <circle cx="143" cy="262" r="8" fill="#f2c200"/><circle cx="257" cy="262" r="8" fill="#f2c200"/>
+  <circle cx="200" cy="165" r="95" fill="#9a6234"/>
+  <ellipse cx="200" cy="196" rx="56" ry="44" fill="#e8c99a"/>
+  <ellipse cx="200" cy="182" rx="17" ry="12" fill="#3a2418"/>
+  <circle cx="132" cy="190" r="17" fill="#ff9eb5" opacity="0.7"/>
+  <circle cx="268" cy="190" r="17" fill="#ff9eb5" opacity="0.7"/>
+  <g id="eyes-open">
+    <circle cx="163" cy="155" r="19" fill="#fff"/><circle cx="237" cy="155" r="19" fill="#fff"/>
+    <circle cx="167" cy="157" r="11" fill="#2b2b3d"/><circle cx="233" cy="157" r="11" fill="#2b2b3d"/>
+    <circle cx="171" cy="152" r="4" fill="#fff"/><circle cx="237" cy="152" r="4" fill="#fff"/>
+  </g>
+  <g id="eyes-closed">
+    <path d="M145 158 Q163 172 181 158" stroke="#2b2b3d" stroke-width="7" fill="none" stroke-linecap="round"/>
+    <path d="M219 158 Q237 172 255 158" stroke="#2b2b3d" stroke-width="7" fill="none" stroke-linecap="round"/>
+  </g>
+  <g id="mouth-closed"><path d="M172 212 Q200 236 228 212" stroke="#2b2b3d" stroke-width="7" fill="none" stroke-linecap="round"/></g>
+  <g id="mouth-open"><path d="M170 208 Q200 260 230 208 Z" fill="#2b2b3d"/><ellipse cx="200" cy="230" rx="14" ry="8" fill="#ff7a8a"/></g>
+</svg>

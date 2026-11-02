@@ -121,6 +121,12 @@ def draw_character(d: ImageDraw.ImageDraw, name: str, cx: float, cy: float, s: f
             _ell(d, cx + sx * h * 0.42, cy - h * 0.62, h * 0.18, h * 0.2, main)
         _ell(d, cx, cy - h * 0.2, h * 0.6, h * 0.55, main)
         _face(d, cx, cy - h * 0.2, h * 1.1)
+    elif name == "puddle":  # a flat blue puddle with ripples and a shine, for counting songs
+        _ell(d, cx, cy + h * 0.55, h * 0.78, h * 0.3, (70, 150, 230), outline=(40, 100, 190))
+        _ell(d, cx, cy + h * 0.55, h * 0.5, h * 0.19, (120, 190, 250))
+        d.arc([cx - h * 0.4, cy + h * 0.43, cx + h * 0.4, cy + h * 0.67], 200, 340, fill=(255, 255, 255),
+              width=max(2, int(h * 0.05)))
+        _ell(d, cx - h * 0.45, cy + h * 0.5, h * 0.09, h * 0.04, (255, 255, 255))
     elif name == "flower":
         col = COLOR_RGB[COLORS[idx % len(COLORS)]]
         d.line([(cx, cy), (cx, cy + h)], fill=(70, 160, 80), width=max(3, int(h * 0.1)))
@@ -235,7 +241,7 @@ def render_frame(scene: dict, t: float, bg_img: Image.Image, lyric_idx: int, fon
     chars = v["characters"]
     n = v.get("count", len(chars))
     size = min(h * 0.38, w * 0.8 / n)
-    row_y = h * 0.42
+    row_y = h * (0.34 if len(scene["lines"]) >= 4 else 0.42)  # four lines make a taller caption box
     for i in range(n):
         x = w * (i + 0.5) / n
         dx, dy, sc = motion(v["motion"], t, i, size)

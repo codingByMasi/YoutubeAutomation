@@ -149,6 +149,57 @@ class KokoroTTS:
         return _wav_to_mp3(wav, out)
 
 
+class KokoroOnnxTTS:
+    """Kokoro through onnxruntime (offline neural voice, CPU). Needs `pip install kokoro-onnx soundfile` and the two
+    model files `kokoro-v1.0.onnx` + `voices-v1.0.bin` in KOKORO_ONNX_DIR, assets/models/kokoro or ~/.cache/kokoro.
+    Files: github.com/thewh1teagle/kokoro-onnx/releases (tag model-files-v1.0)."""
+
+    name = "kokoro-onnx"
+    FILES = ("kokoro-v1.0.onnx", "voices-v1.0.bin")
+
+    def __init__(self, voice: str = "", speed: float = 0.0) -> None:
+        import os
+        self.voice = voice or os.getenv("KOKORO_VOICE", "") or "bm_george"
+        self.speed = speed or float(os.getenv("KOKORO_SPEED", "") or 1.0)
+        self._k = None
+
+    @staticmethod
+    def model_dir() -> Path | None:
+        """Folder holding both model files, or None."""
+        import os
+        home = Path(os.getenv("STUDIO_HOME") or ".")
+        for d in (os.getenv("KOKORO_ONNX_DIR", ""), str(home / "assets" / "models" / "kokoro"),
+                  str(Path.home() / ".cache" / "kokoro")):
+            if d and all((Path(d) / f).exists() for f in KokoroOnnxTTS.FILES):
+                return Path(d)
+        return None
+
+    @staticmethod
+    def available() -> bool:
+        import importlib.util
+        return (importlib.util.find_spec("kokoro_onnx") is not None
+                and importlib.util.find_spec("soundfile") is not None and KokoroOnnxTTS.model_dir() is not None)
+
+    def synth(self, text: str, out: Path, prosody: dict | None = None, **_: object) -> Path:
+        import re
+
+        import numpy as np
+        import soundfile as sf
+        from kokoro_onnx import Kokoro
+        if self._k is None:
+            d = self.model_dir()
+            self._k = Kokoro(str(d / self.FILES[0]), str(d / self.FILES[1]))
+        speed = max(0.6, min(1.4, self.speed + (prosody or {}).get("rate", 0) / 100.0))
+        lang = "en-gb" if self.voice.startswith("b") else "en-us"
+        parts: list = []
+        for sent in [x for x in re.split(r"(?<=[.!?])\s+", text.strip()) if x.strip()]:
+            audio, sr = self._k.create(sent, voice=self.voice, speed=speed, lang=lang)
+            parts += [np.asarray(audio), np.zeros(int(sr * 0.18), dtype=np.float32)]
+        wav = out.with_suffix(".wav")
+        sf.write(str(wav), np.concatenate(parts[:-1]), sr)
+        return _wav_to_mp3(wav, out)
+
+
 class PiperTTS:
     """Piper (optional, offline). The fallback when edge-tts cannot be reached. Needs PIPER_MODEL=<voice .onnx>."""
 
@@ -203,18 +254,21 @@ class FallbackTTS:
 
 def get_tts(settings: Settings) -> TTS:
     """The voice engine. `silent` and explicit `eleven` are respected; the default (`edge`) builds a fallback chain
-    in TTS_ORDER (default kokoro,edge,piper): engines that are not installed are skipped."""
+    in TTS_ORDER (default kokoro,onnx,edge,piper): engines that are not installed are skipped."""
     if settings.tts_provider == "silent":
         return SilentTTS()
     chain: list[TTS] = []
     if settings.tts_provider == "eleven":
         settings.require("voice (TTS_PROVIDER=eleven)", "ELEVENLABS_API_KEY")
         chain.append(ElevenLabsTTS(settings.elevenlabs_api_key, settings.tts_voice))
-    order = [x.strip() for x in (getattr(settings, "tts_order", "") or "kokoro,edge,piper").split(",") if x.strip()]
+    raw_order = getattr(settings, "tts_order", "") or "kokoro,onnx,edge,piper"
+    order = [x.strip() for x in raw_order.split(",") if x.strip()]
     piper_model = getattr(settings, "piper_model", "")
     for name in order:
         if name == "kokoro" and KokoroTTS.available() and settings.tts_provider != "eleven":
             chain.append(KokoroTTS())
+        elif name in ("onnx", "kokoro_onnx") and KokoroOnnxTTS.available() and settings.tts_provider != "eleven":
+            chain.append(KokoroOnnxTTS())
         elif name == "edge":
             chain.append(EdgeTTS(settings.tts_voice or "en-US-AndrewNeural"))
         elif name == "piper" and PiperTTS.available(piper_model):

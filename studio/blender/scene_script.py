@@ -24,7 +24,8 @@ SKY = {"sky": (0.45, 0.75, 1.0), "meadow": (0.55, 0.85, 1.0), "ocean": (0.35, 0.
 GROUND = {"sky": (0.6, 0.85, 0.5), "meadow": (0.3, 0.7, 0.3), "ocean": (0.15, 0.4, 0.8),
           "night": (0.1, 0.25, 0.2), "farm": (0.85, 0.7, 0.4)}
 BODY = {"duck": "yellow", "cat": "orange", "dog": "brown", "fish": "blue", "bunny": "white", "bird": "pink",
-        "star": "yellow", "sun": "yellow", "apple": "red", "ball": "purple", "balloon": "red", "flower": "pink"}
+        "star": "yellow", "sun": "yellow", "apple": "red", "ball": "purple", "balloon": "red", "flower": "pink",
+        "puddle": "blue"}
 _mats = {}
 
 
@@ -99,6 +100,9 @@ def build_character(name, color_override=None):
         if name == "balloon":
             part("cylinder", root, "ink", (0, 0, 0.1), (0.01, 0.01, 0.4))
         face(root, -0.62, 0.95, 0.22, 0.07)
+    elif name == "puddle":  # a flat blue disc with a lighter centre
+        part("sphere", root, body, (0, 0, 0.04), (0.85, 0.85, 0.05))
+        part("sphere", root, "white", (-0.2, -0.2, 0.08), (0.18, 0.1, 0.02))
     else:  # flower
         part("cylinder", root, "green", (0, 0, 0.5), (0.05, 0.05, 0.5))
         for i in range(6):

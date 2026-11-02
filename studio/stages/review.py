@@ -18,6 +18,7 @@ from studio.stages.thumbnail import validate_thumb
 
 DISCLAIMER = "Educational content only, not financial advice. Figures are from the sources listed; " \
              "estimates are labelled."
+NEUTRAL_DISCLAIMER = "Sources are listed above. Disputed or estimated points are labelled in the video."
 CATEGORY_EDUCATION = "27"
 TAGS_MAX_CHARS = 500
 DESC_MAX_CHARS = 5000
@@ -58,14 +59,24 @@ def chapters(segs: list[dict], intro_seconds: float = 0.0) -> list[tuple[float, 
     return [(s, n) for s, n in merged]
 
 
-def build_description(pkg: dict, chaps: list[tuple[float, str]], licences: list[dict]) -> str:
+def disclaimer_for(root) -> str:
+    """Finance disclaimer only for channels whose story profile asks for it; others get a neutral line."""
+    try:
+        from studio.story import profile as sprofile
+        return DISCLAIMER if sprofile.for_channel(root).get("needs_disclaimer", True) else NEUTRAL_DISCLAIMER
+    except Exception:  # noqa: BLE001 - keep the old default if the profile cannot be read
+        return DISCLAIMER
+
+
+def build_description(pkg: dict, chaps: list[tuple[float, str]], licences: list[dict],
+                      disclaimer: str = DISCLAIMER) -> str:
     """Description template: summary, chapters, sources, disclaimer, credits."""
     parts = [pkg.get("description_summary", "").strip()]
     if len(chaps) >= 3:
         parts.append("Chapters\n" + "\n".join(f"{mmss(t)} {n}" for t, n in chaps))
     if pkg.get("sources"):
         parts.append("Sources\n" + "\n".join(f"- {s.get('title', '')}: {s['url_or_note']}" for s in pkg["sources"]))
-    parts.append(DISCLAIMER)
+    parts.append(disclaimer)
     for name, site in (("Pexels", "https://www.pexels.com"), ("Pixabay", "https://pixabay.com"),
                        ("Wikimedia Commons", "https://commons.wikimedia.org")):
         if any(name in lic["licence"] for lic in licences):
@@ -119,7 +130,7 @@ def collect(ctx: Ctx, video_id: int, thumb: int, title: str | None) -> tuple[dic
     if thumb_path.exists():
         problems += validate_thumb(thumb_path)
     chaps = chapters(pkg["segments"], float(pkg.get("build", {}).get("intro_seconds", 0)))
-    description = build_description(pkg, chaps, licences)
+    description = build_description(pkg, chaps, licences, disclaimer_for(ctx.settings.root))
     if len(description) > DESC_MAX_CHARS:
         problems.append(f"description is {len(description)} chars (max {DESC_MAX_CHARS})")
     for p in banned_in(description):

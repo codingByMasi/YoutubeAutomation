@@ -2,7 +2,7 @@
 
 Claude Code: update this file at the end of every milestone and whenever you make a decision. Read it first in every new session.
 
-**Last updated:** 2026-11-01
+**Last updated:** 2026-11-02
 **Current milestone:** M8 done; next is the owner's setup and the first real video
 **Overall status:** Build complete. 93 tests pass (`pytest -q`), `ruff check .` is clean, and `demo` builds a playable 1080p MP4
 
@@ -413,3 +413,32 @@ Owner must configure: nothing; optionally set `story.tone` (`blend`, `comedic`, 
 - Limits: simple shapes, no skeleton or lip-sync; they bounce, sway, pop in. Tested: unit tests (APIs mocked) and a real Blender (Cycles CPU) smoke render;
   Eevee on a PC GPU not tested here. The finance thread's character system was not on main, so this extends the existing per-channel profile instead.
 - No web-app picker yet; set `kids_cast` via the channel profile (CLI/JSON).
+
+
+## 2026-11-02: end-to-end 60 s test (history + kids) and what it fixed
+Full run of both channel types to a finished 60 s video (stopped before review and publish; typed-yes gates untouched).
+Report, videos and thumbnails: project files `youtube-studio/e2e-test/`. Measured here (4 CPU, no GPU): history 67.5 s video
+made in about 2.3 min of machine time (voice 31 s, pictures 55 s, build 47 s, thumbnails 1.5 s); kids 56 s video in 49 s.
+
+**Added**
+- `studio/history/render.py`: the history cast scene renderer (lectern, skit with speech bubbles, map, diagram, calendar,
+  easel, archive, silhouette, title). Mouths follow the narration loudness, characters blink. `visuals` draws one clip per
+  segment that has a string `scene` when the `cast_scenes` flag is on; `build` shows it as one shot. `scene_data` holds
+  map points, diagram steps, calendar days, titles. `studio/history/thumb.py`: cast thumbnails for history.
+- `short60` story preset (`channels edit --story '{"preset": "short60"}'`): a native ~60 s video (5-10 beats of 4-20 s,
+  2 open loops, shorter hook). Outline checks, prompts, QA and the quality gate read it; other channels are unchanged.
+- `KokoroOnnxTTS`: offline neural voice (`pip install kokoro-onnx soundfile` + the two model files from the kokoro-onnx
+  GitHub release into `assets/models/kokoro/`). Tried after `kokoro` and before edge-tts (`TTS_ORDER`), `KOKORO_VOICE`, `KOKORO_SPEED`.
+- Kids: real animated 2D art (blink, mouth) for the 5 roster characters, a `puddle` object, loudness normalised to -16 LUFS,
+  thumbnail uses the sprites and fits long titles.
+- History descriptions use a neutral source line instead of the finance disclaimer; no business tags on non-business channels.
+
+**Fixed (found by the test)**: `scene` as a string (cast scene) crashed the older 2D/3D scene code; QA and gate warned wrongly
+for short videos (length, loops from `plants_loop`, repeated pictures for drawn scenes, hook question in sentence 3, CTA wording).
+
+**Decisions**: native 60 s videos get their own preset instead of loosening the long-video rules; a title must match the hook
+(the gate caught a title about elephants on a script that never mentions them). Cast art is still code-drawn placeholder.
+
+**Not done / owner decisions**: stock footage (no key, network blocked here), Whisper word alignment (model host blocked),
+edge-tts not testable here, per-character voices, real 3D for kids (6.3 s per frame on this CPU with Cycles: use a GPU PC),
+sung vocals (OpenUtau), `gate` for kids (needs a DB video), `kids` has no research or title/SEO step.

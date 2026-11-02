@@ -68,16 +68,20 @@ def validate_outline(d: dict, profile: dict | None = None) -> list[str]:
         if len(first.split()) > 14:
             problems.append(f"hook first sentence is {len(first.split())} words (12 or fewer): {first[:50]!r}")
     beats = d.get("beats") or []
-    lo_b = 6 if kids else 10
-    if not lo_b <= len(beats) <= 18:
-        problems.append(f"need {lo_b}-18 beats, got {len(beats)}")
+    prof = profile or {}
+    lo_b = int(prof.get("min_beats") or (6 if kids else 10))
+    hi_b = int(prof.get("max_beats") or 18)
+    b_lo, b_hi = prof.get("beat_seconds") or (8, 30)
+    hook_max = 8 if prof.get("short_form") else 15
+    if not lo_b <= len(beats) <= hi_b:
+        problems.append(f"need {lo_b}-{hi_b} beats, got {len(beats)}")
     flat = 0
     clock, last_interrupt = 0.0, 0.0
     for b in beats:
         if b.get("device") not in DEVICES:
             problems.append(f"beat {b.get('n')}: device {b.get('device')!r} not in {sorted(DEVICES)}")
-        if not isinstance(b.get("seconds"), (int, float)) or not 8 <= b["seconds"] <= 30:
-            problems.append(f"beat {b.get('n')}: seconds must be 8-30")
+        if not isinstance(b.get("seconds"), (int, float)) or not b_lo <= b["seconds"] <= b_hi:
+            problems.append(f"beat {b.get('n')}: seconds must be {b_lo:g}-{b_hi:g}")
             continue
         if not str(b.get("key_fact", "")).strip():
             problems.append(f"beat {b.get('n')}: key_fact is empty (every beat needs a number or example)")
@@ -89,18 +93,20 @@ def validate_outline(d: dict, profile: dict | None = None) -> list[str]:
         elif clock - last_interrupt > (60 if kids else 40):
             problems.append(f"beat {b.get('n')}: {clock - last_interrupt:.0f}s since the last interrupt (max 40)")
         clock += b["seconds"]
-    if beats and isinstance(beats[0].get("seconds"), (int, float)) and beats[0]["seconds"] > 15:
-        problems.append("beat 1 is the hook: at most 15 seconds")
+    if beats and isinstance(beats[0].get("seconds"), (int, float)) and beats[0]["seconds"] > hook_max:
+        problems.append(f"beat 1 is the hook: at most {hook_max} seconds")
     loops = d.get("loops") or []
-    if len(loops) < (0 if kids else 3):
-        problems.append("need at least 3 open loops")
+    min_loops = int(prof["min_loops"]) if "min_loops" in prof else (0 if kids else 3)
+    if len(loops) < min_loops:
+        problems.append(f"need at least {min_loops} open loops")
     early = 0.0
     starts = {}
     for b in beats:
         starts[b.get("n")] = early
         early += b["seconds"] if isinstance(b.get("seconds"), (int, float)) else 0
-    if not kids and sum(starts.get(lp.get("plant"), 1e9) <= 60 for lp in loops) < 2:
-        problems.append("plant at least two open loops in the first 60 seconds")
+    need_early = int(prof.get("min_loops_first_60s", 2))
+    if not kids and need_early and sum(starts.get(lp.get("plant"), 1e9) <= 60 for lp in loops) < need_early:
+        problems.append(f"plant at least {need_early} open loop(s) in the first 60 seconds")
     for lp in loops:
         if not (isinstance(lp.get("payoff"), int) and isinstance(lp.get("plant"), int) and lp["payoff"] > lp["plant"]):
             problems.append(f"loop {lp.get('question', '')[:40]!r}: payoff must come after plant")

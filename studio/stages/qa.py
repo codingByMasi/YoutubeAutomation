@@ -20,7 +20,8 @@ HOOK_TRIGGERS = re.compile(r"\?|\d|\$|€|£|₹|\b(never|nobody|secret|actually
 TEASER = re.compile(r"\b(but first|in a moment|later in this video|by the end|we'?ll (get|come) to|"
                     r"stay with me|here'?s the (catch|twist)|that(?:'s| is) not (even )?(the|where)|"
                     r"the real reason)\b", re.I)
-CTA_WORDS = re.compile(r"\b(subscribe|comment|next video|watch next|follow|let me know|tell me)\b", re.I)
+CTA_WORDS = re.compile(r"\b(subscribe|comment|next video|watch next|follow|let me know|tell me|tell us|next time)\b",
+                       re.I)
 LONG_SEGMENT = 35.0
 MAX_SENTENCE_WORDS = 22
 MAX_CARD_SHARE = 0.3
@@ -37,6 +38,8 @@ def segment_flags(pos: int, seg: dict) -> list[str]:
     if vis.get("kind") == "card":
         flags.append("no real picture found: plain title card on screen")
     paths = vis.get("paths") or []
+    if (vis.get("scene") or {}).get("mode") == "cast":  # one drawn scene is one continuous shot, by design
+        return flags
     bg_s, _ = split_segment(_dur(seg), bool(seg.get("chart_data")))
     needed = shots_needed(bg_s, shot_max=shot_max_for(pos))
     if vis.get("kind") != "card" and needed >= 3 and len(set(paths)) * 2 < needed:
@@ -46,22 +49,33 @@ def segment_flags(pos: int, seg: dict) -> list[str]:
     return flags
 
 
-def quality_report(pkg: dict) -> dict:
+def _story_profile(ctx) -> dict:
+    """The active channel's story profile ({} if it cannot be read)."""
+    try:
+        from studio.story import profile as sprofile
+        return sprofile.for_channel(ctx.settings.root)
+    except Exception:  # noqa: BLE001 - a report must never fail on a profile problem
+        return {}
+
+
+def quality_report(pkg: dict, profile: dict | None = None) -> dict:
     """{score, warnings, segments} for a script package (visuals optional: only checked when present)."""
     segs = pkg.get("segments") or []
     warnings: list[str] = []
     per_seg: dict[int, list[str]] = {}
     if segs:
         hook = segs[0]["narration"]
-        first = " ".join(re.split(r"(?<=[.!?])\s+", hook)[:2])
+        # a hook of under 10 s (short form) has room for three short sentences
+        first = " ".join(re.split(r"(?<=[.!?])\s+", hook)[:3 if _dur(segs[0]) < 10 else 2])
         if WEAK_OPENERS.match(hook):
             warnings.append("Hook opens with a greeting or 'in this video': start on the problem or the number.")
         elif not HOOK_TRIGGERS.search(first):
             warnings.append("Hook has no question, number or contrast in its first two sentences.")
         if _dur(segs[0]) > 15:
             warnings.append(f"Hook is {_dur(segs[0]):.0f}s: it should be 15s or less.")
-        loops = sum(bool(TEASER.search(g["narration"])) or bool(g.get("open_loop")) for g in segs[:-1])
-        if len(segs) >= 6 and loops < 2:
+        loops = sum(bool(TEASER.search(g["narration"])) or bool(g.get("open_loop")) or bool(g.get("plants_loop"))
+                    for g in segs[:-1])
+        if len(segs) >= 6 and loops < 2 and not (profile or {}).get("short_form"):
             warnings.append(f"Only {loops} open loop(s) (teasers that pay off later): aim for 2 or more.")
         if not CTA_WORDS.search(segs[-1]["narration"]):
             warnings.append("The last segment has no clear call to action (subscribe, comment, next video).")
@@ -69,7 +83,7 @@ def quality_report(pkg: dict) -> dict:
         avg = sum(len(s.split()) for s in sentences) / max(len(sentences), 1)
         if avg > MAX_SENTENCE_WORDS:
             warnings.append(f"Sentences average {avg:.0f} words: spoken scripts work best under {MAX_SENTENCE_WORDS}.")
-    warnings += pacing_warnings(segs)
+    warnings += pacing_warnings(segs, "est_seconds", (profile or {}).get("min_minutes"))
     warnings += chart_gaps(segs) if any(g.get("visual") for g in segs) else []
     cards = 0
     for pos, seg in enumerate(segs, 1):
@@ -100,7 +114,7 @@ def write_report(out: Path, report: dict) -> Path:
 def run(ctx: Ctx, video_id: int) -> dict:
     """Print the quality report for a video (works after `script`; visuals checks appear after `visuals`)."""
     get_video(ctx.session, video_id)
-    report = quality_report(load_package(ctx, video_id))
+    report = quality_report(load_package(ctx, video_id), _story_profile(ctx))
     write_report(ctx.settings.project_dir(video_id), report)
     colour = typer.colors.GREEN if report["score"] >= 80 else typer.colors.YELLOW
     typer.secho(f"Quality score {report['score']}/100 for {report['minutes']} min.", fg=colour)
