@@ -15,6 +15,24 @@ You are writing a complete YouTube video package for a faceless, narrated explai
 # Retention outline (follow it: its hook, open loops, beat order, ending and sources)
 {outline}
 
+# Verified facts and recent videos (story engine)
+{facts_block}
+
+- When a facts list is given: every number in the narration and every chart value comes from a fact; cite its id in
+  the segment's `fact_ids` (and the chart's `fact_ids`). Unverified facts only with `is_estimate` true and wording
+  such as "about" or "an estimated". Never invent figures.
+- When a plan is given: use its loop ids in `plants_loop` / `pays_loop` (two planted in the first 60 seconds, payoffs
+  spread out and 1-3 minutes after the plant), its chosen hook, and its chapter order.
+- Add per segment: `visual_intent` {{"shot_type": "wide|close|detail|map|chart|text", "must_show": "...", "avoid": "..."}}
+  (never three identical shot types in a row) and `emotion` (neutral|hook|reveal|tense|warm|excited).
+- Finance: say once, in plain words, that this is not financial advice. {compliance}
+- Differ from these recent videos in hook type, opening sentence shape, chapters and visuals:
+{recent}
+{writing_rules}
+
+# Exemplar of the target voice (original; do not reuse its words)
+{exemplar}
+
 # Hard rules
 - Original analysis only. Do not copy or closely paraphrase any existing video, script or article.
   Explain the money flow in your own structure, with your own examples and comparisons.

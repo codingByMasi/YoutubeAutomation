@@ -200,10 +200,10 @@ def test_run_all_stops_at_review_gate(ctx, monkeypatch):
     ctx.confirm = Answers()
 
     with pytest.raises(PendingLLMResponse):
-        run_all.run(ctx, "coffee shop economics")
+        run_all.run(ctx, "coffee shop economics", classic=True)
     v = ctx.session.query(Video).one()
     (ctx.settings.project_dir(v.id) / "prompts" / "script.response.json").write_text(json.dumps(SAMPLE))
-    run_all.run(ctx, "coffee shop economics")
+    run_all.run(ctx, "coffee shop economics", classic=True)
     assert v.stage == "thumbnailed"
     out = ctx.settings.project_dir(v.id)
     assert (out / "final.mp4").stat().st_size > 10_000 and len(list((out / "thumbs").glob("thumb_*.jpg"))) == 3
