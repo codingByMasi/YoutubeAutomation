@@ -6,7 +6,7 @@ whether it is drawn in 3D (Blender) or as a 2D motion graphic. See `plan` for th
 
 from __future__ import annotations
 
-KINDS = ("timeline", "map", "chart3d", "artifact")
+KINDS = ("timeline", "map", "chart3d", "artifact", "host")
 SHAPES = ("coin", "column", "vase", "box")
 STYLES = ("", "2d", "3d")  # per-scene / per-segment choice ("" = follow the video, channel and type)
 SCENE_STYLES = ("", "2d", "3d", "mixed")  # channel / video choice
@@ -16,6 +16,9 @@ HELP = {
     "map": "items: [{label: 'Rome', x: 0.2, y: 0.4}, ...] (2-10 places in route order; x, y between 0 and 1)",
     "chart3d": "items come from the segment's bar or line chart_data when left out",
     "artifact": "items: [{label: 'Roman denarius', shape: 'coin|column|vase|box'}] (exactly 1)",
+    "host": "action: present|point|celebrate|shock|think|shrug|walk_in|fall|wave; set: studio|vault|street|boardroom|"
+            "stage; props: up to 4 of money_stack, bars_up, bars_down, logo_block, vault_door, question_mark, "
+            "coin_rain (all optional; the channel mascot is the actor)",
 }
 
 
@@ -32,6 +35,12 @@ def validate_scene(scene: object, where: str, seg: dict | None = None,
         return [f"{where}: scene kind {kind!r} not in {list(KINDS)}"]
     if scene.get("style", "") not in STYLES:
         p.append(f"{where}: scene style {scene.get('style')!r} not in ['', '2d', '3d']")
+    if kind == "host":
+        from studio.scenes import host
+
+        return p + host.validate(scene, where) + [f"{where}: scene cites unknown source id {r!r}"
+                                                  for r in scene.get("source_ids") or []
+                                                  if source_ids is not None and str(r) not in source_ids]
     refs = scene.get("source_ids") or []
     for r in refs:
         if source_ids is not None and str(r) not in source_ids:
@@ -81,6 +90,27 @@ def chart_items(seg: dict) -> list[dict]:
     unit = chart.get("unit", "")
     return [{"label": str(lab), "value": float(v), "display": fmt(v, unit)}
             for lab, v in zip(chart.get("labels", []), chart.get("values", []), strict=False)][:MAX_ITEMS]
+
+
+def plan_for(seg: dict, pos: int, prod: dict) -> dict | None:
+    """`plan` for segment `pos` with the video's resolved settings, including automatic host-character scenes.
+
+    When the channel has a mascot, host scenes are on ("auto", the default) and the scene style is 3d/mixed, every
+    other segment without its own scene or chart is acted out by the mascot (position 1 always is).
+    """
+    override = prod["segment_styles"].get(pos, "")
+    pl = plan(seg, prod["scene_style"], override)
+    if pl:
+        if pl["scene"]["kind"] == "host" and not pl["scene"].get("mascot") and prod.get("mascot"):
+            pl["scene"] = {**pl["scene"], "mascot": dict(prod["mascot"])}
+        return pl
+    mascot, mode = prod.get("mascot"), override or prod["scene_style"]
+    if (mascot and prod.get("host", "auto") == "auto" and mode in ("3d", "mixed") and not seg.get("scene")
+            and not seg.get("chart_data") and (pos == 1 or pos % 2 == 1)):
+        from studio.scenes import host
+
+        return {"scene": host.make_scene(seg, pos, mascot), "mode": "3d"}
+    return None
 
 
 def plan(seg: dict, style: str, override: str = "") -> dict | None:

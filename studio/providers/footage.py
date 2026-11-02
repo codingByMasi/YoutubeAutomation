@@ -63,9 +63,35 @@ def resolve_provider(settings) -> str:
     return choice
 
 
+class ChainedFootage:
+    """Tries each provider in order; a provider that errors is logged as an issue and skipped (cards are the end)."""
+
+    def __init__(self, providers: list[tuple[str, FootageProvider]], root=None) -> None:
+        self.providers, self.root = providers, root
+
+    def find(self, keywords: list[str], exclude: set[int] | None = None) -> StockClip | None:
+        from studio import health
+        for name, prov in self.providers:
+            try:
+                clip = prov.find(keywords, exclude)
+            except Exception as exc:  # noqa: BLE001 - try the other source
+                if self.root is not None:
+                    health.record(self.root, f"stock footage ({name})", exc)
+                continue
+            if clip:
+                return clip
+        return None
+
+
 def make_footage(settings) -> tuple[str, FootageProvider | None]:
     """(provider name, instance). Instance is None when only generated cards will be used."""
     name = resolve_provider(settings)
+    if settings.footage_provider == "auto" and settings.pexels_api_key and settings.pixabay_api_key:
+        from studio.providers.pexels import Pexels
+        from studio.providers.pixabay import Pixabay
+        a = Pexels(settings.pexels_api_key, settings.assets_dir / "cache" / "pexels")
+        b = Pixabay(settings.pixabay_api_key, settings.assets_dir / "cache" / "pixabay")
+        return "pexels+pixabay", ChainedFootage([("Pexels", a), ("Pixabay", b)], settings.root)
     cache = settings.assets_dir / "cache" / name
     from studio.providers.guard import Guarded
     if name == "pexels":
