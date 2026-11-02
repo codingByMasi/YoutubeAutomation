@@ -7,11 +7,15 @@ rapidfuzz>=3.6          # fuzzy quote matching (fallback: word-coverage match)
 textstat>=0.7           # reading-grade check (fallback: built-in Flesch-Kincaid)
 sentence-transformers>=2.7   # semantic similarity for originality + stock relevance (fallback: 5-gram / tag overlap)
 
+# Captions: word-accurate timing and caption-sync checks (fallback: captions timed from the script text).
+# Needs onnxruntime, which has no wheel for Python 3.14+; use Python 3.11-3.13.
+faster-whisper>=1.0
+
 # Narration (order: Kokoro, Edge, Piper; set TTS_ORDER in .env)
 kokoro>=0.9             # CPU voice; needs soundfile
 soundfile>=0.12
 piper-tts>=1.2          # offline voice; also set PIPER_MODEL=<path to .onnx voice>
-whisperx>=3.1           # alternative forced alignment (faster-whisper is already required)
+whisperx>=3.1           # alternative forced alignment (needs faster-whisper above)
 
 # Visuals and audio
 open-clip-torch>=2.24   # image/text relevance ranking for stock candidates (flag: semantic_visuals)

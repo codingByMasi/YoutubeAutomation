@@ -19,4 +19,4 @@ streamlit>=1.40
 psutil>=5.9
 pydantic>=2.5            # validates every LLM answer (one model per task)
 requests>=2.31           # fact verification fetches source pages
-faster-whisper>=1.0      # word-accurate captions and caption-sync checks (falls back to script timing if it cannot run)
+# faster-whisper (word-accurate captions) is optional: see requirements-optional.txt. Needs onnxruntime, which has no wheel on every Python.

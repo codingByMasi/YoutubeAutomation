@@ -2,10 +2,10 @@
 # One-command launcher for macOS/Linux: creates a private environment, installs packages, starts the app.
 set -e
 cd "$(dirname "$0")"
-PY=$(command -v python3.11 || command -v python3 || true)
-[ -n "$PY" ] || { echo "Python 3.11+ not found. Install it from https://www.python.org/downloads/"; exit 1; }
-"$PY" -c "import sys; sys.exit(0 if sys.version_info >= (3,11) else 1)" \
-  || { echo "Python 3.11 or newer is needed (found $("$PY" -V)). Install it from https://www.python.org/downloads/"; exit 1; }
+PY=$(command -v python3.12 || command -v python3.11 || command -v python3.13 || command -v python3 || true)
+[ -n "$PY" ] || { echo "Python 3.11-3.13 not found (3.12 is best). Install it from https://www.python.org/downloads/"; exit 1; }
+"$PY" -c "import sys; sys.exit(0 if sys.version_info >= (3,11) <= sys.version_info[:2] <= (3,13) else 1)" \
+  || { echo "Python 3.11 to 3.13 is needed (found $("$PY" -V)); 3.12 is best. Install it from https://www.python.org/downloads/release/python-3128/"; exit 1; }
 [ -x .venv/bin/python ] || "$PY" -m venv .venv
 if ! cmp -s requirements.txt .venv/requirements.installed; then
   echo "Installing packages. This takes a few minutes the first time. Please wait..."
@@ -13,6 +13,8 @@ if ! cmp -s requirements.txt .venv/requirements.installed; then
   .venv/bin/python -m pip install -r requirements.txt \
     || { echo "Installing packages failed. Check your internet connection and run ./run_app.sh again."; exit 1; }
   cp requirements.txt .venv/requirements.installed
+  .venv/bin/python -m pip install "faster-whisper>=1.0" >/dev/null 2>&1 \
+    || echo "Note: optional faster-whisper not installed; captions will be timed from the script. That is fine."
 fi
 if [ ! -f .env ]; then
   if [ -f .env.example ]; then cp .env.example .env; else echo "LLM_PROVIDER=claude_code" > .env; fi
