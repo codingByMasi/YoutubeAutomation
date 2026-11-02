@@ -22,6 +22,8 @@ KEEP = 60
 
 # (regex on the error text, plain cause, fix id). First match wins. Fix ids with ':' carry an argument.
 RULES: list[tuple[str, str, str | None]] = [
+    (r"youtube sign-in|invalid_grant|expired or revoked|google sign-in failed|token\.json",
+     "The YouTube sign-in is missing, expired or revoked for a channel.", "youtube_signin"),
     (r"ffmpeg.*(not found|no such file)|ensure_ffmpeg", "ffmpeg is not installed or not on PATH.", "help:ffmpeg"),
     (r"edge[-_ ]?tts|speech\.platform\.bing|wss?://", "The free Edge voice service could not be reached "
      "(offline, blocked, or the service changed).", "tts_fallback"),
@@ -80,7 +82,8 @@ def fix_label(fix: str | None) -> str:
     return {"retry": "Retry the step", "tts_fallback": "Use the offline voice fallback",
             "pip": f"Install {arg}", "pip_from_error": "Install the missing package",
             "stock_fallback": "Switch stock footage source", "unlock_db": "Clear leftover database files",
-            "renderer_2d": "Use the 2D renderer", "help": "Show me how"}.get(kind, fix)
+            "renderer_2d": "Use the 2D renderer", "help": "Show me how",
+            "youtube_signin": "Sign in to YouTube again"}.get(kind, fix)
 
 
 def record(root: Path, component: str, error: BaseException | str, context: str = "") -> dict | None:
@@ -143,6 +146,17 @@ def run_fix(root: Path, issue_id: str) -> str:
         msg = _set_channel(root, {"renderer": "2d"}) + " Blender scenes will be drawn in 2D."
     elif kind == "stock_fallback":
         msg = "Footage falls back to the other stock source automatically; check the key in Setup if both fail."
+    elif kind == "youtube_signin":
+        from studio.config import load_settings
+        from studio.growth import channels
+        from studio.manage import multi_analytics as ma
+        from studio.youtube import auth
+        s = load_settings(root)
+        cid = channels.active_id(root)
+        st = auth.status(auth.settings_for(s, cid), check=True, adopt=True)
+        if st["state"] != "connected":
+            ma.sign_in(s, cid)  # opens a browser on this computer; raises a clear error if it cannot
+        msg = f"YouTube sign-in for '{cid}' is working."
     elif kind == "unlock_db":
         from studio.config import load_settings
         from studio.util import dblock
@@ -194,3 +208,10 @@ def with_fallback(root: Path | None, component: str, steps: list[tuple[str, Call
                 log(f"{component}: {name} failed ({type(exc).__name__}); trying the next option")
     raise StudioError(f"Every option for {component} failed.", " | ".join(errors),
                       "Open the Issues panel (or run `issues`) for fixes, then run the step again.")
+
+
+def record_signin_problems(root: Path, rows: list[dict]) -> None:
+    """Log one open issue (with a Fix button) per channel whose YouTube sign-in is expired or missing."""
+    for r in rows:
+        if r["state"] in ("expired", "missing"):
+            record(root, "YouTube", f"YouTube sign-in for channel {r['channel_id']}: {r['message']}")

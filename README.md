@@ -124,6 +124,13 @@ Windows setup (one time):
 Scenes are 24 fps, 1280x720, flat colours (no image textures) and use the same script, narration and captions as 2D.
 Blender is used for the pictures only; the Pexels/Pixabay stages and the main (non-kids) pipeline are unchanged.
 
+### If the pictures step takes a long time
+3D scenes render frame by frame on your PC (often 1 to 3 seconds a frame; a 20 s scene is about 300 frames). The app shows
+"3D scene 4 of 13 ... about 1 h 20 min left" while it works. Limits keep it from running for hours: `SCENE_3D_TIMEOUT`
+(seconds per scene, default 600) and `SCENE_3D_TOTAL` (seconds for all 3D scenes, default 3600) in `.env`. A scene that
+would be too slow is shortened or drawn in 2D, and finished scenes are reused if you run the step again. To stop early,
+press **Cancel 3D rendering** in the app or run `python -m studio.cli cancel <video id>`: the rest is drawn in 2D.
+
 ### 3D for narrated channels (business, history) on Windows
 If a finished video looks like moving photos and flat charts, 3D was not used. The app now says so: on **3. Make the video**
 the "Look and sound for this video" box shows whether the video would be 3D or 2D and why (Blender missing, scene style 2D,
@@ -216,6 +223,7 @@ override everything. Different types run side by side.
 python -m studio.cli channels types
 python -m studio.cli channels add "Tiny Tunes" --type kids --renderer blender --music none
 python -m studio.cli channels sign-in tiny-tunes     # its own Google login, saved to tokens/tiny-tunes.json
+python -m studio.cli youtube-status --check  # connected / expired / missing per channel, with the token file path
 python -m studio.cli channels stats tiny-tunes --days 28          # one channel's page
 python -m studio.cli channels compare --from 2026-10-01 --to 2026-10-31   # all channels side by side
 python -m studio.cli channels stats --demo                         # labelled SAMPLE data if not signed in
@@ -450,6 +458,20 @@ All external APIs are mocked, so tests need no keys or network. Tests that rende
 - Avoid mass-producing near-identical videos; YouTube can demote or demonetize repetitive, low-effort content.
 - Disclose realistic AI-generated or altered content when YouTube requires it. The review step shows this flag.
 - Add sources and a disclaimer to finance, health, legal, and news videos.
+
+## Host character in 3D scenes
+With a 3D scene style (`3d` or `mixed`), the channel's mascot acts out script beats in a small Blender set: it points,
+celebrates, reacts, thinks or shrugs, with props (money stacks, bars, generic logo blocks), camera cuts every few
+seconds and a mouth that opens with the narration's loudness. Segments without a chart or scene of their own get a
+host scene automatically (the first, then every other one); set `host_scenes` to `off` in the channel profile to
+stop that. Add one yourself in `script.json`:
+`"scene": {"kind": "host", "action": "point", "set": "vault", "props": ["money_stack", "bars_up"]}`
+(actions: present, point, celebrate, shock, think, shrug, walk_in, fall, wave; sets: studio, vault, street,
+boardroom, stage). The character is the mascot `kind`: `coin`, `owl`, `robot`, `piggy`, `bull` or `analyst`
+(a stylised person with glasses, rolled sleeves and a tablet; mascot fields `color` = shirt, `skin`, `hair`,
+`hair_style` short or curly). Without Blender the scene is drawn in 2D with the mascot picture. Rendering stays
+local: Eevee, 720p, 15 fps, about the same cost as the other 3D scenes. Real logos are never drawn; a prop that
+shows a figure needs `source_ids`.
 
 ## Channel identity (mascot, theme, niche, playlists)
 `python -m studio.cli channels identity --preset finance-stories --preview out/` gives the active channel a niche

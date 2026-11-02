@@ -144,6 +144,19 @@ def visuals(video_id: int, force: bool = FORCE) -> None:
 
 
 @app.command()
+def cancel(video_id: int) -> None:
+    """Stop the slow 3D rendering of a running `visuals` step; the remaining scenes are drawn in 2D instead."""
+    from studio.config import load_settings
+    from studio.util import progress
+    folder = load_settings().project_dir(video_id)
+    if not progress.is_active(folder):
+        typer.echo(f"Nothing is running for video {video_id}.")
+        return
+    progress.request_cancel(folder)
+    typer.echo("Cancel requested. The current 3D scene stops within a few seconds and the rest are drawn in 2D.")
+
+
+@app.command()
 def plan(video_id: int, draft: bool = typer.Option(False, "--draft", help="Show the fast-draft resolution.")) -> None:
     """Show what `visuals` and `build` will use (scenes, charts, search words, resolution, tools) before rendering."""
     from studio import plan_preview
@@ -485,6 +498,27 @@ def channels_sign_in(channel_id: str = typer.Argument(None, help="Channel id (de
                f"Token saved to {r['token']}.")
 
 
+@app.command("youtube-status")
+def youtube_status(check: bool = typer.Option(False, "--check", help="Also try a token refresh (needs internet) "
+                                              "to tell connected from expired."),
+                   fix: bool = typer.Option(False, "--fix", help="Adopt a legacy token.json for channels without "
+                                            "their own sign-in.")) -> None:
+    """Per-channel YouTube sign-in status (connected / expired / missing) and what to do. Prints no secrets."""
+    from studio.config import load_settings
+    from studio.youtube import auth
+    settings = load_settings()
+    typer.echo(f"Studio folder: {settings.root}")
+    typer.echo(f"Client file:   {settings.client_secret} ({'found' if settings.client_secret.exists() else 'MISSING'})")
+    rows = auth.status_all(settings, check=check, adopt=fix)
+    from studio import health
+    health.record_signin_problems(settings.root, rows)
+    for r in rows:
+        typer.echo(f"[{r['state'].upper():9}] {r['channel_id']}: {r['message']}")
+        typer.echo(f"            token file: {r['token']}")
+        if r["fix"]:
+            typer.echo(f"            next: {r['fix']}")
+
+
 def _range(days, start, end):
     from datetime import date
 
@@ -677,11 +711,18 @@ def kids_demo(force: bool = FORCE, renderer: str = typer.Option("", help="2d (de
     typer.echo(f"Built {m.run(_ctx(), force=force, renderer=renderer or None)}")
 
 
+def _home() -> Path:
+    import os
+
+    from studio.config import DEFAULT_HOME
+    return Path(os.getenv("STUDIO_HOME") or DEFAULT_HOME)
+
+
 def _log_issue(exc: BaseException) -> None:
     """Record a failure in logs/issues.json with a plain cause and a fix (never raises)."""
     try:
         from studio import health
-        it = health.record(_state["ctx"].settings.root if "ctx" in _state else Path.cwd(), "command", exc,
+        it = health.record(_state["ctx"].settings.root if "ctx" in _state else _home(), "command", exc,
                            context=" ".join(sys.argv[1:4]))
         if it and it["fix_label"]:
             typer.secho(f"Fix in the app (Issues panel) or run: python -m studio.cli fix {it['id']}   "

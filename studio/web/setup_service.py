@@ -165,6 +165,12 @@ def sign_in(ctx: Ctx, run_flow: Callable | None = None, services: Callable | Non
     return capture(go)
 
 
+def signin_status(settings: Settings, check: bool = False) -> dict:
+    """{state: connected|expired|missing|no_client, message, fix, token} for the active channel."""
+    from studio.youtube import auth
+    return auth.status(settings, check=check)
+
+
 def sign_out(settings: Settings) -> bool:
     """Forget this channel's Google sign-in (deletes only its token file)."""
     if settings.token_path.exists():
