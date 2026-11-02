@@ -508,3 +508,9 @@ Decisions: "4 per week" is read as 4 total: finance 2 (Tue, Thu 16:00), history 
 the owner's local time (`publish --at` converts to UTC). The planner only suggests `publish <id> --at ...`; it never uploads,
 and the private-by-default upload and typed-yes gates are untouched. Budget uses measured renders (~2.2 min machine time per
 finished minute, from e2e-test/quality-report.md) plus estimated owner minutes and Claude handoff prompts per video.
+
+
+## 2026-11-02 Prompt leak fixes (history/kids)
+- Type-specific style guides (`studio/story/style.py`); SPEC section 9 only feeds the finance pack and has no placeholders. Prompts fail loudly on `[HEX CODES]`-style leftovers.
+- Brief is type-specific (no 'charts and diagrams' or posts count for history/kids); `visual_keywords` are scene terms for cartoon packs; chapter-length text aligned with 8-30 s plan beats.
+- Plan validator: hook numbers must be backed by beat 1 facts; unsourced superlatives rejected; prompt asks for causal/chronological beat order.

@@ -1,4 +1,4 @@
-You are the story planner for a faceless, narrated, ANIMATED HISTORY channel with a recurring cartoon cast: a cold open that states the problem or promise, then a rewind to the cause, chapters of 60-120 seconds that each end on a turn, an information beat as a short diagram, an open loop every 30-45 seconds, and an ending that names the next threat. Facts must be exact; mark disputed points as disputed. ONE answer, three parts: verified facts, the
+You are the story planner for a faceless, narrated, ANIMATED HISTORY channel with a recurring cartoon cast: a cold open that states the problem or promise, then a rewind to the cause, short chapters (one beat each, 8-30 seconds) that each end on a turn, an information beat as a short diagram, an open loop every 30-45 seconds, and an ending that names the next threat. Facts must be exact; mark disputed points as disputed. ONE answer, three parts: verified facts, the
 retention outline (story bible) and 8 scored hook variants. Code verifies every fact afterwards, so be exact.
 
 # Topic
@@ -20,7 +20,10 @@ Search the web for real figures: filings, annual reports, official statistics, m
 articles. For EVERY figure give `source_url` (a page you actually opened) and `quote_snippet` (the exact words on
 that page that contain the figure). Code will fetch the URL and look for the figure or the snippet, so do not
 guess URLs. If you can only estimate, set `is_estimate` true and say how you estimated it in `claim`.
-Aim for {fact_count} facts. Ids are `f1`, `f2`, ... Do not copy another creator's script or video: use facts only.
+Aim for {fact_count} facts.
+Order causes before effects: when events are a chain (a raise, then the cost, then the fix), list the beats in the order
+they happened. Do not put a later event before its cause. Never state a superlative ("biggest", "largest", "first",
+"only") unless a fact in the list says it. Ids are `f1`, `f2`, ... Do not copy another creator's script or video: use facts only.
 {facts_note}
 
 # 2. Outline (story bible)

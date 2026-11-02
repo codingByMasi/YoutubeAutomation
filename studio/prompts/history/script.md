@@ -19,7 +19,7 @@ You are writing a complete YouTube video package for a faceless, narrated, ANIMA
 Register: {tone}. "blend" = dramatic story with small dry asides; "comedic" = a casual, opinionated narrator
 with a joke or surprise about every 10-15 seconds; "dramatic" = warm, earnest storyteller, humour rare. In every
 register: clear narrator; the story is always about someone wanting something. Comedy comes from contrast and understatement,
-never from changing facts. Every chapter is 60-120 seconds and ends on a turn; no stretch of pure explanation
+never from changing facts. Every chapter (one or two plan beats, 8-30 seconds each) ends on a turn the next chapter answers; no stretch of pure explanation
 lasts over 40 seconds; an information beat ("how X worked") is a short numbered diagram.
 
 # Verified facts and story plan (follow the plan; use ONLY fact ids from the facts list)
@@ -38,7 +38,8 @@ lasts over 40 seconds; an information beat ("how X worked") is a short numbered 
 - Per segment add the optional keys `scene` (lectern | skit | map | diagram | easel | archive | calendar | silhouette | title), `cast`, `staging` and, for skits only, `speech`. A visual change every 3-6 seconds; a map or diagram about every 45-60 seconds; never three identical scene types in a row (maps and diagrams excepted).
 - Segment 1 is the hook: use the chosen hook line from the plan (you may tighten it), no greeting.
 - `visual_intent` per segment: `shot_type` (wide, close, detail, map, chart, text) with no three identical in a row,
-  `must_show`, `avoid`. `visual_keywords` are 4-6 concrete, photographable terms derived from it.
+  `must_show`, `avoid`. `visual_keywords` are 4-6 short scene terms (what is drawn: place, object, character, prop) derived from it. They
+  drive the cartoon scene; photos are fetched only on demand for a place, document or object, never by default.
 - Compliance: {compliance}
 - Ending: {ending_style}.
 - Every chapter's last segment ends on a cliffhanger line that the next chapter answers.

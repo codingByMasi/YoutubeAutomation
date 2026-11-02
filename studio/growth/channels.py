@@ -251,7 +251,7 @@ def brief(root: Path) -> str | None:
 def summary(p: dict) -> str:
     """One paragraph for prompts."""
     text = (f"Channel '{p['name']}': {p['niche']}. Language: {p['language']}. Audience: {p['audience']}. "
-            f"Posts {p['posts_per_week']} long video(s) per week. Faceless narration with charts and diagrams.")
+            f"{channel_types.format_line(p)}")
     t = channel_types.info(p.get("type"))
     text += f" Format: {t['label']}. {t['guidance']}"
     text = f"{text} About: {p['description']}" if p.get("description") else text

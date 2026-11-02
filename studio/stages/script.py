@@ -246,6 +246,12 @@ def _brief(root: Path) -> str:
     return (channels.brief(root) or _spec_section(root, 1, DEFAULT_BRIEF)) + rules.lessons_text(root)
 
 
+def _style(root: Path, prof: dict) -> str:
+    """Style guide for the channel's pack (SPEC section 9 only for the finance pack)."""
+    from studio.story import style
+    return style.for_profile(prof, _spec_section(root, 9, DEFAULT_STYLE))
+
+
 def _spec_section(root: Path, number: int, default: str) -> str:
     spec = root / "SPEC.md"
     if not spec.exists():
@@ -271,7 +277,7 @@ def build_prompt(root: Path, topic: str, outline: dict | None = None, facts: lis
     from studio.story import profile as sp
     prof = sp.for_channel(root)
     return prompts.compose(
-        "script", prof, topic=topic, brief=_brief(root), style=_spec_section(root, 9, DEFAULT_STYLE),
+        "script", prof, topic=topic, brief=_brief(root), style=_style(root, prof),
         outline=prompts.j(outline) if outline else NO_OUTLINE,
         facts_block=prompts.j(facts_mod.prompt_view(facts)) if facts else "(no facts list for this video)",
         facts=prompts.j(facts_mod.prompt_view(facts)) if facts else "(no facts list for this video)",

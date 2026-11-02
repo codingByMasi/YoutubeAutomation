@@ -40,8 +40,12 @@ def writing_rules(prof: dict) -> str:
         max_words=int(prof["max_minutes"] * 60 * wps), banned=", ".join(f'"{p}"' for p in prof["banned_phrases"])))
 
 
-def shape() -> str:
-    return read("_shape").replace("{{", "{").replace("}}", "}")
+def shape(prof: dict | None = None) -> str:
+    """The output JSON shape; cartoon packs (history, kids) draw scenes, so keywords are not 'photographable'."""
+    text = read("_shape").replace("{{", "{").replace("}}", "}")
+    if prof and prof.get("pack") in ("history", "kids"):
+        text = text.replace("concrete photographable terms", "short scene terms (what is drawn)")
+    return text
 
 
 def _cast_block(prof: dict) -> str:
@@ -56,10 +60,13 @@ def compose(name: str, prof: dict, **values) -> str:
     vals = _Safe(
         banned=", ".join(f'"{p}"' for p in prof["banned_phrases"]), min_minutes=prof["min_minutes"],
         max_minutes=prof["max_minutes"], compliance=" ".join(prof["compliance"]), ending_style=prof["ending_style"],
-        writing_rules=writing_rules(prof), exemplar=exemplar(prof["pack"]), shape=shape(),
+        writing_rules=writing_rules(prof), exemplar=exemplar(prof["pack"]), shape=shape(prof),
         hooks=read("hooks", prof["pack"]), cast_block=_cast_block(prof), tone=prof.get("tone", ""),
         recent="(no earlier videos on this channel yet)", facts_block="(none)")
     vals.update(values)
+    from studio.story import style
+    for key in ("style", "brief"):
+        style.check_no_placeholders(str(vals.get(key, "")), f"channel {key}")
     from studio.story.profile import short_form_note
     return read(name, prof["pack"]).format_map(vals) + short_form_note(prof)
 

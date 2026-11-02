@@ -35,8 +35,9 @@ TYPES: dict[str, dict] = {
         "mode": "narrated", "made_for_kids": False,
         "niche": "History and education explainers",
         "audience": "Curious learners 16-55 who enjoy clear stories about the past and how things work",
-        "guidance": "Narrated story with maps, timelines and archive-style images. Cite primary or reputable "
-                    "sources for dates and claims; mark disputed points as disputed.",
+        "guidance": "Narrated story told with a recurring cartoon cast, maps and timelines; archive images only "
+                    "for things, on demand. Cite primary or reputable sources for dates and claims; mark disputed "
+                    "points as disputed.",
         "seeds": ["the rise and fall of", "what really happened", "how it worked", "history of"],
         "music_mood": "minor", "palette": ("#2B1B12", "#E0A458"), "scene_style": "mixed",
         "analytics_hint": "Evergreen topics grow slowly; compare views after 28+ days, not the first week.",
@@ -63,6 +64,20 @@ TYPES: dict[str, dict] = {
         "analytics_hint": "Compare views per day across videos of the same length.",
     },
 }
+
+
+FORMAT_LINES = {
+    "history": "Faceless animated storytelling with a recurring original cartoon cast, maps and timelines.",
+    "kids": "Animated songs and stories with original characters, no narrator-on-camera.",
+}
+
+
+def format_line(p: dict) -> str:
+    """Type-specific sentence on how videos are made; only the finance/general types say 'charts and diagrams'."""
+    t = (p.get("type") or DEFAULT_TYPE)
+    if t in FORMAT_LINES:
+        return FORMAT_LINES[t]
+    return f"Posts {p.get('posts_per_week', 2)} long video(s) per week. Faceless narration with charts and diagrams."
 
 
 def normalize(type_id: str | None) -> str:

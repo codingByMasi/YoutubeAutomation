@@ -7,6 +7,7 @@ step). Progress lives in projects/<id>/story_state.json so a rerun skips finishe
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import typer
@@ -55,6 +56,37 @@ def _outline_for_checks(plan: dict, prof: dict, ranked: list[dict]) -> dict:
     return o
 
 
+_NUM = re.compile(r"\d[\d,]*(?:\.\d+)?")
+_SUPERLATIVE = re.compile(r"\b(biggest|largest|greatest|richest|deadliest|strongest|mightiest|only|first ever)\b", re.I)
+
+
+def _digits(text: str) -> set[str]:
+    return {m.group(0).replace(",", "").rstrip(".") for m in _NUM.finditer(text or "")}
+
+
+def hook_coverage_problems(outline: dict, facts: list[dict], hook: dict) -> list[str]:
+    """The hook's numbers must be backed by beat 1's facts; superlatives in the question or hook need a fact."""
+    problems: list[str] = []
+    by_id = {str(f.get("id")): f for f in facts}
+    beats = outline.get("beats") or []
+    first = beats[0] if beats else {}
+    covered = _digits(first.get("key_fact", ""))
+    for fid in first.get("fact_ids") or []:
+        f = by_id.get(fid) or {}
+        covered |= _digits(str(f.get("claim", ""))) | _digits(str(f.get("figure", "")))
+    line = str(hook.get("line", ""))
+    missing = sorted(n for n in _digits(line) if n not in covered)
+    if missing:
+        problems.append(f"the hook says {', '.join(missing)} but beat 1 does not cite a fact with that number: "
+                        f"add its fact id to beat 1's fact_ids (and key_fact), or drop the number from the hook")
+    claim_text = " ".join(f"{f.get('claim', '')} {f.get('quote_snippet', '')}" for f in facts).lower()
+    for label, text in (("audience_question", outline.get("audience_question", "")), ("hook", line)):
+        for m in _SUPERLATIVE.finditer(text or ""):
+            if m.group(0).lower() not in claim_text:
+                problems.append(f"{label} claims '{m.group(0)}' but no fact says it: add a sourced fact or reword")
+    return problems
+
+
 def validate_plan(d: dict, prof: dict, root: Path | None = None, video_id: int | None = None) -> list[str]:
     """Rules for the story_plan answer (shape is checked by Pydantic before this runs)."""
     from studio.stages.story import validate_outline
@@ -78,6 +110,8 @@ def validate_plan(d: dict, prof: dict, root: Path | None = None, video_id: int |
         problems.append(f"every hook uses a formula from the channel's last videos ({', '.join(recent)}); "
                         f"add variants using: {', '.join(set(prof['hook_formulas']) - set(recent))}")
     o = d["outline"]
+    if needs_facts:
+        problems += hook_coverage_problems(o, d.get("facts") or [], ranked[0])
     ids = [lp.get("id") for lp in o.get("loops", [])]
     if len(ids) != len(set(ids)):
         problems.append("loop ids must be unique")
@@ -87,12 +121,12 @@ def validate_plan(d: dict, prof: dict, root: Path | None = None, video_id: int |
 
 def run_plan(ctx: Ctx, video: Video, force: bool = False, fetch=None) -> dict:
     """Task 1. On success writes facts.json (verified), hooks.json (ranked), outline.json (with the chosen hook)."""
-    from studio.stages.script import DEFAULT_STYLE, _brief, _spec_section
+    from studio.stages.script import _brief, _style
     root, out = ctx.settings.root, ctx.settings.project_dir(video.id)
     topic = ctx.session.get(Idea, video.idea_id).topic
     prof = sp.for_channel(root)
     prompt = prompts.compose(
-        "story_plan", prof, topic=topic, brief=_brief(root), style=_spec_section(root, 9, DEFAULT_STYLE),
+        "story_plan", prof, topic=topic, brief=_brief(root), style=_style(root, prof),
         audience=prof["audience"], language=prof["language"], region=prof["region"],
         beat_sheet=" > ".join(prof["beat_sheet"]), hook_formulas=", ".join(prof["hook_formulas"]),
         hook_words=8 if prof.get("kids") else 12, fact_count="2-4 counting facts at most" if prof.get("kids") else prof.get("fact_count", "8-14"),  # noqa: E501
