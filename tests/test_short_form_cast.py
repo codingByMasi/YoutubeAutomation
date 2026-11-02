@@ -119,3 +119,41 @@ def test_kids_roster_has_animated_2d_art_and_puddles_are_allowed():
     assert "puddle" in spec.CHARACTERS
     if sprites.available():
         assert SpriteBank().get("pip", 120) is not None
+
+
+# ---------- cast of ten per channel, per-character voices ----------
+def test_kids_roster_has_ten_with_voices_and_sprites() -> None:
+    from studio.kids import cast
+    roster = cast.load()
+    assert len(roster) >= 10 and {"ollie", "gigi", "zuzu", "marlo", "rosie"} <= set(roster)
+    for cid, c in roster.items():
+        assert c["voice"]["edge"].endswith("Neural") and 0.7 <= c["voice"]["speed"] <= 1.3, cid
+        if cid in ("ollie", "gigi", "zuzu", "marlo", "rosie"):
+            assert not sprites.missing_groups((sprites.BUILTIN / f"{cid}.svg").read_text()), cid
+    assert len({c["main"] for c in roster.values()}) == len(roster)
+    assert len({c["voice"]["edge"] + str(c["voice"]["pitch"]) for c in roster.values()}) == len(roster)
+    assert cast.voice_for("nobody")["edge"]
+
+
+def test_history_cast_has_ten_valid_distinct_characters(tmp_path) -> None:
+    from studio.history import cast
+    assert len(cast.ROSTER) == 10 and {"brine", "hindsight", "ironhand", "alma"} <= set(cast.ROSTER)
+    cast.check_roster()
+    assert len({c["body"] for c in cast.ROSTER.values()}) == 10
+    for f in cast.export_roster(tmp_path):
+        assert not sprites.missing_groups(f.read_text(encoding="utf-8")), f.name
+    assert cast.voice_for("dash")["rate"] == 18 and cast.build_svg(shape="tall") != cast.build_svg()
+    with pytest.raises(ValueError):
+        cast.build_svg(shape="giant")
+    # generated figures still draw only from the base headwear/props, so old videos do not change
+    assert "bicorn" not in cast.HEADWEAR and "telescope" not in cast.PROPS
+
+
+def test_voice_check_reports_what_to_fix() -> None:
+    from studio.errors import StudioError
+    from studio.providers import voices
+    assert voices.check({"edge": "en-US-AnaNeural", "rate": "5"})["rate"] == 5
+    for bad in ({"edge": "ana"}, {"kokoro": "x"}, {"rate": 99}, {"speed": "fast"}):
+        with pytest.raises(StudioError):
+            voices.check(bad)
+    assert voices.prosody(voices.DEFAULT) == {"rate": 0, "pitch": 0, "volume": 0}

@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <title>gigi</title>
+  <ellipse cx="200" cy="372" rx="110" ry="14" fill="#000" opacity="0.12"/>
+  <rect x="152" y="150" width="96" height="190" rx="40" fill="#F2A65A"/>
+  <ellipse cx="200" cy="318" rx="104" ry="58" fill="#F2A65A"/>
+  <ellipse cx="176" cy="232" rx="12" ry="10" fill="#B5603A"/><ellipse cx="222" cy="252" rx="10" ry="8" fill="#B5603A"/><ellipse cx="188" cy="292" rx="13" ry="11" fill="#B5603A"/><ellipse cx="236" cy="300" rx="9" ry="8" fill="#B5603A"/><ellipse cx="166" cy="330" rx="9" ry="8" fill="#B5603A"/><ellipse cx="206" cy="206" rx="9" ry="8" fill="#B5603A"/>
+  <rect x="150" y="360" width="26" height="12" rx="6" fill="#B5603A"/><rect x="224" y="360" width="26" height="12" rx="6" fill="#B5603A"/>
+  <rect x="154" y="44" width="10" height="44" rx="5" fill="#B5603A"/><circle cx="159" cy="42" r="12" fill="#B5603A"/>
+  <rect x="236" y="44" width="10" height="44" rx="5" fill="#B5603A"/><circle cx="241" cy="42" r="12" fill="#B5603A"/>
+  <ellipse cx="116" cy="108" rx="34" ry="18" fill="#F2A65A" transform="rotate(-20 116 108)"/><ellipse cx="284" cy="108" rx="34" ry="18" fill="#F2A65A" transform="rotate(20 284 108)"/>
+  <ellipse cx="200" cy="112" rx="84" ry="76" fill="#F2A65A"/>
+  <ellipse cx="200" cy="140" rx="52" ry="38" fill="#FFE9C9"/>
+  <circle cx="186" cy="146" r="5" fill="#B5603A"/><circle cx="214" cy="146" r="5" fill="#B5603A"/>
+  <circle cx="186" cy="74" r="10" fill="#B5603A"/><circle cx="238" cy="84" r="8" fill="#B5603A"/>
+  <circle cx="140" cy="132" r="14" fill="#ff9eb5" opacity="0.7"/><circle cx="260" cy="132" r="14" fill="#ff9eb5" opacity="0.7"/>
+  <g id="eyes-open">
+    <circle cx="165" cy="104" r="17" fill="#fff"/><circle cx="235" cy="104" r="17" fill="#fff"/>
+    <circle cx="169" cy="106" r="10" fill="#2b2b3d"/><circle cx="231" cy="106" r="10" fill="#2b2b3d"/>
+    <circle cx="173" cy="101" r="4" fill="#fff"/><circle cx="235" cy="101" r="4" fill="#fff"/>
+  </g>
+  <g id="eyes-closed">
+    <path d="M147 107 Q165 121 183 107" stroke="#2b2b3d" stroke-width="7" fill="none" stroke-linecap="round"/>
+    <path d="M217 107 Q235 121 253 107" stroke="#2b2b3d" stroke-width="7" fill="none" stroke-linecap="round"/>
+  </g>
+  <g id="mouth-closed"><path d="M172 156 Q200 180 228 156" stroke="#2b2b3d" stroke-width="7" fill="none" stroke-linecap="round"/></g>
+  <g id="mouth-open"><path d="M170 152 Q200 204 230 152 Z" fill="#2b2b3d"/><ellipse cx="200" cy="174" rx="14" ry="8" fill="#ff7a8a"/></g>
+</svg>

@@ -2,9 +2,11 @@
 
 Each character is one JSON file in `studio/kids/roster/` (built in) or `assets/kids/roster/` (your own; same id
 overrides a built-in one). To add a character, drop in a JSON file with: id, name, species, role, personality,
-catchphrase, main (hex), accent (hex), look, rhymes. Add `"builder": "<id>"` only if rhyme_cast.py has a
-hand-made 3D model for it; without one the 3D renderer draws a generic round character in your colours and the
-2D renderer a round character with a face, so new characters work immediately.
+catchphrase, main (hex), accent (hex), look, rhymes, shape (silhouette note), voice (see
+studio/providers/voices.py: edge name, rate, pitch, kokoro id, speed; missing keys use a neutral default).
+Add `"builder": "<id>"` only if rhyme_cast.py has a hand-made 3D model for it; without one the 3D renderer draws a
+generic round character in your colours and the 2D renderer a round character with a face. A 2D sprite is
+`studio/kids/cast/<id>.svg` (four groups, see sprites.py); without one the code-drawn round friend is used.
 A channel picks its cast with the `kids_cast` profile field (list of ids; empty means the whole roster).
 """
 
@@ -15,6 +17,7 @@ import re
 from pathlib import Path
 
 from studio.errors import StudioError
+from studio.providers import voices
 
 BUILTIN = Path(__file__).parent / "roster"
 _extra_dirs: list[Path] = []
@@ -45,7 +48,8 @@ def check(entry: dict, source: str = "character") -> dict:
         if not _HEX.match(entry[k]):
             raise StudioError(f"{source}: {k} '{entry[k]}' is not a colour.", "Colours look like #9A6234.",
                               f"Fix {k}.")
-    out = {"role": "", "catchphrase": "", "look": "", "rhymes": [], "builder": "", **entry}
+    out = {"role": "", "catchphrase": "", "look": "", "rhymes": [], "builder": "", "shape": "", **entry}
+    out["voice"] = voices.check(entry.get("voice") or {}, source)
     out["rhymes"] = [str(r) for r in out["rhymes"]]
     return out
 
@@ -99,3 +103,9 @@ def blender_cast(names: list[str]) -> dict:
     roster = load()
     return {n: {"main": roster[n]["main"], "accent": roster[n]["accent"], "builder": roster[n]["builder"]}
             for n in dict.fromkeys(names) if n in roster}
+
+
+def voice_for(char_id: str) -> dict:
+    """The character's voice settings (see `studio.providers.voices`); a neutral default for unknown ids."""
+    c = load().get(char_id)
+    return c["voice"] if c else dict(voices.DEFAULT)

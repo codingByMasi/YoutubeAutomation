@@ -14,5 +14,12 @@
     "Rain, Rain, Go Away",
     "animal sounds"
   ],
-  "builder": "pip"
+  "builder": "pip",
+  "voice": {
+    "edge": "en-US-AnaNeural",
+    "rate": 6,
+    "pitch": 8,
+    "kokoro": "af_sky",
+    "speed": 1.1
+  }
 }

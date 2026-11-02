@@ -1,0 +1,26 @@
+{
+  "id": "gigi",
+  "name": "Gigi the Giraffe",
+  "species": "giraffe",
+  "role": "Tall lookout who spots things first",
+  "personality": "Curious and dreamy; reaches for the highest leaf and loves naming colours and shapes.",
+  "catchphrase": "I can see it from up here!",
+  "main": "#F2A65A",
+  "accent": "#B5603A",
+  "look": "Sunset-orange giraffe with a long neck, cream muzzle, chocolate spots and little horns.",
+  "rhymes": [
+    "Rainbow colours",
+    "I Spy",
+    "Shapes song",
+    "Head, Shoulders, Knees and Toes"
+  ],
+  "voice": {
+    "edge": "en-US-EmmaNeural",
+    "rate": 2,
+    "pitch": 2,
+    "kokoro": "af_bella",
+    "speed": 1.0
+  },
+  "shape": "very tall neck",
+  "builder": ""
+}

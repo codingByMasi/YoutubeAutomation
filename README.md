@@ -93,6 +93,8 @@ python -m studio.cli kids script "counting five little ducks"   # writes the pro
 python -m studio.cli kids build  "counting five little ducks"   # projects/kids_<slug>/final.mp4
 python -m studio.cli kids checklist "counting five little ducks"  # Made for Kids checklist
 python -m studio.cli kids cast                     # list the reference cast (* = this channel's)
+# The kids roster has 10 characters (studio/kids/roster/*.json); each has a `voice` (edge-tts name, rate, pitch, Kokoro id).
+# Previews: youtube-studio/characters-v2/ in the project files. Docs: docs/history-cast-system.md (history cast of 10).
 ```
 
 Stage 2 quality (all free): five original SVG characters (duck, bunny, cat, dog, bird) with blinking eyes and a

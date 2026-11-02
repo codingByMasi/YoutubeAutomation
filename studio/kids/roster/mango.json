@@ -13,5 +13,12 @@
     "action and dance rhymes",
     "counting songs"
   ],
-  "builder": "mango"
+  "builder": "mango",
+  "voice": {
+    "edge": "en-AU-WilliamNeural",
+    "rate": 10,
+    "pitch": 4,
+    "kokoro": "am_puck",
+    "speed": 1.1
+  }
 }

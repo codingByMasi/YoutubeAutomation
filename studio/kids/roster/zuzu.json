@@ -1,0 +1,26 @@
+{
+  "id": "zuzu",
+  "name": "Zuzu the Zebra",
+  "species": "zebra",
+  "role": "Dancer who leads the action songs",
+  "personality": "Energetic and cheeky; cannot stand still and turns every verse into a dance.",
+  "catchphrase": "Stripe a pose!",
+  "main": "#F4F4F8",
+  "accent": "#2BB5C9",
+  "look": "White zebra with ink-black stripes, an aqua mane and aqua hoof-bands.",
+  "rhymes": [
+    "If You're Happy and You Know It",
+    "Hokey Pokey",
+    "Hickory Dickory Dock",
+    "action songs"
+  ],
+  "voice": {
+    "edge": "en-IN-NeerjaNeural",
+    "rate": 4,
+    "pitch": 0,
+    "kokoro": "af_jessica",
+    "speed": 1.05
+  },
+  "shape": "horse head with mane",
+  "builder": ""
+}
