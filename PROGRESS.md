@@ -403,3 +403,14 @@ Status: done (profile, prompts, cast module, tests). Not done: a 2D history scen
 (see docs/history-cast-system.md). Decisions: history pack changed from dread/second-person to animated storytelling
 (tone `blend`); loop distance left at 30-180 s; no sponsor slots; cast names are placeholders for the owner to rename.
 Owner must configure: nothing; optionally set `story.tone` (`blend`, `comedic`, `dramatic`) on the history channel.
+
+## 2026-11-02: YouTube sign-in kept asking again and again
+Causes found: (1) the CLI used the *current folder* as the studio folder while the app used its own folder, so
+`token.json`/`client_secret.json` were "missing" depending on where a command ran; now both default to the repo folder
+(`STUDIO_HOME` still overrides). (2) any refresh error deleted the token (even offline); now only a dead grant triggers
+a new sign-in and the old file is replaced only after the new one works. (3) each channel has its own token slot
+(`tokens/<channel>.json`), so a login made under another channel looks "missing" (`youtube-status --fix` adopts the old
+shared `token.json`). (4) Google Testing-mode refresh tokens expire after 7 days: set the OAuth consent screen to
+"In production" (or accept re-signing weekly). Sign-in now asks for `prompt=consent` so a refresh token is always issued.
+New: `python -m studio.cli youtube-status [--check] [--fix]` (per channel connected/expired/missing, no secrets),
+Setup-page status with a Fix button, and an Issues-panel fix `youtube_signin`.

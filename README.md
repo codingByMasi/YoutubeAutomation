@@ -215,6 +215,7 @@ override everything. Different types run side by side.
 python -m studio.cli channels types
 python -m studio.cli channels add "Tiny Tunes" --type kids --renderer blender --music none
 python -m studio.cli channels sign-in tiny-tunes     # its own Google login, saved to tokens/tiny-tunes.json
+python -m studio.cli youtube-status --check  # connected / expired / missing per channel, with the token file path
 python -m studio.cli channels stats tiny-tunes --days 28          # one channel's page
 python -m studio.cli channels compare --from 2026-10-01 --to 2026-10-31   # all channels side by side
 python -m studio.cli channels stats --demo                         # labelled SAMPLE data if not signed in
