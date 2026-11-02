@@ -13,8 +13,7 @@ from studio.errors import StudioError
 from studio.llm import ask_json
 from studio.models import Idea, Script, Segment, Title, Video
 from studio.stages.base import run_stage
-
-from studio.story.banned import BANNED_PHRASES  # noqa: E402  (moved: see studio/story/banned.py)
+from studio.story.banned import BANNED_PHRASES  # noqa: E402,F401  (re-exported: other modules import it here)
 from studio.story.banned import banned_in as _banned_in  # noqa: E402
 
 CHART_TYPES = {"bar", "pie", "line", "flow", "number"}
@@ -195,9 +194,13 @@ def validate_package(d: dict, profile: dict | None = None, facts: list[dict] | N
     if len(texts) != 3 or any(not 1 <= len(str(t).split()) <= 5 for t in texts):
         problems.append("thumbnail_texts must be 3 strings of 1-5 words")
     if profile is not None and segs:
-        from studio.story import checks, facts as facts_mod, loops
+        from studio.story import checks, loops
+        from studio.story import facts as facts_mod
         from studio.story.profile import enabled
         problems += checks.profile_problems(d, profile)
+        if enabled(profile, "visual_intent"):
+            from studio.story import visuals as story_visuals
+            problems += story_visuals.shot_problems(segs)
         if enabled(profile, "loop_ids"):
             problems += loops.loop_problems(d, profile)
         if facts is not None and enabled(profile, "fact_ledger"):
@@ -263,7 +266,8 @@ def prompt_text(name: str, pack: str = "explainer") -> str:
 
 def build_prompt(root: Path, topic: str, outline: dict | None = None, facts: list[dict] | None = None) -> str:
     """Script prompt for the active channel's pack. `outline` is the plan (outline + chosen hook) when given."""
-    from studio.story import facts as facts_mod, ledger, prompts
+    from studio.story import facts as facts_mod
+    from studio.story import ledger, prompts
     from studio.story import profile as sp
     prof = sp.for_channel(root)
     return prompts.compose(
@@ -368,7 +372,10 @@ def video_for_idea(ctx: Ctx, idea_id: int) -> Video:
 def run_engine_script(ctx: Ctx, video: Video, outline: dict, force: bool = False) -> Video:
     """Task 2 of the story engine: the script, written to the plan and checked against facts, loops and rotation."""
     from studio.stages.qa import quality_report
-    from studio.story import facts as facts_mod, hooks as hooks_mod, models as M, profile as sp
+    from studio.story import facts as facts_mod
+    from studio.story import hooks as hooks_mod
+    from studio.story import models as M
+    from studio.story import profile as sp
     topic = ctx.session.get(Idea, video.idea_id).topic
     out_dir = ctx.settings.project_dir(video.id)
     prof = sp.for_channel(ctx.settings.root)
@@ -384,7 +391,6 @@ def run_engine_script(ctx: Ctx, video: Video, outline: dict, force: bool = False
             problems.append(f"hook_type must be {outline.get('hook_type')!r} (the plan's chosen hook), "
                             f"got {data.get('hook_type')!r}")
         if sp.enabled(prof, "hook_rotation"):
-            from studio.story import ledger
             msg = hooks_mod.rotation_problem(str(data.get("hook_type", "")), ctx.settings.root, 3, video.id)
             if msg:
                 problems.append(msg)
@@ -399,6 +405,7 @@ def run_engine_script(ctx: Ctx, video: Video, outline: dict, force: bool = False
     def work() -> None:
         d = ask_json(ctx.settings, out_dir, "script", build_prompt(ctx.settings.root, topic, outline, facts),
                      validate=check, model=M.ScriptModel, force=False)
+        d["engine"] = True  # marks a story-engine script (the gate applies the strict story checks)
         d.setdefault("hook_type", outline.get("hook_type", ""))
         d.setdefault("arc", outline.get("arc") if isinstance(outline.get("arc"), str) else "")
         for n in notes:

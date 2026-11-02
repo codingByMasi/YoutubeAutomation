@@ -78,5 +78,5 @@ def _seg_at(segs: list[dict], second: float) -> int:
 def loop_map(pkg: dict) -> list[dict]:
     """Loops as [{id, plant_seconds, payoff_seconds}] for reports and the retention heatmap."""
     t = loop_table(pkg.get("segments") or [])
-    return [{"id": k, "plant_seconds": round(v["plant"] or 0), "payoff_seconds": round(v["pays"][0]) if v["pays"] else None}
+    return [{"id": k, "plant_seconds": round(v["plant"] or 0), "payoff_seconds": round(v["pays"][0]) if v["pays"] else None}  # noqa: E501
             for k, v in t.items()]

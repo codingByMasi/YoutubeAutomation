@@ -12,16 +12,15 @@ from pathlib import Path
 import typer
 
 from studio.context import Ctx
-from studio.errors import InvalidAnswer, PendingLLMResponse, StageError, StudioError
+from studio.errors import StudioError
 from studio.llm import ask_json, pending_task, prompt_paths
 from studio.models import Idea, Video
 from studio.stages.base import get_video, stage_index
 from studio.story import facts as facts_mod
 from studio.story import hooks as hooks_mod
-from studio.story import ledger, loops
+from studio.story import ledger, loops, prompts
 from studio.story import models as M
 from studio.story import profile as sp
-from studio.story import prompts
 
 STATE = "story_state.json"
 PASS_AVG, PASS_MIN = 4.2, 3
@@ -88,7 +87,7 @@ def validate_plan(d: dict, prof: dict, root: Path | None = None, video_id: int |
 
 def run_plan(ctx: Ctx, video: Video, force: bool = False, fetch=None) -> dict:
     """Task 1. On success writes facts.json (verified), hooks.json (ranked), outline.json (with the chosen hook)."""
-    from studio.stages.script import _brief, _spec_section, DEFAULT_STYLE
+    from studio.stages.script import DEFAULT_STYLE, _brief, _spec_section
     root, out = ctx.settings.root, ctx.settings.project_dir(video.id)
     topic = ctx.session.get(Idea, video.idea_id).topic
     prof = sp.for_channel(root)
@@ -96,7 +95,7 @@ def run_plan(ctx: Ctx, video: Video, force: bool = False, fetch=None) -> dict:
         "story_plan", prof, topic=topic, brief=_brief(root), style=_spec_section(root, 9, DEFAULT_STYLE),
         audience=prof["audience"], language=prof["language"], region=prof["region"],
         beat_sheet=" > ".join(prof["beat_sheet"]), hook_formulas=", ".join(prof["hook_formulas"]),
-        hook_words=8 if prof.get("kids") else 12, fact_count="2-4 counting facts at most" if prof.get("kids") else "8-14",
+        hook_words=8 if prof.get("kids") else 12, fact_count="2-4 counting facts at most" if prof.get("kids") else "8-14",  # noqa: E501
         facts_note=("Kids: facts are optional; use counting numbers only and leave `source_url` empty with "
                     "`is_estimate` true." if not sp.enabled(prof, "fact_ledger") else ""),
         recent=ledger.prompt_text(root, exclude_video=video.id) if sp.enabled(prof, "repetition_ledger")
@@ -161,6 +160,14 @@ def swipe_seconds(pkg: dict, segment: int) -> int:
     return round(loops.starts(pkg.get("segments") or [])[max(0, min(segment, len(pkg["segments"])) - 1)])
 
 
+def _still_there(quote: str, narration: str) -> bool:
+    """The quoted line survives in the rewrite: as a whole sentence, or (long quotes) as a substring."""
+    from studio.story.checks import sentences
+    norm = lambda t: " ".join(t.lower().split()).strip(" .!?")  # noqa: E731
+    q = norm(quote)
+    return q in {norm(x) for x in sentences(narration)} or (len(q.split()) >= 8 and q in norm(narration))
+
+
 def validate_review(d: dict, pkg: dict, prof: dict, facts: list[dict] | None, criteria: list[str],
                     must_fix: list[str] | None = None) -> list[str]:
     from studio.stages.script import normalize_package, validate_package
@@ -183,7 +190,7 @@ def validate_review(d: dict, pkg: dict, prof: dict, facts: list[dict] | None, cr
         text = str(segs[n - 1].get("narration", ""))
         if s["quote"].strip().lower() not in text.lower():
             problems.append(f"swipe_points[{i}].quote is not word-for-word in segment {n}: {s['quote'][:50]!r}")
-        elif any(s["quote"].strip().lower() in str(r.get("narration", "")).lower() for r in rsegs):
+        elif any(_still_there(s["quote"], str(r.get("narration", ""))) for r in rsegs[max(0, n - 2):n + 1]):
             problems.append(f"swipe_points[{i}]: the quoted line is still in the rewrite ({s['quote'][:50]!r}); "
                             "the rewrite must fix every swipe-away moment")
     problems += [f"revised package: {p}" for p in validate_package(revised, prof, facts)]
@@ -193,8 +200,8 @@ def validate_review(d: dict, pkg: dict, prof: dict, facts: list[dict] | None, cr
 
 def deterministic_issues(pkg: dict, ctx: Ctx, video_id: int) -> list[dict]:
     """Major/critical gate issues in script, hook, pacing and originality for the (revised) package."""
-    from studio.quality import gate, profiles
     from studio.growth import channels
+    from studio.quality import gate, profiles
     root = ctx.settings.root
     ctype = profiles.channel_type(channels.get(root))
     rep = gate.evaluate(pkg, ctype, peers=gate._peers(ctx, video_id), story_profile=sp.for_channel(root))
@@ -232,7 +239,7 @@ def run_review(ctx: Ctx, video: Video, force: bool = False) -> dict:
             score_skeleton=score_skeleton(prof["pack"]), deterministic=det)
         task = "story_review" if rnd == 1 else f"story_review_r{rnd}"
         d = ask_json(ctx.settings, out, task, prompt, model=M.StoryReview, force=force and rnd == 1,
-                     validate=lambda x, pkg=pkg: validate_review(x, pkg, prof, facts, crit, prior),
+                     validate=lambda x, pkg=pkg, prior=prior: validate_review(x, pkg, prof, facts, crit, prior),
                      api_provider=api or None)
         scores = {c: d["scores"][c] for c in crit}
         avg = sum(scores.values()) / len(scores)
@@ -266,7 +273,7 @@ def run_review(ctx: Ctx, video: Video, force: bool = False) -> dict:
 
 
 CRITERIA_HELP = {
-    "number_accuracy": "every figure traces to a fact id and is worded as the fact says; estimates sound like estimates",
+    "number_accuracy": "every figure traces to a fact id and is worded as the fact says; estimates sound like estimates",  # noqa: E501
     "actionability": "the viewer leaves with one thing to check, compare or do; not-financial-advice in plain words",
     "accuracy": "dates, names and numbers match the facts; disputed points marked; graphic events wordsafe",
     "dread": "tension builds slowly, reveals land suddenly, chapters end on cliffhangers",
@@ -279,7 +286,7 @@ def record_ledger(ctx: Ctx, video: Video) -> None:
     from studio.stages.script import load_package
     out = ctx.settings.project_dir(video.id)
     pkg = load_package(ctx, video.id)
-    outline = json.loads((out / "outline.json").read_text(encoding="utf-8")) if (out / "outline.json").exists() else None
+    outline = json.loads((out / "outline.json").read_text(encoding="utf-8")) if (out / "outline.json").exists() else None  # noqa: E501
     ledger.record(ctx.settings.root, ledger.entry_from_package(pkg, outline, video.id))
 
 
@@ -314,6 +321,18 @@ def auto(ctx: Ctx, video: Video, force: bool = False, fetch=None) -> None:
     typer.echo(f"Story engine done for video {video.id}. Next: voice {video.id}")
 
 
+def pending_task_name(ctx: Ctx, video_id: int) -> str | None:
+    """The story-engine task whose prompt/answer is outstanding (story_plan, script, story_review[_rN]) or None."""
+    out = ctx.settings.project_dir(video_id)
+    st = load_state(out)
+    prof = sp.for_channel(ctx.settings.root)
+    for task, key in (("story_plan", "plan"), ("script", "script"), ("story_review", "review")):
+        if st[key] == "done" or (key == "review" and not sp.enabled(prof, "story_review")):
+            continue
+        return f"story_review_r{len(st['rounds']) + 1}" if task == "story_review" and st["rounds"] else task
+    return None
+
+
 def next_step(ctx: Ctx, video_id: int) -> tuple[str, str]:
     """(what is pending, exact command to run) for a video."""
     video = get_video(ctx.session, video_id)
@@ -321,7 +340,7 @@ def next_step(ctx: Ctx, video_id: int) -> tuple[str, str]:
     st = load_state(out)
     prof = sp.for_channel(ctx.settings.root)
     if stage_index(video.stage) >= stage_index("scripted") and st["review"] == "done":
-        from studio.stages.base import STAGES, STAGE_COMMAND
+        from studio.stages.base import STAGE_COMMAND, STAGES
         nxt = STAGES[stage_index(video.stage) + 1] if stage_index(video.stage) + 1 < len(STAGES) else None
         return ("nothing pending in the story engine",
                 f"{STAGE_COMMAND.get(nxt, 'status')} {video_id}" if nxt else "status")

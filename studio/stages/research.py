@@ -168,6 +168,12 @@ def run(ctx: Ctx, seed: str, force: bool = False, limit: int = 15, suggest=None,
                           competition_score=sc["competition"], outlier_score=sc["outlier"]))
     s.add_all(ideas)
     s.commit()
+    try:  # remember top outlier titles as pattern references for story_plan (never copied)
+        from studio.story import feedback_loop
+        feedback_loop.record_competitors(ctx.settings.root, [{"title": v.title, "views": v.views, "subs": v.subs}
+                                                             for v in outliers])
+    except Exception:  # noqa: BLE001
+        pass
     typer.echo(f"Analysed {len(videos)} recent videos; {len(outliers)} small-channel outliers "
                f"(<{SMALL_CHANNEL_SUBS:,} subs, >= {OUTLIER_RATIO}x views per sub).")
     for v in outliers[:5]:

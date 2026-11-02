@@ -24,7 +24,6 @@ from studio.stages.script import (
     normalize_package,
     replace_package,
     validate_package,
-    write_package,
 )
 from studio.story import profile as story_profile
 from studio.story import prompts as story_prompts
@@ -189,7 +188,7 @@ def run_critique(ctx: Ctx, video_id: int, force: bool = False) -> dict:
         seg.pop("visual", None)
     prof = story_profile.for_channel(ctx.settings.root)
     crit = criteria_for(prof["pack"])
-    prompt = story_prompts.compose("critique", prof, topic=topic, package=json.dumps(clean, indent=2, ensure_ascii=False),
+    prompt = story_prompts.compose("critique", prof, topic=topic, package=json.dumps(clean, indent=2, ensure_ascii=False),  # noqa: E501
                                    score_skeleton=score_skeleton(prof["pack"]))
     if force:
         (out / "critique.json").unlink(missing_ok=True)
@@ -210,7 +209,7 @@ def run_critique(ctx: Ctx, video_id: int, force: bool = False) -> dict:
                                        encoding="utf-8")
     from studio.stages.qa import quality_report
     rep = quality_report(d["revised"])
-    typer.echo(f"Rewrite applied (original kept as script.original.json, previous as script.v{n}.json). Quality score now {rep['score']}/100.")
+    typer.echo(f"Rewrite applied (original kept as script.original.json, previous as script.v{n}.json). Quality score now {rep['score']}/100.")  # noqa: E501
     for w in rep["warnings"]:
         typer.secho(f"  - {w}", fg=typer.colors.YELLOW)
     typer.echo(f"Next: voice {video_id}")

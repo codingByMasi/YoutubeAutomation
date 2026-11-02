@@ -121,10 +121,7 @@ def figure_in_text(figure: object, text: str) -> bool:
     target = to_number(figure)
     if target is None:
         return False
-    for val, is_pct in parse_numbers(text):
-        if numbers_match(val, target):
-            return True
-    return False
+    return any(numbers_match(val, target) for val, _ in parse_numbers(text))
 
 
 def snippet_in_text(snippet: str, text: str) -> bool:

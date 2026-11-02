@@ -31,7 +31,7 @@ def llm_score(variant: dict) -> float | None:
 def validate_variants(variants: object, profile: dict, count: int = 8) -> list[str]:
     """Shape and formula problems in the hook variants of the story_plan answer."""
     if not isinstance(variants, list) or len(variants) != count:
-        return [f"hooks must be a list of exactly {count} variants (got {len(variants) if isinstance(variants, list) else 0})"]
+        return [f"hooks must be a list of exactly {count} variants (got {len(variants) if isinstance(variants, list) else 0})"]  # noqa: E501
     problems = []
     allowed = set(profile["hook_formulas"])
     for i, v in enumerate(variants, 1):
@@ -51,7 +51,7 @@ def rank(variants: list[dict], recent_types: list[str], profile: dict) -> list[d
     out = []
     for v in variants:
         d, why = det_score(str(v.get("line", "")), str(v.get("hook_type", "")), profile.get("gate_type", "explainer"))
-        l = llm_score(v)
+        l = llm_score(v)  # noqa: E741
         total = round((d + l) / 2, 1) if l is not None else float(d)
         out.append({**v, "det_score": d, "det_notes": why, "llm_score": l, "total": total,
                     "blocked": v.get("hook_type") in recent_types})

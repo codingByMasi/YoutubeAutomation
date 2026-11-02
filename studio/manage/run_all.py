@@ -43,7 +43,7 @@ def run(ctx: Ctx, seed: str, classic: bool = False) -> Video:
     typer.echo(f"\n== Working on video {v.id} ==")
     try:
         script.run(ctx, v.idea_id, auto=not classic)  # may stop for Claude Code to answer a prompt
-    except PendingLLMResponse as exc:
+    except PendingLLMResponse:
         from studio.story import engine
         what, cmd = engine.next_step(ctx, v.id)
         typer.secho(f"\nHandoff: {what}\nThen continue with: python -m studio.cli run-all \"{seed}\"  "

@@ -27,7 +27,7 @@ BLOCKED_PATTERNS = [re.compile(p, re.I) for p in (
     r"\bhow (?:much|to) .*\b(?:employees?|workers?|crew|staff)\b.*\b(?:make|earn|paid)\b",
     r"\bhow much (?:do|does|are|is) .*\b(?:paid|pay)\b", r"\b(?:salary|salaries|wages?|hourly pay)\b",
     r"\b(?:jobs?|careers?) (?:at|in|with)\b", r"\b(?:hiring|job interview|interview questions)\b",
-    r"\bhow to (?:get|find|land) (?:a )?(?:job|hired)\b", r"\b(?:free (?:download|robux|v-?bucks|gift ?cards?|money))\b",
+    r"\bhow to (?:get|find|land) (?:a )?(?:job|hired)\b", r"\b(?:free (?:download|robux|v-?bucks|gift ?cards?|money))\b",  # noqa: E501
     r"\b(?:download|install) (?:the )?(?:app|apk)\b", r"\b(?:hack|hacks|hacked) (?:for|to|into)\b",
     r"\bmake money (?:in|on|playing) (?:the )?(?:game|games|roblox|sims)\b", r"\bgame (?:guide|tips)\b",
     r"\breddit (?:thread|post)\b", r"\b(?:movie|song) (?:review|trailer)\b",

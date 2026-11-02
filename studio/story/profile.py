@@ -108,7 +108,7 @@ PACKS: dict[str, dict] = {
                   "reveal": {"rate": -2, "pitch": 5, "volume": 4}, "tense": {"rate": -4, "pitch": 2, "volume": 0},
                   "warm": {"rate": -6, "pitch": 3, "volume": 0}, "excited": {"rate": 4, "pitch": 6, "volume": 4},
                   "pauses": {"before_reveal": 0.0, "after_plant": 0.0, "chapter": 0.4}},
-        "vocabulary_max_words": 12, "max_grade": 3, "extra_banned": ["die", "dead", "kill", "blood", "monster", "scary", "hate"],
+        "vocabulary_max_words": 12, "max_grade": 3, "extra_banned": ["die", "dead", "kill", "blood", "monster", "scary", "hate"],  # noqa: E501
         "flag_overrides": {"fact_ledger": False, "loop_ids": False, "hook_rotation": True,
                            "repetition_ledger": True},
     },

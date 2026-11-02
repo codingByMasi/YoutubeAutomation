@@ -388,3 +388,12 @@ in `script.json`, and the generated YouTube description lists every source under
 - Pictures step collects assets in memory and writes them in one short transaction (no write lock during downloads/Blender).
 - `Ctx.close()`; the web app closes every context at the end of each rerun and rolls back sessions after failed steps.
 - "database is locked" gets a plain message (app and CLI subprocess output), plus tools to find/stop other Studio processes and clear stale journal files (`studio/util/dblock.py`, needs `psutil`: run `pip install -r requirements.txt`).
+
+## 2026-11-02: story quality and retention upgrade (phases 1-6)
+- Status: done. Details, flags and decisions: `docs/CHANGELOG.md`.
+- New: `studio/story/` (profile, facts, loops, hooks, ledger, engine, narration, mood, safety, titles, feedback loop),
+  `studio/health.py` (issue log + fix buttons), TTS fallback chain, prompt packs under `studio/prompts/<pack>/`.
+- Owner must: `pip install -r requirements.txt` (pydantic, faster-whisper, requests now required). Optional extras:
+  `requirements-optional.txt`. First real video: `python -m studio.cli script <idea_id> --auto`, answer each prompt file
+  (story_plan, script, story_review), re-run the same command, then `voice`, `visuals`, `build`, `gate`.
+- Tests: `tests/test_story_units.py`, `tests/test_story_engine.py` (fake LLM in `tests/fake_llm.py`), opt-in `tests/test_dry_run.py`.

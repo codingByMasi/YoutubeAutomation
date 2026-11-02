@@ -156,6 +156,30 @@ def measure_audio(path: Path) -> dict | None:
     exe = shutil.which("ffmpeg")
     if not exe or not path.exists():
         return None
+    try:
+        return _measure_ffmpeg(exe, path)
+    except Exception:  # noqa: BLE001 - ffmpeg measurement failed: try pyloudnorm, else report "not measured"
+        return _measure_pyloudnorm(exe, path)
+
+
+def _measure_pyloudnorm(exe: str, path: Path) -> dict | None:
+    """Fallback measurement with pyloudnorm (optional): decode to WAV with ffmpeg, then measure."""
+    try:
+        import pyloudnorm as pyln
+        import soundfile as sf
+    except ImportError:
+        return None
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        wav = Path(d) / "a.wav"
+        subprocess.run([exe, "-y", "-v", "error", "-i", str(path), "-vn", "-ac", "2", str(wav)], check=True, timeout=600)  # noqa: E501
+        data, rate = sf.read(str(wav))
+        lufs = pyln.Meter(rate).integrated_loudness(data)
+        peak = float(20 * __import__("math").log10(max(abs(data).max(), 1e-9)))
+    return {"lufs": float(lufs), "true_peak": peak}
+
+
+def _measure_ffmpeg(exe: str, path: Path) -> dict | None:
     cmd = [exe, "-hide_banner", "-nostats", "-i", str(path), "-af", "ebur128=peak=true", "-f", "null", "-"]
     r = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
     tail = r.stderr.split("Summary:")[-1]
@@ -208,7 +232,8 @@ def check_metadata(pkg: dict, t: dict, thumb: Path | None) -> list[dict]:
 
 def evaluate(pkg: dict, ctype: str = profiles.DEFAULT_TYPE, tuning: dict | None = None,
              audio: dict | None = None, thumb: Path | None = None, peers: list[tuple[str, dict]] | None = None,
-             in_series: bool | None = None, story_profile: dict | None = None) -> dict:
+             in_series: bool | None = None, story_profile: dict | None = None,
+             facts: list[dict] | None = None, caption_sync: list[dict] | None = None) -> dict:
     """Score a package. Returns {score, verdict (pass|warn|block), dimensions, issues, channel_type, thresholds}."""
     t = profiles.thresholds(ctype, tuning)
     if story_profile:
@@ -218,12 +243,17 @@ def evaluate(pkg: dict, ctype: str = profiles.DEFAULT_TYPE, tuning: dict | None 
               "metadata": check_metadata(pkg, t, thumb), "fit": growth.check_fit(pkg, t),
               "packaging": growth.check_packaging(pkg, t, in_series),
               "originality": growth.check_originality(pkg, t, peers)}
+    if story_profile:
+        from studio.story.gate_checks import story_issues
+        for dim, found in story_issues(pkg, story_profile, peers, facts, caption_sync).items():
+            if found or dim in checks:
+                checks.setdefault(dim, []).extend(found)
     dims, issues = {}, []
     for name, found in checks.items():
         dims[name] = max(0, 100 - sum(PENALTY[i["severity"]] for i in found))
         issues += found
     weights = t["weights"]
-    score = round(sum(dims[d] * weights[d] for d in dims) / sum(weights.values()))
+    score = round(sum(dims[d] * weights.get(d, 1.0) for d in dims) / sum(weights.get(d, 1.0) for d in dims))
     blocked = score < t["block_below"] or min(dims.values()) < LOCK_BELOW
     verdict = "block" if blocked else "pass" if score >= t["pass_at"] and not any(
         i["severity"] != "minor" for i in issues) else "warn"
@@ -264,12 +294,27 @@ def check_video(ctx: Ctx, video_id: int, thumb: int = 1) -> dict:
     root = ctx.settings.root
     out = ctx.settings.project_dir(video_id)
     ctype = profiles.channel_type(channels.get(root))
-    report = evaluate(load_package(ctx, video_id), ctype, rules.tuning(rules.load(root)),
+    from studio.story import facts as facts_mod
+    from studio.story import profile as sprof
+    sp = sprof.for_channel(root)
+    pkg = load_package(ctx, video_id)
+    report = evaluate(pkg, ctype, rules.tuning(rules.load(root)),
                       audio=measure_audio(out / "final.mp4"), thumb=out / "thumbs" / f"thumb_{thumb}.jpg",
-                      peers=_peers(ctx, video_id), in_series=series.position(root, video_id) is not None)
+                      peers=_peers(ctx, video_id), in_series=series.position(root, video_id) is not None,
+                      story_profile=sp, facts=facts_mod.load_facts(out) or None,
+                      caption_sync=_caption_sync(out))
     report["video_id"] = video_id
     (out / "gate.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
     return report
+
+
+def _caption_sync(out: Path) -> list[dict] | None:
+    """Per-segment caption drift written by `voice` (caption_sync.json), if any."""
+    f = out / "caption_sync.json"
+    try:
+        return json.loads(f.read_text(encoding="utf-8")) if f.exists() else None
+    except (ValueError, OSError):
+        return None
 
 
 def show(report: dict, echo=print) -> None:
