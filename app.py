@@ -9,8 +9,6 @@ import streamlit as st
 
 from studio.errors import LOCKED_HELP, StudioError, is_locked_error
 from studio.stages import research
-from studio.stages import script as script_stage
-from studio.stages import story as story_stage
 from studio.stages.base import STAGES
 from studio.web import handoff_ui, publish_ui, remedy_ui, setup_ui, wizard_ui
 from studio.web import service as svc
@@ -239,78 +237,16 @@ def page_topics() -> None:
             st.rerun()
 
 
-def task_block(ctx, v, title: str, help_text: str, task: str, fn, arg: int) -> None:
-    """Request-for-Claude / paste-answer-back block for an optional story step (outline, critique)."""
-    with st.expander(title):
-        st.write(help_text)
-        if st.button("Write the request", key=f"req_{task}{v.id}"):
-            show(svc.capture(fn, ctx, arg))
-        prompt = svc.read_prompt(ctx, v.id, task)
-        if prompt:
-            st.code(prompt, language="markdown", wrap_lines=True)
-            pasted = handoff_ui.answer_box(f"ans_{task}{v.id}", height=240)
-            if st.button("Save and apply", key=f"save_{task}{v.id}"):
-                if handoff_ui.apply_answer(ctx, v.id, task, pasted, fn, (arg,)):
-                    st.rerun()
-
-
-def engine_block(ctx, v) -> None:
-    """The recommended story engine: three prompts (plan, script, review), everything else checked in code."""
-    from studio.story import engine
-
-    with st.expander("Story engine (recommended): plan > script > review", expanded=v.stage in ("approved", "scripted")):  # noqa: E501
-        what, cmd = engine.next_step(ctx, v.id)
-        st.write("Three requests for Claude, in order. The studio checks facts, open loops, hooks, sentence "
-                 "rhythm and repetition itself and tells you exactly what to fix.")
-        st.info(f"Pending: {what}")
-        if st.button("Run the next engine step", key=f"eng_{v.id}"):
-            show(svc.capture(script_stage.run, ctx, v.idea_id, auto=True))
-        task = engine.pending_task_name(ctx, v.id)
-        prompt = svc.read_prompt(ctx, v.id, task) if task else ""
-        if prompt:
-            st.code(prompt, language="markdown", wrap_lines=True)
-            pasted = handoff_ui.answer_box(f"eng_ans_{task}{v.id}", height=240)
-            if st.button("Save and apply", key=f"eng_save_{task}{v.id}"):
-                if handoff_ui.apply_answer(ctx, v.id, task, pasted,
-                                           lambda c, i: script_stage.run(c, i, auto=True), (v.idea_id,)):
-                    st.rerun()
-
-
 def page_script() -> None:
     ctx = ctx_for()
     st.header("2. Script")
-    st.write("No AI key needed. The studio writes a request; you paste it into Claude (claude.ai or Claude Code), "
-             "then paste the answer back.")
     v = video_picker(ctx, "script_video", ("approved", "scripted"))
     if v is None:
         st.info("Approve a topic first on **1. Topics**.")
         return
-    engine_block(ctx, v)
-    if v.stage == "scripted":
-        st.success("This video already has a script. Move on to **3. Make the video**.")
-        sd = ctx.settings.project_dir(v.id) / "script.md"
-        if sd.exists():
-            with st.expander("Read the script"):
-                st.markdown(sd.read_text(encoding="utf-8"))
-        task_block(ctx, v, "Improve the story: scored review and rewrite (recommended)",
-                   "Claude scores the script on hook, stakes, open loops, pacing, concreteness, clarity, arc and "
-                   "ending, then rewrites it. Do this before the voiceover.", "critique", story_stage.run_critique,
-                   v.id)
-        return
-    task_block(ctx, v, "Step 0 (recommended): plan the story first",
-               "A retention outline: hook options, open loops, beat sheet and ending. It is added to the script "
-               "request automatically.", "outline", story_stage.run_outline, v.idea_id)
-    if st.button("Step 1: write the request for Claude"):
-        show(svc.capture(script_stage.run, ctx, v.idea_id))
-    prompt = svc.read_prompt(ctx, v.id)
-    if prompt:
-        st.markdown("**Step 2.** Copy this (use the copy icon at the top right of the box) and paste it into Claude.")
-        st.code(prompt, language="markdown", wrap_lines=True)
-        st.markdown("**Step 3.** Paste Claude's JSON answer here. Length is up to you; there is no maximum.")
-        pasted = handoff_ui.answer_box(f"resp{v.id}", height=300)
-        if st.button("Save script and check it", type="primary"):
-            if handoff_ui.apply_answer(ctx, v.id, "script", pasted, None, (), idea_id=v.idea_id):
-                st.rerun()
+    from studio.web import script_ui
+
+    script_ui.render(ctx, v, on_continue=lambda: handoff_ui.goto("3. Make the video"), key="scr")
 
 
 SCENE_LABELS = {"": "(follow channel)", "2d": "2D motion graphics", "3d": "3D (Blender)",

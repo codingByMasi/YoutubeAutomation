@@ -196,9 +196,11 @@ def test_wizard_topic_to_script_step(root, monkeypatch):
     next(b for b in at.button if b.key == "wz_own_btn").click().run()
     assert not at.exception
     assert any("Step 2" in s.value for s in at.subheader)
-    next(b for b in at.button if b.key == "wz_sreq").click().run()
     assert not at.exception
-    assert any(c.language == "markdown" for c in at.code)  # the prompt to copy into Claude is shown
+    # the story plan request is written by itself; the request stays collapsed and one Apply button is shown
+    assert any("Plan story" in s.value for s in at.subheader)
+    assert any(e.label == "Look at the request" for e in at.expander)
+    assert any(b.label == "Apply Claude's reply" for b in at.button)
 
 
 def test_wizard_for_kids_channel_shows_kids_builder(root, monkeypatch):

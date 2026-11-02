@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from studio.errors import StudioError
+from studio.errors import PendingLLMResponse, StudioError
 from studio.growth import channels
 from studio.stages import script as sc
 from studio.story import engine, prompts, style
@@ -60,3 +60,27 @@ def test_unsourced_superlative_is_flagged():
     out = {"audience_question": "How did the biggest army of the ancient world fall?",
            "beats": [{"key_fact": "x", "fact_ids": ["f1"]}]}
     assert any("biggest" in p for p in engine.hook_coverage_problems(out, facts, {"line": "Hi."}))
+
+
+def _plan_prompt(ctx, ctype):
+    from tests.test_story_engine import make_video, set_type
+    idea, v = make_video(ctx)
+    set_type(ctx, ctype)
+    with pytest.raises(PendingLLMResponse):
+        engine.run_plan(ctx, v)
+    return (ctx.settings.project_dir(v.id) / "prompts" / "story_plan.prompt.md").read_text(encoding="utf-8")
+
+
+def test_kids_plan_prompt_is_kid_shaped(ctx):
+    text = _plan_prompt(ctx, "kids")
+    for bad in ("filings", "annual reports", "billion USD", "number_stakes", "cannot be skipped",
+                "At least two planted in the first 60 seconds"):
+        assert bad not in text, bad
+    assert "optional for this channel" in text
+
+
+def test_history_plan_prompt_has_no_finance_sources_or_units(ctx):
+    text = _plan_prompt(ctx, "history")
+    for bad in ("annual reports", "billion USD", "number_stakes"):
+        assert bad not in text, bad
+    assert "20 seconds at most" not in text

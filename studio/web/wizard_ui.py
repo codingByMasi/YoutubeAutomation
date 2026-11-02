@@ -8,8 +8,6 @@ import streamlit as st
 
 from studio.growth import channels
 from studio.stages import qa, research
-from studio.stages import script as script_stage
-from studio.stages import story as story_stage
 from studio.stages.base import STAGES
 from studio.web import handoff_ui, publish_ui, remedy_ui
 from studio.web import service as svc
@@ -57,52 +55,15 @@ def step_topic(ctx, show) -> None:
         st.rerun()
 
 
-def _critique_box(ctx, v) -> None:
-    prompt = svc.read_prompt(ctx, v.id, "critique")
-    if st.button("Write the review request", key=f"wz_creq{v.id}"):
-        show_local = svc.capture(story_stage.run_critique, ctx, v.id)
-        if show_local.error and not show_local.pending:
-            remedy_ui.error_panel(show_local.error, key=f"wz_crq{v.id}", ctx=ctx,
-                                  retry=lambda: svc.capture(story_stage.run_critique, ctx, v.id))
-        prompt = svc.read_prompt(ctx, v.id, "critique")
-    if prompt:
-        st.code(prompt, language="markdown", wrap_lines=True)
-        pasted = handoff_ui.answer_box(f"wz_cans{v.id}", height=200)
-        if st.button("Apply the rewrite", key=f"wz_capply{v.id}"):
-            if handoff_ui.apply_answer(ctx, v.id, "critique", pasted, story_stage.run_critique, (v.id,)):
-                st.rerun()
-
-
-def _indicator(step: int) -> None:
-    st.write("  →  ".join(f"{'✅' if i < step else '👉' if i == step else '⬜'} {i}. {n}"
-                          for i, n in enumerate(wiz.SCRIPT_STEPS, 1)))
+def _script_done(video_id: int) -> None:
+    st.session_state.pop(f"scr_active{video_id}", None)
 
 
 def step_script(ctx, v, show) -> None:
-    st.subheader("Step 2 · Get the script written")
-    st.caption("No AI key needed: the studio writes a request, Claude writes the script, you paste the reply back.")
-    use_engine = st.toggle("Use the 3-step story engine (plan, script, review)", key="wz_engine")
-    state = wiz.script_next_step(ctx, v, use_engine)
-    _indicator(state["step"])
-    (st.success if state["done"] else st.info)(state["headline"])
-    if state["done"]:
-        return
-    task = state["task"]
-    from studio.story import engine
+    from studio.web import script_ui
 
-    def run(c):
-        return engine.auto(c, v) if use_engine else script_stage.run(c, v.idea_id)
-
-    if state["step"] == 1:
-        if st.button("Get the request for Claude", type="primary", key="wz_sreq"):
-            res = svc.capture(run, ctx)
-            if res.error and not res.pending:
-                st.error(svc.plain_pending(res.error))
-            else:
-                st.rerun()
-        return
-    handoff_ui.task_panel(ctx, v, task, run, "wz_s", idea_id=v.idea_id, primary_label="Apply Claude's reply",
-                           plain_script=not use_engine)
+    st.subheader("Step 2 · Script")
+    script_ui.render(ctx, v, on_continue=lambda: _script_done(v.id), key="wz_scr")
 
 
 def _qa_panel(ctx, v) -> None:
@@ -169,9 +130,6 @@ def step_make(ctx, v, show, production_box=None) -> None:
     st.subheader("Step 3 · Make the video")
     nxt = svc.next_produce_stage(v)
     if v.stage == "scripted":
-        with st.expander("Optional but recommended: have Claude score and rewrite the script first"):
-            st.write("Claude scores hook, stakes, pacing and ending, then returns a stronger script.")
-            _critique_box(ctx, v)
         with st.expander("Optional: read the script"):
             sd = ctx.settings.project_dir(v.id) / "script.md"
             if sd.exists():
@@ -255,6 +213,10 @@ def render(ctx_for, show, show_player, production_box=None) -> None:
     vids = {x.id: x for x in svc.list_videos(ctx)}
     v = vids.get(st.session_state["wiz_vid"])
     step = wiz.step_for(v)
+    if step == "make" and v is not None and v.stage == "scripted":
+        flow = wiz.script_flow(ctx, v)
+        if st.session_state.get(f"scr_active{v.id}") or (flow["current"] and not flow["legacy"]):
+            step = "script"  # the review is still open, or the owner has not pressed Continue yet
     _progress(step)
     if v is not None:
         c1, c2 = st.columns([5, 2])

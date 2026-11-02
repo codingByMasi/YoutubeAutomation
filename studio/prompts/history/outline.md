@@ -20,7 +20,7 @@ creator's script; structure and wording must be original.
 
 # What to design
 - `audience_question`, `big_idea`, `promise`: as in any outline, in story terms.
-- `hooks`: exactly 3 options with `formula`, `line` (second person allowed, 20 seconds or less) and `why`; one `"pick": true`.
+- `hooks`: exactly 3 options with `formula`, `line` (second person allowed, 15 seconds or less) and `why`; one `"pick": true`.
 - `loops`: 3-5 open loops with `plant` and `payoff` beat numbers; two planted in the first 60 seconds; payoffs spread out.
 - `beats`: 10-18 beats: `n`, `chapter`, `purpose`, `seconds` (8-30), `device` (question | reveal | example |
   pattern_break | explain), `key_fact` (with source id) and `emotion` (dread, calm, unease, shock, grief, relief).

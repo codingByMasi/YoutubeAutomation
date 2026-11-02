@@ -1,4 +1,4 @@
-Hook formula library for animated history videos (first 15-20 seconds). A hook drops the viewer into a moment,
+Hook formula library for animated history videos (first 15 seconds). A hook drops the viewer into a moment,
 opens a question they cannot answer yet, and promises the story will answer it. No greeting, no "today we".
 
 1. cold_open: second person, one concrete sense detail, one decision.
