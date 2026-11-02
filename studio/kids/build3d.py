@@ -11,7 +11,7 @@ from PIL import Image
 
 from studio.blender import provider
 from studio.errors import StudioError
-from studio.kids import draw
+from studio.kids import cast, draw
 from studio.util import ffmpeg as ff
 
 FPS_3D = 24
@@ -30,7 +30,7 @@ def choose(renderer: str, blender_path: str = "") -> Path | None:
 def scene_config(scene: dict, dur: float, size: tuple[int, int], fps: int, cam: str) -> dict:
     """The JSON handed to Blender for one scene (characters, motion, camera, size)."""
     v = scene["visual"]
-    return {"background": v["background"], "characters": v["characters"],
+    return {"background": v["background"], "characters": v["characters"], "cast": cast.blender_cast(v["characters"]),
             "count": v.get("count", len(v["characters"])), "motion": v["motion"], "camera": cam,
             "duration": dur, "fps": fps, "width": size[0], "height": size[1]}
 

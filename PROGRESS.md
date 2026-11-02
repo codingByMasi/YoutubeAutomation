@@ -403,3 +403,13 @@ Status: done (profile, prompts, cast module, tests). Not done: a 2D history scen
 (see docs/history-cast-system.md). Decisions: history pack changed from dread/second-person to animated storytelling
 (tone `blend`); loop distance left at 30-180 s; no sponsor slots; cast names are placeholders for the owner to rename.
 Owner must configure: nothing; optionally set `story.tone` (`blend`, `comedic`, `dramatic`) on the history channel.
+## Kids reference cast (2026-11-02)
+- Five original recurring characters: Benny Bear, Pip the Duckling, Mango Monkey, Dotty Ladybug, Tilly Turtle (`studio/kids/roster/*.json`,
+  hand-made primitive 3D models in `studio/blender/rhyme_cast.py`; stills in project files `youtube-studio/kids-cast/`).
+- Easy to add more: drop `assets/kids/roster/<id>.json` (id, name, species, personality, main, accent, optional role/catchphrase/look/rhymes).
+  Without a hand-made model the 3D renderer draws a generic round character in your colours and 2D draws a round face, so it works at once.
+- Per channel: profile field `kids_cast` (list of ids; empty = whole roster). `kids script` puts the channel's cast and personalities in the prompt and
+  accepts roster ids in `visual.characters`. `kids cast` lists them.
+- Limits: simple shapes, no skeleton or lip-sync; they bounce, sway, pop in. Tested: unit tests (APIs mocked) and a real Blender (Cycles CPU) smoke render;
+  Eevee on a PC GPU not tested here. The finance thread's character system was not on main, so this extends the existing per-channel profile instead.
+- No web-app picker yet; set `kids_cast` via the channel profile (CLI/JSON).
