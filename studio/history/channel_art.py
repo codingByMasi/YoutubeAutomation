@@ -1,3 +1,4 @@
+# ruff: noqa: E501  (drawing code)
 """Channel branding for the history channel "Quill's Past": 800x800 profile icon and 2560x1440 banner.
 
 Reuses the cast SVGs (`studio.history.cast`), the map and fonts from the scene renderer, so the art matches the
