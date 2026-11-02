@@ -94,7 +94,7 @@ def step_script(ctx, v, show) -> None:
         return engine.auto(c, v) if use_engine else script_stage.run(c, v.idea_id)
 
     if state["step"] == 1:
-        if st.button("Get the request for Claude", type="primary", key=f"wz_sreq_{task}"):
+        if st.button("Get the request for Claude", type="primary", key="wz_sreq"):
             res = svc.capture(run, ctx)
             if res.error and not res.pending:
                 st.error(svc.plain_pending(res.error))
