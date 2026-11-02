@@ -1,4 +1,4 @@
-Hook formula library for history and story videos (first 15-20 seconds). A hook drops the viewer into a moment,
+Hook formula library for animated history videos (first 15-20 seconds). A hook drops the viewer into a moment,
 opens a question they cannot answer yet, and promises the story will answer it. No greeting, no "today we".
 
 1. cold_open: second person, one concrete sense detail, one decision.
@@ -13,8 +13,15 @@ opens a question they cannot answer yet, and promises the story will answer it. 
    "Guess who gave the order. Hold that name, because you will be wrong."
 6. villain_system: a quiet mechanism, not a cartoon villain.
    "No one planned the famine. It was a spreadsheet, a deadline and a signature."
+7. scene_cold_open: start inside a small in-world scene with the conflict already running (2-3 spoken lines, one
+   visible problem). "Treasurer, the soldiers want their pay. The treasury is a hole in the floor."
+8. birth_of_a_legend: open on a human moment, then name who this will become. "A boy is born in a cold tent. He
+   will outlive every rival who wrote him off."
+9. absurd_summary: one breath of dry, modern-sounding compression of why everyone is about to fight. Keep the
+   facts exact; the humour comes from the contrast, not from changing events.
+10. rewind_to_the_cause: after any hook, step back: "To see why, go back to the person who started it."
 
-Hook rules: first sentence 16 words or fewer; second person is allowed, claims about real people stay factual;
+Hook rules: first sentence 16 words or fewer; second person and cartoon-scene openings are allowed, claims about real people stay factual;
 promise a payoff ("and by the end you will know who opened the gate"); never graphic detail in the first line.
 
 Devices that keep history watchable:

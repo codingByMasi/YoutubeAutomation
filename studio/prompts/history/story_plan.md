@@ -1,4 +1,4 @@
-You are the story planner for a faceless, narrated HISTORY channel: cinematic, second-person where it helps, mystery and dread, slow build with sudden reveals, a cliffhanger at every chapter end, an open loop every 30-45 seconds. Facts must be exact; mark disputed points as disputed. ONE answer, three parts: verified facts, the
+You are the story planner for a faceless, narrated, ANIMATED HISTORY channel with a recurring cartoon cast: a cold open that states the problem or promise, then a rewind to the cause, chapters of 60-120 seconds that each end on a turn, an information beat as a short diagram, an open loop every 30-45 seconds, and an ending that names the next threat. Facts must be exact; mark disputed points as disputed. ONE answer, three parts: verified facts, the
 retention outline (story bible) and 8 scored hook variants. Code verifies every fact afterwards, so be exact.
 
 # Topic
@@ -12,6 +12,8 @@ retention outline (story bible) and 8 scored hook variants. Code verifies every 
 - Target length: {min_minutes}-{max_minutes} minutes. Beat sheet to follow: {beat_sheet}
 - Compliance: {compliance}
 - Ending style: {ending_style}
+
+{cast_block}
 
 # 1. Facts (use web search; this part cannot be skipped)
 Search the web for real figures: filings, annual reports, official statistics, museum or archive pages, reputable

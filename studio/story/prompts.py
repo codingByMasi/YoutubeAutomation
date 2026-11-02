@@ -44,13 +44,21 @@ def shape() -> str:
     return read("_shape").replace("{{", "{").replace("}}", "}")
 
 
+def _cast_block(prof: dict) -> str:
+    if not prof.get("cast"):
+        return ""
+    from studio.history import cast
+    return cast.prompt_block(prof)
+
+
 def compose(name: str, prof: dict, **values) -> str:
     """Fill a pack prompt. Unknown placeholders become empty; profile-derived blocks are added automatically."""
     vals = _Safe(
         banned=", ".join(f'"{p}"' for p in prof["banned_phrases"]), min_minutes=prof["min_minutes"],
         max_minutes=prof["max_minutes"], compliance=" ".join(prof["compliance"]), ending_style=prof["ending_style"],
         writing_rules=writing_rules(prof), exemplar=exemplar(prof["pack"]), shape=shape(),
-        hooks=read("hooks", prof["pack"]), recent="(no earlier videos on this channel yet)", facts_block="(none)")
+        hooks=read("hooks", prof["pack"]), cast_block=_cast_block(prof), tone=prof.get("tone", ""),
+        recent="(no earlier videos on this channel yet)", facts_block="(none)")
     vals.update(values)
     return read(name, prof["pack"]).format_map(vals)
 

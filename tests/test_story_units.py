@@ -27,7 +27,7 @@ def test_profiles_per_type_and_overrides():
     assert sp.pack_name("business") == "explainer" and sp.pack_name("history") == "history"
     assert sp.pack_name("kids") == "kids" and sp.pack_name("weird") == "general"
     h, k = sp.get("history"), sp.get("kids")
-    assert (h["min_minutes"], h["max_minutes"], h["shot_interval"]) == (8, 15, (5, 8))
+    assert (h["min_minutes"], h["max_minutes"], h["shot_interval"]) == (8, 15, (3, 6))
     assert (k["min_minutes"], k["max_minutes"], k["shot_interval"]) == (3, 8, (3, 5))
     assert EXPL["shot_interval"] == (4, 7) and EXPL["lufs_target"] == -14.0 and EXPL["true_peak"] == -1.0
     assert len(EXPL["banned_phrases"]) >= 40

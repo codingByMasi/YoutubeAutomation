@@ -46,7 +46,8 @@ def score_skeleton(pack: str) -> str:
 PASS_SCORE = 4
 DEVICES = {"question", "reveal", "example", "pattern_break", "explain"}
 HOOK_FORMULAS = {"number_stakes", "contradiction", "hidden_answer", "cold_open", "villain_system", "before_after",
-                 "insider_view", "challenge_guess"}
+                 "insider_view", "challenge_guess", "scene_cold_open", "birth_of_a_legend", "absurd_summary",
+                 "rewind_to_the_cause"}
 
 
 # ---------- outline ----------
