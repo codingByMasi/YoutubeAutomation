@@ -28,6 +28,7 @@ You are writing a complete YouTube video package for a faceless, narrated explai
 - Finance: say once, in plain words, that this is not financial advice. {compliance}
 - Differ from these recent videos in hook type, opening sentence shape, chapters and visuals:
 {recent}
+{photo_rule}
 {writing_rules}
 
 # Exemplar of the target voice (original; do not reuse its words)

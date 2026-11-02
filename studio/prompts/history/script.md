@@ -44,6 +44,7 @@ lasts over 40 seconds; an information beat ("how X worked") is a short numbered 
 - Every chapter's last segment ends on a cliffhanger line that the next chapter answers.
 - Accuracy over drama: never invent quotes, dates or events; mark disputed points as disputed in the narration.
 - Demonetization-safe wording: describe consequences and human cost, not graphic detail.
+{photo_rule}
 {writing_rules}
 
 # Exemplar of the target voice (original; do not reuse its words)

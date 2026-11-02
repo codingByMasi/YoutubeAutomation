@@ -500,3 +500,6 @@ shared `token.json`). (4) Google Testing-mode refresh tokens expire after 7 days
 "In production" (or accept re-signing weekly). Sign-in now asks for `prompt=consent` so a refresh token is always issued.
 New: `python -m studio.cli youtube-status [--check] [--fix]` (per channel connected/expired/missing, no secrets),
 Setup-page status with a Fix button, and an Issues-panel fix `youtube_signin`.
+
+## On-demand photo scenes (2026-11-02)
+Videos keep the cast/drawn scenes from the 60 s test. A real photo appears only where the script asks: a segment may carry `photo` {subject, caption, layout: full|inset}. The `visuals` stage then searches Pixabay (then Commons) for the subject through the normal image search (relevance, near-duplicate check, footage reuse ledger, licence stored as an `image` asset) and renders a photo scene (`studio/scenes/photo.py`: full frame or framed inset with a caption plate, slow push-in). If the key is rejected, offline, or nothing fits, the segment keeps its drawn/cast scene and the build goes on. Script validation: max 3 per video, none in the hook, never back to back. The history, kids and general script prompts tell the writer to use it rarely (`studio/story/photo.py`). No photo backdrops anywhere. Owner: PIXABAY_API_KEY in .env (already set).

@@ -38,7 +38,7 @@ def segment_flags(pos: int, seg: dict) -> list[str]:
     if vis.get("kind") == "card":
         flags.append("no real picture found: plain title card on screen")
     paths = vis.get("paths") or []
-    if (vis.get("scene") or {}).get("mode") == "cast":  # one drawn scene is one continuous shot, by design
+    if (vis.get("scene") or {}).get("mode") in ("cast", "photo"):  # one drawn scene is one continuous shot, by design
         return flags
     bg_s, _ = split_segment(_dur(seg), bool(seg.get("chart_data")))
     needed = shots_needed(bg_s, shot_max=shot_max_for(pos))

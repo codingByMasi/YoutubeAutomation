@@ -75,7 +75,7 @@ def _picture_kind(seg: dict) -> str | None:
     """Kind of picture a segment shows; drawn cast scenes count by scene type (skit, map, diagram...)."""
     vis = seg.get("visual") or {}
     scene = vis.get("scene") or {}
-    return scene.get("kind") if scene.get("mode") == "cast" else vis.get("kind")
+    return scene.get("kind") if scene.get("mode") in ("cast", "photo") else vis.get("kind")
 
 
 def check_hook(pkg: dict, t: dict) -> list[dict]:
