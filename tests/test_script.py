@@ -35,16 +35,18 @@ def test_sample_package_is_valid():
 
 def test_title_count_and_single_pick():
     d = pkg()
-    d["titles"] = d["titles"][:14]
-    assert any("exactly 15" in p for p in sc.validate_package(d))
+    d["titles"] = d["titles"][:9]
+    assert any("15 titles" in p for p in sc.validate_package(d))
     d = pkg()
     d["titles"][1]["is_pick"] = True
-    assert any("exactly one title" in p for p in sc.validate_package(d))
+    assert sc.validate_package(d) == []  # two picks: the first is kept, the studio fixes it
+    assert sum(t["is_pick"] for t in d["titles"]) == 1
 
 
 def test_segment_structure_rules():
     d = pkg()
     d["segments"][0]["est_seconds"] = 30
+    d["segments"][0]["narration"] = "word " * 75
     d["segments"][1]["visual_keywords"] = []
     d["segments"][2]["chart_data"]["source_ids"] = []
     d["segments"][3]["chart_data"]["source_ids"] = ["nope"]
