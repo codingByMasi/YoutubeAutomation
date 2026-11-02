@@ -198,6 +198,8 @@ def validate_package(d: dict, profile: dict | None = None, facts: list[dict] | N
         from studio.story import facts as facts_mod
         from studio.story.profile import enabled
         problems += checks.profile_problems(d, profile)
+        from studio.story import photo as story_photo
+        problems += story_photo.photo_problems(segs)
         if enabled(profile, "visual_intent"):
             from studio.story import visuals as story_visuals
             problems += story_visuals.shot_problems(segs)

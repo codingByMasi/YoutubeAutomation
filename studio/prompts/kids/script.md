@@ -28,6 +28,7 @@ You are writing a complete YouTube video package for a children's story channel 
   drive the cartoon scene; photos are fetched only on demand for a place, document or object, never by default.
 - Child safety (strict): {compliance}
 - Ending: {ending_style}.
+{photo_rule}
 {writing_rules}
 
 # Exemplar of the target voice (original; do not reuse its words)

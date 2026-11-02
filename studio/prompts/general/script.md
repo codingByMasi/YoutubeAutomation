@@ -30,6 +30,7 @@ You are writing a complete YouTube video package for a faceless, narrated channe
   `must_show`, `avoid`. `visual_keywords` are 4-6 concrete, photographable terms derived from it.
 - Compliance: {compliance}
 - Ending: {ending_style}.
+{photo_rule}
 {writing_rules}
 
 # Exemplar of the target voice (original; do not reuse its words)

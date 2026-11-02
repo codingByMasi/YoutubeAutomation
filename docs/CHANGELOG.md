@@ -1,5 +1,8 @@
 # Changelog: story quality and retention upgrade
 
+## Unreleased
+- Install no longer fails on Python 3.14/3.15: `run_app.bat`/`run_app.sh` pick Python 3.12 (then 3.11, 3.13) and rebuild an old `.venv` made with an unsupported version. `faster-whisper` (needs onnxruntime) moved to `requirements-optional.txt` and is installed best-effort; captions fall back to script timing.
+
 One coherent set of changes for every channel type (finance/explainer, history, kids, general). Everything new sits
 behind a per-channel-type flag (all default ON for new videos) and degrades to the older behaviour when an optional
 tool is missing. The two typed `yes` gates, the final.mp4 hash check, licence tracking, private-by-default upload and

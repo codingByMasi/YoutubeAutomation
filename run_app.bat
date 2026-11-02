@@ -5,25 +5,41 @@ setlocal
 cd /d "%~dp0"
 title YouTube Channel Studio
 
-REM 1. Find Python 3.11+ (the "py" launcher first, then "python").
+REM 1. Find a SUPPORTED Python: 3.12 preferred, then 3.11, then 3.13.
+REM    Newer versions (3.14, 3.15...) often lack ready-made wheels for numpy, onnxruntime and others, so pip fails.
 set "PY="
-py -3 -c "import sys; sys.exit(0 if sys.version_info >= (3,11) else 1)" >nul 2>&1 && set "PY=py -3"
+for %%V in (3.12 3.11 3.13) do (
+  if not defined PY (
+    py -%%V -c "import sys" >nul 2>&1 && set "PY=py -%%V"
+  )
+)
 if not defined PY (
-  python -c "import sys; sys.exit(0 if sys.version_info >= (3,11) else 1)" >nul 2>&1 && set "PY=python"
+  python -c "import sys; sys.exit(0 if (3,11) <= sys.version_info[:2] <= (3,13) else 1)" >nul 2>&1 && set "PY=python"
 )
 if not defined PY (
   echo.
-  echo Python 3.11 or newer was not found on this PC.
-  echo 1. Download it from https://www.python.org/downloads/
+  echo No supported Python was found on this PC. This app needs Python 3.11, 3.12 or 3.13 ^(3.12 is best^).
+  echo Newer versions such as 3.14 or 3.15 do not work yet because some packages have no installer for them.
+  echo 1. Download Python 3.12 from https://www.python.org/downloads/release/python-3128/
   echo 2. In the installer, TICK "Add python.exe to PATH" on the first screen.
+  echo    You can keep your newer Python installed; this launcher picks 3.12 automatically.
   echo 3. Double-click run_app.bat again.
   echo If Windows opened the Microsoft Store instead, ignore it and use the python.org link above.
   echo.
   pause
   exit /b 1
 )
+echo Using Python: %PY%
 
 REM 2. Private Python environment + packages (only when missing or requirements changed).
+REM    An old .venv built with an unsupported Python is deleted and rebuilt.
+if exist ".venv\Scripts\python.exe" (
+  ".venv\Scripts\python.exe" -c "import sys; sys.exit(0 if (3,11) <= sys.version_info[:2] <= (3,13) else 1)" >nul 2>&1
+  if errorlevel 1 (
+    echo The existing private environment uses an unsupported Python. Rebuilding it...
+    rmdir /s /q .venv
+  )
+)
 if not exist ".venv\Scripts\python.exe" (
   echo Creating the private environment...
   %PY% -m venv .venv || goto :fail
@@ -34,6 +50,8 @@ if errorlevel 1 (
   ".venv\Scripts\python.exe" -m pip install --upgrade pip >nul 2>&1
   ".venv\Scripts\python.exe" -m pip install -r requirements.txt || goto :pipfail
   copy /y requirements.txt .venv\requirements.installed >nul
+  REM Word-accurate captions (faster-whisper) are optional: if this fails, captions are timed from the script instead.
+  ".venv\Scripts\python.exe" -m pip install "faster-whisper>=1.0" >nul 2>&1 || echo Note: optional faster-whisper could not be installed. Captions will be timed from the script. That is fine.
 )
 
 REM 3. Settings file (the app's Setup page fills it in for you).

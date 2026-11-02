@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import streamlit as st
 
+from studio.web import service as svc
+
 
 def answer_box(key: str, label: str = "Claude's answer (JSON)", height: int = 280) -> str:
     """A paste box with an 'or upload the .json file' option. Returns the answer text ('' if none yet)."""
@@ -32,7 +34,6 @@ def show_flash() -> None:
 
 def show_problems(res) -> None:
     """Validation problems in plain words, with a copy-able request asking Claude to fix exactly those points."""
-    from studio.web import service as svc
 
     st.error("❌ Claude's answer has a few problems, so it was not applied. Your answer is not lost: "
              "it stays in the box and is kept in 'Your last answer' below.")
@@ -49,10 +50,9 @@ def apply_answer(ctx, video_id: int, task: str, pasted: str, fn, args: tuple, id
     `task` is script, outline or critique. Success is flashed (so it shows after the rerun) and True is returned;
     the caller then calls st.rerun(). A failure is shown right here with the reason and what to fix.
     """
-    from studio.web import service as svc
 
     with st.spinner("Checking your answer..."):
-        if task == "script":
+        if task == "script" and fn is None:
             res = svc.submit_script(ctx, idea_id, video_id, pasted)
         else:
             res = svc.submit_task(ctx, video_id, task, pasted, fn, *args)
@@ -62,10 +62,40 @@ def apply_answer(ctx, video_id: int, task: str, pasted: str, fn, args: tuple, id
     if res.problems:
         show_problems(res)
         return False
-    from studio.web import remedy_ui
-
-    remedy_ui.error_panel("Could not apply this answer, so nothing was saved.\n\n" + (res.error or "Unknown problem."),
-                          key=f"apply_{task}_{video_id}", ctx=ctx, log=res.log,
-                          retry=lambda: svc.submit_task(ctx, video_id, task, pasted, fn, *args)
-                          if task != "script" else svc.submit_script(ctx, idea_id, video_id, pasted))
+    if res.pending:  # an answer was saved but another request is now waiting
+        st.info(svc.plain_pending(res.error))
+        return False
+    if not res.problems and res.error:
+        st.error("❌ Could not read or apply this answer, so nothing was saved.\n\n"
+                 + svc.plain_pending(res.error).split("\n(Nothing")[0])
+        st.markdown("**Fix it:** copy this, send it to Claude, then paste the new reply back.")
+        st.code(svc.reply_again_request(res.error), language="markdown", wrap_lines=True)
+        return False
     return False
+
+
+def task_panel(ctx, video, task: str, run_fn, key: str, idea_id: int | None = None,
+               primary_label: str = "Apply answer", plain_script: bool = False) -> None:
+    """One LLM step fully in the app: Copy prompt, paste box, Apply button and status.
+
+    `run_fn(ctx)` runs the stage that consumes the answer (it writes the request when none is waiting)."""
+    prompt = svc.read_prompt(ctx, video.id, task)
+    if not prompt:
+        res = svc.capture(run_fn, ctx)
+        if res.error and not res.pending:
+            st.error(svc.plain_pending(res.error))
+        prompt = svc.read_prompt(ctx, video.id, task)
+    if not prompt:
+        st.info("Nothing to answer right now.")
+        return
+    st.markdown("**1.** Copy this request (copy icon, top right of the box) into Claude.")
+    st.code(prompt, language="markdown", wrap_lines=True)
+    st.markdown("**2.** Paste Claude's reply here. Fences or extra words around the JSON are fine.")
+    pasted = answer_box(f"{key}_{task}{video.id}", height=220)
+    if st.button(primary_label, type="primary", key=f"{key}_apply_{task}{video.id}"):
+        if apply_answer(ctx, video.id, task, pasted, None if plain_script else run_fn, (), idea_id=idea_id):
+            st.rerun()
+    kept = svc.rejected_answer(ctx, video.id, task)
+    if kept:
+        with st.expander("Your last answer is kept here (not lost)"):
+            st.code(kept, language="json", wrap_lines=True)
