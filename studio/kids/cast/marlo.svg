@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <title>marlo</title>
+  <ellipse cx="200" cy="372" rx="110" ry="14" fill="#000" opacity="0.12"/>
+  <path d="M308 270 Q372 210 366 150 Q338 186 300 214 Q344 150 322 112 Q290 160 262 230 Z" fill="#3B82CC"/>
+  <path d="M158 54 Q150 20 134 8 M158 54 Q166 24 184 12 M158 54 Q158 26 158 6" stroke="#BFE3FF" stroke-width="8" fill="none" stroke-linecap="round"/>
+  <ellipse cx="176" cy="246" rx="162" ry="112" fill="#4E9BE6"/>
+  <path d="M60 280 Q176 380 292 280 Q250 336 176 340 Q100 336 60 280 Z" fill="#BFE3FF"/>
+  <path d="M96 256 Q132 300 164 262" stroke="#3B82CC" stroke-width="6" fill="none"/>
+  <path d="M92 286 Q70 330 106 340 Q114 312 120 292 Z" fill="#3B82CC"/>
+  <circle cx="118" cy="196" r="16" fill="#ff9eb5" opacity="0.7"/><circle cx="234" cy="196" r="16" fill="#ff9eb5" opacity="0.7"/>
+  <g id="eyes-open">
+    <circle cx="124" cy="172" r="19" fill="#fff"/><circle cx="228" cy="172" r="19" fill="#fff"/>
+    <circle cx="128" cy="174" r="11" fill="#2b2b3d"/><circle cx="224" cy="174" r="11" fill="#2b2b3d"/>
+    <circle cx="132" cy="169" r="4" fill="#fff"/><circle cx="228" cy="169" r="4" fill="#fff"/>
+  </g>
+  <g id="eyes-closed">
+    <path d="M106 175 Q124 189 142 175" stroke="#2b2b3d" stroke-width="7" fill="none" stroke-linecap="round"/>
+    <path d="M210 175 Q228 189 246 175" stroke="#2b2b3d" stroke-width="7" fill="none" stroke-linecap="round"/>
+  </g>
+  <g id="mouth-closed"><path d="M138 228 Q200 252 214 228" stroke="#2b2b3d" stroke-width="7" fill="none" stroke-linecap="round"/></g>
+  <g id="mouth-open"><path d="M136 224 Q200 276 216 224 Z" fill="#2b2b3d"/><ellipse cx="176" cy="246" rx="14" ry="8" fill="#ff7a8a"/></g>
+</svg>

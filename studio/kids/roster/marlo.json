@@ -1,0 +1,26 @@
+{
+  "id": "marlo",
+  "name": "Marlo the Whale",
+  "species": "whale",
+  "role": "Big-hearted friend of every water song",
+  "personality": "Huge, gentle and a bit shy; sings the deep notes and loves a splashy chorus.",
+  "catchphrase": "Splish, splash, sing along!",
+  "main": "#4E9BE6",
+  "accent": "#BFE3FF",
+  "look": "Round sky-blue baby whale with a pale belly, a wide tail and a little water spout.",
+  "rhymes": [
+    "Row, Row, Row Your Boat",
+    "Baby Shark-style counting (original tune)",
+    "Rain, Rain, Go Away",
+    "ocean animals"
+  ],
+  "voice": {
+    "edge": "en-US-ChristopherNeural",
+    "rate": -18,
+    "pitch": -12,
+    "kokoro": "am_onyx",
+    "speed": 0.82
+  },
+  "shape": "wide horizontal with tail",
+  "builder": ""
+}

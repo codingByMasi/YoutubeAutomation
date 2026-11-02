@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <title>ollie</title>
+  <ellipse cx="200" cy="372" rx="110" ry="14" fill="#000" opacity="0.12"/>
+  <path d="M104 92 L128 40 L160 84 Z M296 92 L272 40 L240 84 Z" fill="#4C3FA8"/>
+  <ellipse cx="200" cy="225" rx="118" ry="140" fill="#6B5BD2"/>
+  <ellipse cx="200" cy="270" rx="74" ry="80" fill="#EDE8FF"/>
+  <path d="M170 250 Q180 262 190 250 M210 250 Q220 262 230 250 M178 286 Q190 298 200 286 M200 286 Q212 298 222 286" stroke="#B9AEF0" stroke-width="6" fill="none" stroke-linecap="round"/>
+  <path d="M82 220 Q54 280 92 336 Q112 290 110 236 Z M318 220 Q346 280 308 336 Q288 290 290 236 Z" fill="#4C3FA8"/>
+  <path d="M180 346 l-14 20 h34 Z M220 346 l14 20 h-34 Z" fill="#F4A23A"/>
+  <circle cx="163" cy="155" r="34" fill="#F4D58D"/><circle cx="237" cy="155" r="34" fill="#F4D58D"/>
+  <path d="M186 176 L200 204 L214 176 Z" fill="#F4A23A"/>
+  <circle cx="122" cy="190" r="17" fill="#ff9eb5" opacity="0.7"/>
+  <circle cx="278" cy="190" r="17" fill="#ff9eb5" opacity="0.7"/>
+  <g id="eyes-open">
+    <circle cx="163" cy="155" r="17" fill="#fff"/><circle cx="237" cy="155" r="17" fill="#fff"/>
+    <circle cx="167" cy="157" r="10" fill="#2b2b3d"/><circle cx="233" cy="157" r="10" fill="#2b2b3d"/>
+    <circle cx="171" cy="152" r="4" fill="#fff"/><circle cx="237" cy="152" r="4" fill="#fff"/>
+  </g>
+  <g id="eyes-closed">
+    <path d="M145 158 Q163 172 181 158" stroke="#2b2b3d" stroke-width="7" fill="none" stroke-linecap="round"/>
+    <path d="M219 158 Q237 172 255 158" stroke="#2b2b3d" stroke-width="7" fill="none" stroke-linecap="round"/>
+  </g>
+  <g id="mouth-closed"><path d="M172 226 Q200 250 228 226" stroke="#2b2b3d" stroke-width="7" fill="none" stroke-linecap="round"/></g>
+  <g id="mouth-open"><path d="M170 222 Q200 274 230 222 Z" fill="#2b2b3d"/><ellipse cx="200" cy="244" rx="14" ry="8" fill="#ff7a8a"/></g>
+  <circle cx="163" cy="155" r="30" fill="none" stroke="#2b2b3d" stroke-width="6"/><circle cx="237" cy="155" r="30" fill="none" stroke="#2b2b3d" stroke-width="6"/><path d="M193 155 H207" stroke="#2b2b3d" stroke-width="6"/>
+</svg>

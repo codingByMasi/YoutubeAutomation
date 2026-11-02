@@ -503,3 +503,11 @@ Setup-page status with a Fix button, and an Issues-panel fix `youtube_signin`.
 
 ## On-demand photo scenes (2026-11-02)
 Videos keep the cast/drawn scenes from the 60 s test. A real photo appears only where the script asks: a segment may carry `photo` {subject, caption, layout: full|inset}. The `visuals` stage then searches Pixabay (then Commons) for the subject through the normal image search (relevance, near-duplicate check, footage reuse ledger, licence stored as an `image` asset) and renders a photo scene (`studio/scenes/photo.py`: full frame or framed inset with a caption plate, slow push-in). If the key is rejected, offline, or nothing fits, the segment keeps its drawn/cast scene and the build goes on. Script validation: max 3 per video, none in the hook, never back to back. The history, kids and general script prompts tell the writer to use it rarely (`studio/story/photo.py`). No photo backdrops anywhere. Owner: PIXABAY_API_KEY in .env (already set).
+
+## 2026-11-02: weekly planner for three channels (finance, history, kids), 4 videos per week
+Status: done. New `week` command (`studio/growth/weekly_plan.py`), profile fields `publish_days` and `publish_time`
+(`channels add/edit --publish-days 1,3 --publish-time 16:00`), tests in `tests/test_weekly_plan.py`.
+Decisions: "4 per week" is read as 4 total: finance 2 (Tue, Thu 16:00), history 1 (Sun 15:00), kids 1 (Sat 09:00); times are
+the owner's local time (`publish --at` converts to UTC). The planner only suggests `publish <id> --at ...`; it never uploads,
+and the private-by-default upload and typed-yes gates are untouched. Budget uses measured renders (~2.2 min machine time per
+finished minute, from e2e-test/quality-report.md) plus estimated owner minutes and Claude handoff prompts per video.

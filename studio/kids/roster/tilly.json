@@ -14,5 +14,12 @@
     "slow lullabies",
     "ocean rhymes"
   ],
-  "builder": "tilly"
+  "builder": "tilly",
+  "voice": {
+    "edge": "en-US-JennyNeural",
+    "rate": -15,
+    "pitch": -2,
+    "kokoro": "af_nicole",
+    "speed": 0.85
+  }
 }

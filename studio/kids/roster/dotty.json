@@ -13,5 +13,12 @@
     "counting dots",
     "bug and garden rhymes"
   ],
-  "builder": "dotty"
+  "builder": "dotty",
+  "voice": {
+    "edge": "en-GB-MaisieNeural",
+    "rate": 0,
+    "pitch": 6,
+    "kokoro": "bf_lily",
+    "speed": 1.0
+  }
 }

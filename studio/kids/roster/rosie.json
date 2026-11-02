@@ -1,0 +1,26 @@
+{
+  "id": "rosie",
+  "name": "Rosie the Rabbit",
+  "species": "rabbit",
+  "role": "Hopper who makes counting fun",
+  "personality": "Bubbly and quick; counts everything on her paws and giggles at every wrong number.",
+  "catchphrase": "Hop, hop, one more!",
+  "main": "#F59BC2",
+  "accent": "#FFE3EE",
+  "look": "Pink rabbit with tall floppy ears, a white tail puff and a big grin.",
+  "rhymes": [
+    "Five Little Speckled Frogs",
+    "Ten in the Bed",
+    "Little Bunny Foo Foo (gentle version)",
+    "counting songs"
+  ],
+  "voice": {
+    "edge": "en-IE-EmilyNeural",
+    "rate": 8,
+    "pitch": 6,
+    "kokoro": "af_nova",
+    "speed": 1.1
+  },
+  "shape": "tall ears",
+  "builder": ""
+}

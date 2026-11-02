@@ -1,0 +1,26 @@
+{
+  "id": "ollie",
+  "name": "Ollie the Owl",
+  "species": "owl",
+  "role": "Gentle night-time teacher who counts the stars",
+  "personality": "Wise, calm and a little sleepy; loves a quiet song and always whispers the last line.",
+  "catchphrase": "Hoo-hoo, shall we count?",
+  "main": "#6B5BD2",
+  "accent": "#F4D58D",
+  "look": "Round violet owl with tall ear tufts, big gold eyes and tiny round glasses.",
+  "rhymes": [
+    "Twinkle Twinkle Little Star",
+    "Counting Stars",
+    "Wee Willie Winkie",
+    "bedtime lullabies"
+  ],
+  "voice": {
+    "edge": "en-GB-ThomasNeural",
+    "rate": -10,
+    "pitch": -4,
+    "kokoro": "bm_fable",
+    "speed": 0.9
+  },
+  "shape": "tall oval with ear tufts",
+  "builder": ""
+}

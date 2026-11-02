@@ -33,10 +33,10 @@ The older numbered pages stay available for finer control. Everything below also
 Everything above also runs from a browser app built with Streamlit: pick a topic, copy the script request into
 Claude and paste the answer back, click once to make the video, then watch and download it.
 
-**Run on Windows** (PowerShell in this folder; needs Python 3.11+ and ffmpeg on PATH):
+**Run on Windows** (PowerShell in this folder; needs Python 3.11 to 3.13 (3.12 best; 3.14+ not supported yet) and ffmpeg on PATH):
 
 ```
-py -3.11 -m venv .venv
+py -3.12 -m venv .venv
 .venv\Scripts\pip install -r requirements.txt
 .venv\Scripts\python -m streamlit run app.py
 ```
@@ -93,6 +93,8 @@ python -m studio.cli kids script "counting five little ducks"   # writes the pro
 python -m studio.cli kids build  "counting five little ducks"   # projects/kids_<slug>/final.mp4
 python -m studio.cli kids checklist "counting five little ducks"  # Made for Kids checklist
 python -m studio.cli kids cast                     # list the reference cast (* = this channel's)
+# The kids roster has 10 characters (studio/kids/roster/*.json); each has a `voice` (edge-tts name, rate, pitch, Kokoro id).
+# Previews: youtube-studio/characters-v2/ in the project files. Docs: docs/history-cast-system.md (history cast of 10).
 ```
 
 Stage 2 quality (all free): five original SVG characters (duck, bunny, cat, dog, bird) with blinking eyes and a
@@ -243,7 +245,7 @@ python -m studio.cli channels stats --demo                         # labelled SA
 
 ## 1. Requirements
 
-- Python 3.11+
+- Python 3.11 to 3.13 (3.12 recommended; 3.14+ lacks wheels for some packages, e.g. onnxruntime)
 - ffmpeg installed and on PATH
   - macOS: `brew install ffmpeg`
   - Ubuntu/Debian: `sudo apt install ffmpeg`
@@ -259,7 +261,12 @@ cd yt-studio
 python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
+pip install faster-whisper   # optional: word-accurate captions (otherwise timed from the script)
 ```
+
+Use Python 3.11 to 3.13 (3.12 is best). On Python 3.14+ `pip` fails with an `onnxruntime` / `ResolutionImpossible`
+error because some packages have no installer yet. On Windows `run_app.bat` picks 3.12 automatically if it is installed
+alongside a newer Python: get it from https://www.python.org/downloads/release/python-3128/.
 
 ## 3. Google Cloud setup (one time, done by hand)
 
@@ -401,6 +408,7 @@ python -m studio.cli run-all "how cruise lines make money"
 | `comments <video_id>` | Draft comment replies to a file (never posts) |
 | `comments post <file>` | Post edited replies, one typed `yes` per reply |
 | `calendar` | 4-week content calendar |
+| `week` | This week across all channels: slots (per-channel `--publish-days`/`--publish-time`), topics to approve, `publish --at` commands, time budget. Publishes nothing |
 | `status [--sync]` | Every video and its current stage; `--sync` marks published videos live |
 | `quota` | Today's YouTube API quota use |
 | `demo` | Keyless dry run that builds a sample MP4 |

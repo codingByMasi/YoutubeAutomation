@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <title>zuzu</title>
+  <ellipse cx="200" cy="372" rx="110" ry="14" fill="#000" opacity="0.12"/>
+  <path d="M130 70 L120 24 L170 62 Z M270 70 L280 24 L230 62 Z" fill="#23232E"/>
+  <path d="M176 38 Q200 0 224 38 Q214 60 200 66 Q186 60 176 38Z" fill="#2BB5C9"/>
+  <ellipse cx="200" cy="282" rx="112" ry="90" fill="#F4F4F8"/>
+  <path d="M120 250 q20 26 8 60 M160 226 q18 30 4 70 M240 226 q-18 30 -4 70 M280 250 q-20 26 -8 60" stroke="#23232E" stroke-width="13" fill="none" stroke-linecap="round"/>
+  <rect x="128" y="352" width="34" height="20" rx="8" fill="#2BB5C9"/><rect x="238" y="352" width="34" height="20" rx="8" fill="#2BB5C9"/>
+  <path d="M296 270 Q350 250 342 322 Q330 296 300 296 Z" fill="#23232E"/>
+  <ellipse cx="200" cy="160" rx="92" ry="98" fill="#F4F4F8"/>
+  <path d="M120 100 Q126 150 116 200" stroke="#23232E" stroke-width="13" fill="none" stroke-linecap="round"/><path d="M150 100 Q156 150 146 200" stroke="#23232E" stroke-width="13" fill="none" stroke-linecap="round"/><path d="M250 100 Q256 150 246 200" stroke="#23232E" stroke-width="13" fill="none" stroke-linecap="round"/><path d="M280 100 Q286 150 276 200" stroke="#23232E" stroke-width="13" fill="none" stroke-linecap="round"/>
+  <path d="M184 76 Q200 96 216 76" stroke="#23232E" stroke-width="12" fill="none" stroke-linecap="round"/>
+  <ellipse cx="200" cy="214" rx="56" ry="36" fill="#2BB5C9"/>
+  <ellipse cx="180" cy="206" rx="7" ry="9" fill="#23232E"/><ellipse cx="220" cy="206" rx="7" ry="9" fill="#23232E"/>
+  <g id="eyes-open">
+    <circle cx="165" cy="152" r="17" fill="#fff"/><circle cx="235" cy="152" r="17" fill="#fff"/>
+    <circle cx="169" cy="154" r="10" fill="#2b2b3d"/><circle cx="231" cy="154" r="10" fill="#2b2b3d"/>
+    <circle cx="173" cy="149" r="4" fill="#fff"/><circle cx="235" cy="149" r="4" fill="#fff"/>
+  </g>
+  <g id="eyes-closed">
+    <path d="M147 155 Q165 169 183 155" stroke="#2b2b3d" stroke-width="7" fill="none" stroke-linecap="round"/>
+    <path d="M217 155 Q235 169 253 155" stroke="#2b2b3d" stroke-width="7" fill="none" stroke-linecap="round"/>
+  </g>
+  <g id="mouth-closed"><path d="M172 226 Q200 250 228 226" stroke="#2b2b3d" stroke-width="7" fill="none" stroke-linecap="round"/></g>
+  <g id="mouth-open"><path d="M170 222 Q200 274 230 222 Z" fill="#2b2b3d"/><ellipse cx="200" cy="244" rx="14" ry="8" fill="#ff7a8a"/></g>
+</svg>
