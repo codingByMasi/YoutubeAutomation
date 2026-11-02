@@ -75,6 +75,24 @@ def _lock_tools() -> None:
             st.success("Cleared. Try again.")
 
 
+def _fix_buttons(error_text: str | None = None) -> None:
+    """Fix buttons for the logged issue that matches an error shown now (or for all open issues)."""
+    from studio import health
+
+    items = health.open_issues(ROOT)
+    if error_text is not None:
+        hit = health.issue_for_text(ROOT, error_text)
+        items = [hit] if hit else []
+    for it in items:
+        st.markdown(f"**What happened:** {it['cause']}")
+        if it.get("fix"):
+            if st.button(f"🔧 {it['fix_label']}", key=f"fix_{it['id']}"):
+                st.info(health.run_fix(ROOT, it["id"]))
+        if st.button("Dismiss", key=f"dismiss_{it['id']}"):
+            health.resolve(ROOT, it["id"], "dismissed")
+            st.rerun()
+
+
 def show(res: svc.Outcome, success: str = "Done.") -> None:
     """Render a stage outcome: success or the CLI-style error, plus the log."""
     if res.ok:
@@ -87,6 +105,7 @@ def show(res: svc.Outcome, success: str = "Done.") -> None:
         st.error(res.error)
         if res.error == LOCKED_HELP:
             _lock_tools()
+        _fix_buttons(res.error)
     if res.log.strip():
         with st.expander("Details"):
             st.code(res.log)
@@ -218,6 +237,28 @@ def task_block(ctx, v, title: str, help_text: str, task: str, fn, arg: int) -> N
                     st.rerun()
 
 
+def engine_block(ctx, v) -> None:
+    """The recommended story engine: three prompts (plan, script, review), everything else checked in code."""
+    from studio.story import engine
+
+    with st.expander("Story engine (recommended): plan > script > review", expanded=v.stage in ("approved", "scripted")):  # noqa: E501
+        what, cmd = engine.next_step(ctx, v.id)
+        st.write("Three requests for Claude, in order. The studio checks facts, open loops, hooks, sentence "
+                 "rhythm and repetition itself and tells you exactly what to fix.")
+        st.info(f"Pending: {what}")
+        if st.button("Run the next engine step", key=f"eng_{v.id}"):
+            show(svc.capture(script_stage.run, ctx, v.idea_id, auto=True))
+        task = engine.pending_task_name(ctx, v.id)
+        prompt = svc.read_prompt(ctx, v.id, task) if task else ""
+        if prompt:
+            st.code(prompt, language="markdown", wrap_lines=True)
+            pasted = handoff_ui.answer_box(f"eng_ans_{task}{v.id}", height=240)
+            if st.button("Save and apply", key=f"eng_save_{task}{v.id}"):
+                if handoff_ui.apply_answer(ctx, v.id, task, pasted,
+                                           lambda c, i: script_stage.run(c, i, auto=True), (v.idea_id,)):
+                    st.rerun()
+
+
 def page_script() -> None:
     ctx = ctx_for()
     st.header("2. Script")
@@ -227,6 +268,7 @@ def page_script() -> None:
     if v is None:
         st.info("Approve a topic first on **1. Topics**.")
         return
+    engine_block(ctx, v)
     if v.stage == "scripted":
         st.success("This video already has a script. Move on to **3. Make the video**.")
         sd = ctx.settings.project_dir(v.id) / "script.md"
@@ -651,6 +693,12 @@ def main() -> None:
         channels.switch(ROOT, chosen)
         st.rerun()
     page = st.sidebar.radio("Go to", PAGES, key="nav", label_visibility="collapsed")
+    from studio import health
+
+    n_open = len(health.open_issues(ROOT))
+    if n_open:
+        with st.sidebar.expander(f"⚠️ {n_open} issue(s) to fix", expanded=False):
+            _fix_buttons()
     handoff_ui.show_flash()
     try:
         {"🎬 Make a video": page_wizard, "Setup": page_setup,

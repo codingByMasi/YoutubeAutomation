@@ -14,7 +14,7 @@ from studio.stages.timing import split_segment
 
 
 def draw(pl: dict, seg: dict, pos: int, out: Path, charts: Path, blender: render3d.Blender3D, footnote: str,
-         duration: float, budget: SceneBudget | None = None) -> dict:
+         duration: float, budget: SceneBudget | None = None, audio: Path | None = None) -> dict:
     """Render the planned scene for segment `pos`: 3D clips go in `out`, 2D step frames in `charts`.
 
     Returns {"mode": "2d"|"3d", "frames": [...], "clip": path|None, "fell_back": bool, "kind": kind}. A 3D scene
@@ -43,7 +43,8 @@ def draw(pl: dict, seg: dict, pos: int, out: Path, charts: Path, blender: render
                 budget.start(pos, render3d.FPS_3D)
                 try:
                     render3d.render(exe, scene, secs3, footnote, clip_out, out / f"{stem}_frames",
-                                    timeout=budget.timeout(), on_frame=budget.on_frame, should_stop=budget.should_stop)
+                                    audio=audio, timeout=budget.timeout(), on_frame=budget.on_frame,
+                                    should_stop=budget.should_stop)
                     budget.done(round(secs3 * render3d.FPS_3D))
                     return {"mode": "3d", "frames": [], "clip": clip_out, "fell_back": False, "kind": scene["kind"],
                             "replaces_chart": replaces_chart}

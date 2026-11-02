@@ -1,0 +1,17 @@
+{
+  "id": "mango",
+  "name": "Mango Monkey",
+  "species": "monkey",
+  "role": "Cheeky energy for action and counting songs",
+  "personality": "Playful and cheeky, can't sit still, loves bananas and counting down.",
+  "catchphrase": "Ooh-ooh, one more time!",
+  "main": "#C4742B",
+  "accent": "#F2C98A",
+  "look": "Orange-brown monkey with a curly tail and a banana.",
+  "rhymes": [
+    "Five Little Monkeys",
+    "action and dance rhymes",
+    "counting songs"
+  ],
+  "builder": "mango"
+}

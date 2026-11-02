@@ -1,0 +1,18 @@
+{
+  "id": "benny",
+  "name": "Benny Bear",
+  "species": "bear",
+  "role": "Sleepy cuddler who ends the song",
+  "personality": "Gentle, sleepy and warm. Hugs everyone, yawns at the end of every bedtime song.",
+  "catchphrase": "Nighty-night, everybody.",
+  "main": "#9A6234",
+  "accent": "#E8C99A",
+  "look": "Brown round bear with a cream tummy and blue dungarees.",
+  "rhymes": [
+    "Twinkle Twinkle Little Star",
+    "Rock-a-bye Baby",
+    "Teddy Bear, Teddy Bear",
+    "bedtime songs"
+  ],
+  "builder": "benny"
+}

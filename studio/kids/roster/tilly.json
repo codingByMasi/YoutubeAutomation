@@ -1,0 +1,18 @@
+{
+  "id": "tilly",
+  "name": "Tilly Turtle",
+  "species": "turtle",
+  "role": "Gentle, shy slow-song singer",
+  "personality": "Shy, kind and patient; sings slowly so everyone can join in.",
+  "catchphrase": "Slow and steady, sing with me.",
+  "main": "#6DC76B",
+  "accent": "#2F8F5B",
+  "look": "Green turtle with a dark green shell, orange patches and a little pink flower.",
+  "rhymes": [
+    "Row, Row, Row Your Boat",
+    "ABC and shape songs",
+    "slow lullabies",
+    "ocean rhymes"
+  ],
+  "builder": "tilly"
+}

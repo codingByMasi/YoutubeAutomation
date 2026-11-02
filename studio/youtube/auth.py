@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Any
 
 from studio.config import Settings
@@ -24,7 +26,8 @@ def _run_flow(settings: Settings) -> Any:
     flow = InstalledAppFlow.from_client_secrets_file(str(settings.client_secret), SCOPES)
     print(f"Opening a browser to sign in for channel '{settings.channel_key}'. Pick that YouTube channel "
           "if Google asks which one...")
-    return flow.run_local_server(port=0, open_browser=True)
+    # prompt=consent makes Google always return a refresh token, so the sign-in lasts across restarts.
+    return flow.run_local_server(port=0, open_browser=True, prompt="consent", access_type="offline")
 
 
 def get_credentials(settings: Settings, run_flow=_run_flow) -> Any:
@@ -46,9 +49,12 @@ def get_credentials(settings: Settings, run_flow=_run_flow) -> Any:
     if creds and creds.expired and creds.refresh_token:
         try:
             creds.refresh(Request())
-        except RefreshError:
-            print("Your YouTube sign-in expired or was revoked. Deleting token.json and signing in again.")
-            token.unlink(missing_ok=True)
+        except RefreshError as exc:
+            if not _is_dead_grant(exc):
+                raise StudioError("Could not refresh the YouTube sign-in.", str(exc)[:200],
+                                  "Check your internet connection and try again. Your saved sign-in was kept.") from exc
+            print("Your YouTube sign-in expired or was revoked (Google Testing-mode sign-ins last 7 days). "
+                  "Signing in again; the old token is replaced only after the new one works.")
             creds = None
     if not creds or not creds.valid:
         try:
@@ -61,13 +67,28 @@ def get_credentials(settings: Settings, run_flow=_run_flow) -> Any:
                 str(exc),
                 "If you saw 'Access blocked', add your account as a test user on the OAuth consent screen.",
             ) from exc
+    _save_token(token, creds)
+    return creds
+
+
+def _save_token(token: Path, creds: Any) -> None:
+    """Write the token atomically (a crash mid-write must never leave a half file that forces a new sign-in)."""
     token.parent.mkdir(parents=True, exist_ok=True)
-    token.write_text(creds.to_json(), encoding="utf-8")
+    tmp = token.with_suffix(token.suffix + ".tmp")
+    tmp.write_text(creds.to_json(), encoding="utf-8")
     try:
-        token.chmod(0o600)
+        tmp.chmod(0o600)
     except OSError:
         pass
-    return creds
+    tmp.replace(token)
+
+
+def _is_dead_grant(exc: Exception) -> bool:
+    """True when Google refused the refresh token itself (expired/revoked), not a temporary or network problem."""
+    if getattr(exc, "retryable", False):
+        return False
+    t = str(exc).lower()
+    return not any(k in t for k in ("connection", "timed out", "timeout", "temporarily", "unavailable", "dns"))
 
 
 def settings_for(settings: Settings, channel_id: str) -> Settings:
@@ -99,8 +120,10 @@ def load_credentials(settings: Settings) -> Any:
         creds = Credentials.from_authorized_user_file(str(token), SCOPES)
         if not creds.valid and creds.expired and creds.refresh_token:
             creds.refresh(Request())
-            token.write_text(creds.to_json(), encoding="utf-8")
+            _save_token(token, creds)
     except (ValueError, RefreshError):
+        return None  # token file is kept; `youtube-status` says why and the app offers a Fix button
+    except Exception:  # noqa: BLE001 - offline etc.: not signed out, just unreachable right now
         return None
     return creds if creds.valid else None
 
@@ -114,3 +137,84 @@ def build_services(settings: Settings, credentials: Any = None) -> tuple[Any, An
         build("youtube", "v3", credentials=creds, cache_discovery=False),
         build("youtubeAnalytics", "v2", credentials=creds, cache_discovery=False),
     )
+
+
+LEGACY_TOKEN = "token.json"
+
+
+def status(settings: Settings, check: bool = False, adopt: bool = False) -> dict:
+    """Sign-in state of one channel: connected | expired | missing | no_client. Never returns secrets.
+
+    Without `check` nothing touches the network, so a token that only *looks* fine is reported as connected
+    (access tokens renew by themselves while the refresh token lives). `check=True` tries a refresh to
+    find out if Google still accepts it. `adopt=True` copies the old shared token.json into this channel's token
+    slot when that slot is empty (it only happens on request, because the old token belongs to one Google login).
+    """
+    token = settings.token_path
+    out = {"channel_id": settings.channel_key, "token": str(token), "state": "missing", "message": "", "fix": "",
+           "client_secret": str(settings.client_secret)}
+    if not settings.client_secret.exists():
+        out.update(state="no_client", message="The Google client file (client_secret.json) is missing.",
+                   fix=f"Upload it on the Setup page, or save it at {settings.client_secret}.")
+        return out
+    sign_fix = ("Press 'Sign in to Google' on the Setup page, or run: "
+                f"python -m studio.cli channels sign-in {settings.channel_key}")
+    legacy = settings.root / LEGACY_TOKEN
+    if not token.exists():
+        if legacy.exists() and token != legacy:
+            if adopt:
+                token.parent.mkdir(parents=True, exist_ok=True)
+                token.write_bytes(legacy.read_bytes())
+            else:
+                out.update(message="No sign-in saved for this channel, but an old shared token.json exists.",
+                           fix="Run: python -m studio.cli youtube-status --fix  (adopts it for this channel if it is "
+                               "the right Google account), or sign in again.")
+                return out
+        else:
+            out.update(message="Not signed in yet.", fix=sign_fix)
+            return out
+    try:
+        from google.oauth2.credentials import Credentials
+        creds = Credentials.from_authorized_user_file(str(token), SCOPES)
+    except (ValueError, OSError, KeyError) as exc:
+        out.update(state="expired", message=f"The token file is unreadable or lacks a refresh token ({str(exc)[:80]}).",
+                   fix=sign_fix)
+        return out
+    if not creds.refresh_token:
+        out.update(state="expired", message="The saved sign-in has no refresh token, so it cannot renew itself.",
+                   fix=sign_fix)
+        return out
+    try:
+        granted = set(json.loads(token.read_text(encoding="utf-8")).get("scopes") or [])
+    except (ValueError, OSError):
+        granted = set()
+    if granted and not set(SCOPES) <= granted:
+        out.update(state="expired", message="The saved sign-in was made with fewer permissions than the app needs now.",
+                   fix=sign_fix)
+        return out
+    if check:
+        from google.auth.exceptions import RefreshError
+        from google.auth.transport.requests import Request
+        try:
+            creds.refresh(Request())
+            _save_token(token, creds)
+        except RefreshError as exc:
+            if _is_dead_grant(exc):
+                out.update(state="expired", message="Google no longer accepts this sign-in (revoked, or "
+                           "Testing-mode and older than 7 days).",
+                           fix=sign_fix + ". To stop this recurring, set the OAuth consent screen to 'In production'.")
+            else:
+                out.update(state="connected", message=f"Could not verify right now ({str(exc)[:80]}); token kept.")
+            return out
+        except Exception as exc:  # noqa: BLE001 - offline
+            out.update(state="connected", message=f"Saved sign-in found; Google not reachable ({type(exc).__name__}).")
+            return out
+    out.update(state="connected", message="Signed in." + (" Verified with Google." if check else ""))
+    return out
+
+
+def status_all(settings: Settings, check: bool = False, adopt: bool = False) -> list[dict]:
+    """`status` for every channel profile."""
+    from studio.growth import channels
+    return [status(settings_for(settings, c["id"]), check=check, adopt=adopt)
+            for c in channels.list_channels(settings.root)]

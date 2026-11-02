@@ -401,3 +401,50 @@ in `script.json`, and the generated YouTube description lists every source under
 - Live progress panel (all long steps): voice, pictures, edit and thumbnails write `projects/<id>/progress.json` via `studio/util/progress.py`
   (`tracking`/`Run`). The app shows a checklist (done / running now / waiting), items done and to go, percent, time left and a Cancel
   button, refreshing every 3 s (`st.fragment`); `web.service.panel_model` builds it (tested). Works for every channel.
+
+## Kids reference cast (2026-11-02)
+- Five original recurring characters: Benny Bear, Pip the Duckling, Mango Monkey, Dotty Ladybug, Tilly Turtle (`studio/kids/roster/*.json`,
+  hand-made primitive 3D models in `studio/blender/rhyme_cast.py`; stills in project files `youtube-studio/kids-cast/`).
+- Easy to add more: drop `assets/kids/roster/<id>.json` (id, name, species, personality, main, accent, optional role/catchphrase/look/rhymes).
+  Without a hand-made model the 3D renderer draws a generic round character in your colours and 2D draws a round face, so it works at once.
+- Per channel: profile field `kids_cast` (list of ids; empty = whole roster). `kids script` puts the channel's cast and personalities in the prompt and
+  accepts roster ids in `visual.characters`. `kids cast` lists them.
+- Limits: simple shapes, no skeleton or lip-sync; they bounce, sway, pop in. Tested: unit tests (APIs mocked) and a real Blender (Cycles CPU) smoke render;
+  Eevee on a PC GPU not tested here. The finance thread's character system was not on main, so this extends the existing per-channel profile instead.
+- No web-app picker yet; set `kids_cast` via the channel profile (CLI/JSON).
+
+## Host character 3D scenes (2026-11-01)
+- New scene kind `host` (`studio/scenes/host.py`, `build_host`/`scene_host` in `studio/blender/scene_script.py`): the
+  channel mascot acts per beat (9 actions, 5 sets, 7 generic props), camera cuts, mouth follows the narration audio
+  (`host.envelope`, ffmpeg RMS). `scenes.plan_for` adds host scenes automatically in 3d/mixed style when the channel has
+  a mascot; `host_scenes: off` in the channel profile disables it.
+- Mascot kinds now: coin, owl, robot, piggy, bull, analyst (a stylised person; skin, hair, hair_style fields).
+- Decisions: the mouth is loudness-driven (no phoneme lip-sync); no real logos (generic labelled blocks); 2D fallback
+  shows the mascot picture. Owner must choose the default character per channel (`channels identity --file`).
+- Tests: `tests/test_host.py`; the bpy smoke test runs only where `pip install bpy` is available.
+
+## 2026-11-02: story quality and retention upgrade (phases 1-6)
+- Status: done. Details, flags and decisions: `docs/CHANGELOG.md`.
+- New: `studio/story/` (profile, facts, loops, hooks, ledger, engine, narration, mood, safety, titles, feedback loop),
+  `studio/health.py` (issue log + fix buttons), TTS fallback chain, prompt packs under `studio/prompts/<pack>/`.
+- Owner must: `pip install -r requirements.txt` (pydantic, faster-whisper, requests now required). Optional extras:
+  `requirements-optional.txt`. First real video: `python -m studio.cli script <idea_id> --auto`, answer each prompt file
+  (story_plan, script, story_review), re-run the same command, then `voice`, `visuals`, `build`, `gate`.
+- Tests: `tests/test_story_units.py`, `tests/test_story_engine.py` (fake LLM in `tests/fake_llm.py`), opt-in `tests/test_dry_run.py`.
+
+## 2026-11-02: history channel profile from reference videos
+Status: done (profile, prompts, cast module, tests). Not done: a 2D history scene renderer that draws the cast
+(see docs/history-cast-system.md). Decisions: history pack changed from dread/second-person to animated storytelling
+(tone `blend`); loop distance left at 30-180 s; no sponsor slots; cast names are placeholders for the owner to rename.
+Owner must configure: nothing; optionally set `story.tone` (`blend`, `comedic`, `dramatic`) on the history channel.
+
+## 2026-11-02: YouTube sign-in kept asking again and again
+Causes found: (1) the CLI used the *current folder* as the studio folder while the app used its own folder, so
+`token.json`/`client_secret.json` were "missing" depending on where a command ran; now both default to the repo folder
+(`STUDIO_HOME` still overrides). (2) any refresh error deleted the token (even offline); now only a dead grant triggers
+a new sign-in and the old file is replaced only after the new one works. (3) each channel has its own token slot
+(`tokens/<channel>.json`), so a login made under another channel looks "missing" (`youtube-status --fix` adopts the old
+shared `token.json`). (4) Google Testing-mode refresh tokens expire after 7 days: set the OAuth consent screen to
+"In production" (or accept re-signing weekly). Sign-in now asks for `prompt=consent` so a refresh token is always issued.
+New: `python -m studio.cli youtube-status [--check] [--fix]` (per channel connected/expired/missing, no secrets),
+Setup-page status with a Fix button, and an Issues-panel fix `youtube_signin`.

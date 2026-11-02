@@ -37,9 +37,13 @@ def size_for(profile) -> tuple[int, int]:
     return min(profile.w, MAX_SIZE[0]), min(profile.h, MAX_SIZE[1])
 
 
-def scene_config(scene: dict, seconds: float, size: tuple[int, int], footnote: str = "") -> dict:
+def scene_config(scene: dict, seconds: float, size: tuple[int, int], footnote: str = "",
+                 mouth: list | None = None) -> dict:
     """The JSON handed to Blender (see scene_script.build_scene) with the current channel colours."""
-    return {"kind": "scene", "scene": scene["kind"], "title": scene.get("title", ""), "items": scene["items"],
+    host = {"action": scene.get("action", "present"), "set": scene.get("set", "studio"),
+            "props": scene.get("props", []), "mascot": scene.get("mascot") or {}, "mouth": mouth or []}
+    return {**(host if scene["kind"] == "host" else {}),
+            "kind": "scene", "scene": scene["kind"], "title": scene.get("title", ""), "items": scene.get("items", []),
             "footnote": footnote, "bg": brand.BG, "fg": brand.FG, "muted": brand.MUTED, "accent": brand.ACCENT,
             "panel": "#1E293B" if brand.BG.lower() == "#0f172a" else brand.BG, "series": list(brand.SERIES),
             "duration": min(max(seconds, 2.0), MAX_SECONDS), "fps": FPS_3D, "width": size[0], "height": size[1]}
@@ -57,11 +61,18 @@ def _fingerprint(cfg: dict) -> str:
     return hashlib.sha1(body.encode()).hexdigest()[:16]
 
 
-def render(exe: Path, scene: dict, seconds: float, footnote: str, out: Path, work: Path, timeout: float | None = None,
-           on_frame=None, should_stop=None) -> Path:
-    """Render one scene to `out` (MP4, no audio) through Blender; a finished identical clip is reused (resume)."""
+def render(exe: Path, scene: dict, seconds: float, footnote: str, out: Path, work: Path, audio: Path | None = None,
+           timeout: float | None = None, on_frame=None, should_stop=None) -> Path:
+    """Render one scene to `out` (MP4, no audio) through Blender; a finished identical clip is reused (resume).
+
+    A host scene's mouth follows `audio` if given."""
     out.parent.mkdir(parents=True, exist_ok=True)
-    cfg = scene_config(scene, seconds, size_for(ff.profile()), footnote)
+    mouth = None
+    if scene["kind"] == "host":
+        from studio.scenes import host
+
+        mouth = host.envelope(audio, min(max(seconds, 2.0), MAX_SECONDS), FPS_3D)
+    cfg = scene_config(scene, seconds, size_for(ff.profile()), footnote, mouth)
     mark = out.with_suffix(".fp")
     fp = _fingerprint(cfg)
     if out.exists() and out.stat().st_size > 0 and mark.exists() and mark.read_text(encoding="utf-8") == fp:

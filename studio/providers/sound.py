@@ -18,7 +18,10 @@ OWN_LICENCE = "Own work (synthesized by studio)"
 PROGRESSIONS = {
     "minor": [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]],   # Am F C G
     "major": [[48, 52, 55], [55, 59, 62], [57, 60, 64], [53, 57, 60]],   # C G Am F
+    "tense": [[45, 48, 51], [41, 44, 48], [44, 47, 50], [45, 48, 51]],   # low, diminished: dread
 }
+MOOD_STYLE = {"tense": ("tense", 66), "neutral": ("minor", 88), "resolve": ("major", 92),
+              "minor": ("minor", 88), "major": ("major", 88)}
 
 
 def _hz(midi: float) -> float:
@@ -49,6 +52,11 @@ def _env(n: int, attack: float, release: float) -> np.ndarray:
 
 def music_bed(path: Path, mood: str = "minor", bpm: int = 88) -> Path:
     """A seamless 4-chord loop: soft pad, bass, light plucked arpeggio and a quiet pulse (about 11 s)."""
+    return _write(path, bed_array(mood, bpm))
+
+
+def bed_array(mood: str = "minor", bpm: int = 88) -> np.ndarray:
+    """The loop of `music_bed` as a mono float array."""
     chords = PROGRESSIONS.get(mood, PROGRESSIONS["minor"])
     beat = 60.0 / bpm
     bar = int(4 * beat * SR)
@@ -85,7 +93,39 @@ def music_bed(path: Path, mood: str = "minor", bpm: int = 88) -> Path:
     buf[:tail] += buf[total:]  # wrap the tail over the start so the loop has no click
     loop = buf[:total]
     loop /= max(1e-6, np.abs(loop).max()) * 1.6
-    return _write(path, loop)
+    return loop
+
+
+def mood_bed(path: Path, chapters: list[tuple[float, float, str]], drops: list[float] | None = None,
+             fade: float = 1.5, drop_level: float = 0.06) -> Path:
+    """One bed for the whole video: each chapter (start, end, mood) gets its own variant, crossfaded at the
+    boundaries; the level falls to near-silence for 2.5 s before each time in `drops` (the twist)."""
+    total = int(max(e for _, e, _ in chapters) * SR) + 1
+    out = np.zeros(total, dtype=np.float32)
+    cache: dict[str, np.ndarray] = {}
+    f = int(fade * SR)
+    for start, end, mood in chapters:
+        key = mood if mood in MOOD_STYLE else "neutral"
+        if key not in cache:
+            m, bpm = MOOD_STYLE[key]
+            cache[key] = bed_array(m, bpm).astype(np.float32)
+        a, b = int(start * SR), min(total, int(end * SR))
+        n = b - a
+        if n <= 0:
+            continue
+        piece = np.resize(cache[key], n).copy()
+        k = min(f, n // 2)
+        if k:
+            piece[:k] *= np.linspace(0, 1, k, dtype=np.float32)
+            piece[-k:] *= np.linspace(1, 0, k, dtype=np.float32)
+        out[a:b] += piece
+    for t in drops or []:
+        d1, d0 = int(t * SR), int(max(0.0, t - 2.5) * SR)
+        if d1 > d0:
+            ramp = np.linspace(1, drop_level, d1 - d0, dtype=np.float32)
+            out[d0:d1] *= ramp
+            out[d1:min(total, d1 + int(0.4 * SR))] *= drop_level
+    return _write(path, out)
 
 
 def sfx_whoosh(path: Path) -> Path:

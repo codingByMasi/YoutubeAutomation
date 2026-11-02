@@ -269,6 +269,11 @@ Definition of done for the build: all tests pass, `status` and `run-all` work en
 
 ---
 
+## 11b. Story engine (added 2026-11-02)
+`script <idea> --auto` runs three handoff tasks (story_plan, script, story_review); everything checkable is checked in code
+(facts, loops, hooks, repetition, word counts, sentence rhythm, caption sync). Per-channel-type profiles and flags live in
+`studio/story/profile.py`. Failures are logged to `logs/issues.json` with plain-language fixes. See `docs/CHANGELOG.md`.
+
 ## 12. Out of scope (for now)
 
 - Auto-posting comments or replies

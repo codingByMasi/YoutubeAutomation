@@ -9,7 +9,8 @@ from pathlib import Path
 from studio import llm
 from studio.context import Ctx
 from studio.errors import StudioError
-from studio.kids import spec
+from studio.growth import channels
+from studio.kids import cast, spec
 
 
 def slugify(topic: str) -> str:
@@ -27,8 +28,9 @@ def project_dir(ctx: Ctx, slug: str) -> Path:
     return d
 
 
-def build_prompt(topic: str) -> str:
+def build_prompt(topic: str, cast_brief: str = "") -> str:
     """The rules and exact JSON shape Claude Code must follow."""
+    chars = spec.CHARACTERS + [c for c in cast.ids() if c not in spec.CHARACTERS]
     shape = {
         "title": "Counting Five Little Ducks (short, under 60 chars)",
         "description": "Plain sentence for parents. Say it is an original song.",
@@ -40,7 +42,7 @@ def build_prompt(topic: str) -> str:
             "kind": "verse | chorus",
             "lines": [f"1-{spec.MAX_LINES_PER_SCENE} lines, each up to {spec.MAX_WORDS_PER_LINE} words"],
             "visual": {"background": f"one of {spec.BACKGROUNDS}", "motion": f"one of {spec.MOTIONS}",
-                       "characters": f"list from {spec.CHARACTERS}", "count": "1-10; how many appear"},
+                       "characters": f"list from {chars}", "count": "1-10; how many appear"},
         }],
     }
     return f"""# Task: write a children's song video script about "{topic}"
@@ -59,6 +61,9 @@ Audience: ages 2 to 5. Output is a short sing-along video made of simple animate
 - Visuals use only the fixed vocabulary in the shape below; the renderer draws simple shapes.
 - Each scene's `count` is how many characters appear; for counting songs match it to the lyric.
 
+## Cast
+{cast_brief or "No recurring cast set for this channel."}
+
 ## JSON shape (write ONLY this object)
 ```json
 {json.dumps(shape, indent=2)}
@@ -70,7 +75,9 @@ def run(ctx: Ctx, topic: str, force: bool = False) -> dict:
     """Return the validated kids script for `topic`, saving projects/kids_<slug>/script.json."""
     slug = slugify(topic)
     d = project_dir(ctx, slug)
-    data = llm.ask_json(ctx.settings, d, "kids_script", build_prompt(topic), validate=spec.validate, force=force)
+    brief = cast.brief(cast.for_channel(channels.get(ctx.settings.root)))
+    data = llm.ask_json(ctx.settings, d, "kids_script", build_prompt(topic, brief), validate=spec.validate,
+                        force=force)
     data["slug"] = slug
     (d / "script.json").write_text(json.dumps(data, indent=2), encoding="utf-8")
     return data
