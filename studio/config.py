@@ -103,6 +103,11 @@ class Settings:
                 )
 
 
+# Same folder for the app and the CLI no matter where a command is started from (cwd used to differ, which made
+# token.json / client_secret.json / studio.db "disappear" between the app and the terminal).
+DEFAULT_HOME = Path(__file__).resolve().parent.parent
+
+
 def _int(name: str, default: int) -> int:
     raw = os.getenv(name, "").strip()
     if not raw:
@@ -146,7 +151,7 @@ def _env_key(name: str, *aliases: str) -> str:
 
 def load_settings(root: Path | None = None) -> Settings:
     """Load `.env` from the project root and validate values that are always required."""
-    root = Path(root or os.getenv("STUDIO_HOME") or Path.cwd()).resolve()
+    root = Path(root or os.getenv("STUDIO_HOME") or DEFAULT_HOME).resolve()
     load_dotenv(root / ".env", override=False, encoding="utf-8-sig")
     s = Settings(
         root=root,

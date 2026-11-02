@@ -11,7 +11,7 @@ class FakeCreds:
         return json.dumps({"token": "t"})
 
 
-def test_revoked_token_is_deleted_and_flow_rerun(ctx, monkeypatch):
+def test_revoked_token_is_replaced_after_new_sign_in(ctx, monkeypatch):
     from google.auth.exceptions import RefreshError
     from google.oauth2.credentials import Credentials
 
@@ -29,7 +29,7 @@ def test_revoked_token_is_deleted_and_flow_rerun(ctx, monkeypatch):
 
     def flow(settings):
         flows.append(1)
-        assert not token.exists()  # deleted before re-auth
+        assert token.exists()  # old token is kept until the new sign-in works
         return FakeCreds()
 
     creds = auth.get_credentials(ctx.settings, run_flow=flow)

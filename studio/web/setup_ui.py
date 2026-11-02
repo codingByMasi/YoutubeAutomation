@@ -115,16 +115,25 @@ def _signin(ctx, show) -> None:
     st.markdown(setup.HOWTO["signin"])
     st.caption(f"Signing in for channel **{prof['name']}**. Each channel keeps its own Google sign-in, so you can "
                "use a different Google account per channel. This works when the app runs on your own computer.")
-    if setup.signed_in(s):
-        st.success("Signed in.")
+    info = setup.signin_status(s, check=bool(st.session_state.get("signin_checked")))
+    st.caption(f"Token file: `{info['token']}`")
+    if info["state"] == "connected":
+        st.success(info["message"] or "Connected.")
+        if st.button("Check with Google now", key="signin_check"):
+            st.session_state["signin_checked"] = True
+            st.rerun()
         if st.button("Sign out of this channel", key="signout"):
             setup.sign_out(s)
             st.rerun()
         return
+    if info["state"] in ("expired", "missing"):
+        st.warning(f"{'Expired' if info['state'] == 'expired' else 'Not connected'}: {info['message']}")
+        st.caption(info["fix"])
     if not setup.can_sign_in(s):
         st.info("Add the Google client file first (section above).")
         return
-    if st.button("Sign in to Google", type="primary", key="signin_btn"):
+    if st.button("Fix: sign in to Google" if info["state"] == "expired" else "Sign in to Google", type="primary",
+                 key="signin_btn"):
         with st.spinner("A browser window should open. Finish the sign-in there..."):
             res = setup.sign_in(ctx)
         show(res, "Signed in.")
