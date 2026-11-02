@@ -517,3 +517,8 @@ finished minute, from e2e-test/quality-report.md) plus estimated owner minutes a
 - Type-specific style guides (`studio/story/style.py`); SPEC section 9 only feeds the finance pack and has no placeholders. Prompts fail loudly on `[HEX CODES]`-style leftovers.
 - Brief is type-specific (no 'charts and diagrams' or posts count for history/kids); `visual_keywords` are scene terms for cartoon packs; chapter-length text aligned with 8-30 s plan beats.
 - Plan validator: hook numbers must be backed by beat 1 facts; unsourced superlatives rejected; prompt asks for causal/chronological beat order.
+
+
+## 2026-11-02 Script screen as one path + prompt audit
+- `2. Script` and the wizard's Script step share `studio/web/script_ui.py`: progress bar (Plan story, Write script, Review), one instruction, a Copy button (request collapsed), one paste box, one Apply button, auto-advance, then one "Continue to voice" button. The plan always comes first, so a script is never requested without facts and open loops. Nothing was removed: the extra outline, the older scored review, writing a script without a plan, file upload, "run next step" and reading the script live under one "Advanced" expander. Logic in `wizard_service.script_flow`.
+- Prompt audit (finance, history, kids, rendered end to end): kids plan no longer asks for filings, "billion USD" or two loops in 60 s and facts are optional; history plan asks for museum/archive sources; example hook types match each channel's allowed formulas; cold open is 15 s everywhere (was 20 in the history beat sheet); "12-8 words" typo and "Child safety: Child safety:" duplicate fixed; "chart" wording no longer forced on kids.

@@ -16,8 +16,8 @@ retention outline (story bible) and 8 scored hook variants. Code verifies every 
 {cast_block}
 
 # 1. Facts (use web search; this part cannot be skipped)
-Search the web for real figures: filings, annual reports, official statistics, museum or archive pages, reputable
-articles. For EVERY figure give `source_url` (a page you actually opened) and `quote_snippet` (the exact words on
+Search the web for real dates, names and figures: museum and archive pages, university or encyclopedia entries,
+scholarly articles, reputable history publications. For EVERY figure give `source_url` (a page you actually opened) and `quote_snippet` (the exact words on
 that page that contain the figure). Code will fetch the URL and look for the figure or the snippet, so do not
 guess URLs. If you can only estimate, set `is_estimate` true and say how you estimated it in `claim`.
 Aim for {fact_count} facts.
@@ -55,7 +55,7 @@ Code rotates hook types: it will not use one of the channel's last three. Formul
 
 # Output: one JSON object with exactly these keys
 {{
-  "facts": [{{"id": "f1", "claim": "string", "figure": 1.2, "unit": "billion USD", "year": 2024,
+  "facts": [{{"id": "f1", "claim": "string", "figure": 1.2, "unit": "soldiers", "year": 216,
              "source_url": "https://...", "quote_snippet": "exact words from the page", "is_estimate": false}}],
   "outline": {{
     "audience_question": "string", "big_idea": "string", "promise": "string", "title_promise": "string",
@@ -66,6 +66,6 @@ Code rotates hook types: it will not use one of the channel's last three. Formul
     "ending": {{"callback": "string", "takeaway": "string", "cta_question": "string", "next_video": "string"}},
     "thumbnail_ideas": ["string", "string", "string"], "risks": ["string"]
   }},
-  "hooks": [{{"hook_type": "number_stakes", "line": "string", "why": "string",
+  "hooks": [{{"hook_type": "scene_cold_open", "line": "string", "why": "string",
              "score": {{"curiosity": 4, "clarity": 4, "stakes": 4, "promise": 4}}}}]
 }}

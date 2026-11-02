@@ -76,7 +76,7 @@ PACKS: dict[str, dict] = {
         "region": "global",
         # tone: "blend" = dramatic story with light comic asides; "comedic" or "dramatic" push one way.
         "tone": "blend",
-        "beat_sheet": ["cold open: one scene that states the problem or promise (20 seconds at most)",
+        "beat_sheet": ["cold open: one scene that states the problem or promise (15 seconds at most)",
                        "title card, then rewind to the person or cause that explains it",
                        "chapter 1: who wants what, and the first decision with a cost",
                        "info beat: how the thing worked, as a short numbered diagram",
