@@ -15,6 +15,7 @@ from studio.providers.charts import render_chart, source_line, text_card
 from studio.providers.footage import make_footage
 from studio.providers.images import make_images
 from studio.quality import rules
+from studio.scenes import photo as photo_scene
 from studio.scenes import render3d
 from studio.scenes import stage as scene_stage
 from studio.scenes.budget import SceneBudget
@@ -145,6 +146,7 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
             typer.echo(f"{len(todo3d)} scenes will be rendered in 3D (about {render3d.FPS_3D} frames per second of "
                        f"video). Progress and time left are shown per scene; cancel any time with "
                        f"'cancel {video_id}' or the Cancel button.")
+        from studio.story import photo as story_photo
         from studio.story import profile as sprofile
         from studio.story import visuals as story_visuals
         sprof = sprofile.for_channel(ctx.settings.root)
@@ -166,12 +168,32 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
             bg_seconds, _ = split_segment(duration, bool(seg.get("chart_data")))
             found = []
             drawn = None  # a cast scene (studio/history/render.py) replaces stock footage for this segment
-            if cast_on and isinstance(seg.get("scene"), str) and seg["scene"] in cast_mod.SCENE_TYPES:
+            queries = story_visuals.queries_for(seg) if use_intent else seg["visual_keywords"]
+            photo_mode = None
+            ask = story_photo.request(seg)
+            if ask and images:  # the script asked for a real photo here (and only here)
+                try:
+                    pic = find_valid(images, [ask["subject"], *queries], used_img, "image", hashes, rejected, avoid)
+                    if pic:
+                        drawn = photo_scene.render_photo_scene(pic.path, out / "scenes" / f"photo_{pos:03d}.mp4",
+                                                               duration, ask["caption"], ask["layout"])
+                        photo_mode = ask["layout"]
+                        new_assets.append(Asset(video_id=video_id, kind="image", path=str(pic.path),
+                                    source=f"{pic.provider}: {pic.author}".strip(), licence=pic.licence,
+                                    attribution_url=pic.page_url))
+                        scene_counts["photo"] = scene_counts.get("photo", 0) + 1
+                except Exception as exc:  # noqa: BLE001 - key rejected, offline, bad file: keep the drawn scene
+                    log.warning("Photo scene skipped for segment %d (%s): %s", pos, ask["subject"], exc)
+                    drawn = None
+                if not drawn:
+                    rejected.append(f"segment {pos}: no usable photo for {ask['subject']!r}; drawn scene used")
+            if drawn:
+                pass
+            elif cast_on and isinstance(seg.get("scene"), str) and seg["scene"] in cast_mod.SCENE_TYPES:
                 audio = Path(rows[pos].audio_path) if pos in rows and rows[pos].audio_path else None
                 drawn = cast_render.render_scene(seg, duration, out / "cast" / f"cast_{pos:03d}.mp4", out / "cast",
                                                  audio, faction0, cast_stage)
                 scene_counts["cast"] = scene_counts.get("cast", 0) + 1
-            queries = story_visuals.queries_for(seg) if use_intent else seg["visual_keywords"]
             query = " ".join([str((seg.get("visual_intent") or {}).get("must_show") or ""), seg.get("narration", "")]) \
                 if scorer else ""
             for k in range(0 if drawn else max(1, shots_needed(bg_seconds, shot_max=shot_max_for(pos, limits)))):
@@ -190,7 +212,10 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
                         break
                 if not got:
                     break  # nothing more to find for this segment
-            if drawn:
+            if drawn and photo_mode:
+                vis.update(kind="scene", path=str(drawn), paths=[str(drawn)], scene_clip=str(drawn),
+                           scene={"kind": "photo", "mode": "photo", "fell_back": False})
+            elif drawn:
                 vis.update(kind="scene", path=str(drawn), paths=[str(drawn)], scene_clip=str(drawn),
                            scene={"kind": seg["scene"], "mode": "cast", "fell_back": False})
                 new_assets.append(Asset(video_id=video_id, kind="scene", path=str(drawn), licence=OWN_LICENCE,

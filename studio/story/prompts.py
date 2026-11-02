@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 from studio.errors import StudioError
+from studio.story import photo
 
 BASE = Path(__file__).resolve().parent.parent / "prompts"
 
@@ -57,7 +58,8 @@ def compose(name: str, prof: dict, **values) -> str:
         banned=", ".join(f'"{p}"' for p in prof["banned_phrases"]), min_minutes=prof["min_minutes"],
         max_minutes=prof["max_minutes"], compliance=" ".join(prof["compliance"]), ending_style=prof["ending_style"],
         writing_rules=writing_rules(prof), exemplar=exemplar(prof["pack"]), shape=shape(),
-        hooks=read("hooks", prof["pack"]), cast_block=_cast_block(prof), tone=prof.get("tone", ""),
+        hooks=read("hooks", prof["pack"]), photo_rule=photo.prompt_rule(prof["pack"]),
+        cast_block=_cast_block(prof), tone=prof.get("tone", ""),
         recent="(no earlier videos on this channel yet)", facts_block="(none)")
     vals.update(values)
     from studio.story.profile import short_form_note
