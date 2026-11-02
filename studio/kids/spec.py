@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import re
 
+from studio.kids import cast
+
 CHARACTERS = ["duck", "cat", "dog", "fish", "bunny", "bird", "star", "sun", "apple", "ball", "balloon", "flower"]
 BACKGROUNDS = ["sky", "meadow", "ocean", "night", "farm"]
 MOTIONS = ["bounce", "sway", "slide", "pop"]
@@ -68,8 +70,9 @@ def validate(data: dict) -> list[str]:
         if v.get("camera") not in (None, "zoom_in", "zoom_out", "pan_left", "pan_right"):
             p.append(f"{tag}: visual.camera must be zoom_in, zoom_out, pan_left or pan_right if given.")
         chars = v.get("characters")
-        if not isinstance(chars, list) or not chars or any(c not in CHARACTERS for c in chars):
-            p.append(f"{tag}: visual.characters must be a non-empty list from {CHARACTERS}.")
+        allowed = CHARACTERS + [c for c in cast.ids() if c not in CHARACTERS]
+        if not isinstance(chars, list) or not chars or any(c not in allowed for c in chars):
+            p.append(f"{tag}: visual.characters must be a non-empty list from {allowed}.")
         cnt = v.get("count", len(chars) if isinstance(chars, list) else 1)
         if not isinstance(cnt, int) or not 1 <= cnt <= 10:
             p.append(f"{tag}: visual.count must be a whole number from 1 to 10.")

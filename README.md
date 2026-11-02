@@ -92,6 +92,7 @@ python -m studio.cli kids demo                  # keyless dry run, silent narrat
 python -m studio.cli kids script "counting five little ducks"   # writes the prompt, exit 3
 python -m studio.cli kids build  "counting five little ducks"   # projects/kids_<slug>/final.mp4
 python -m studio.cli kids checklist "counting five little ducks"  # Made for Kids checklist
+python -m studio.cli kids cast                     # list the reference cast (* = this channel's)
 ```
 
 Stage 2 quality (all free): five original SVG characters (duck, bunny, cat, dog, bird) with blinking eyes and a

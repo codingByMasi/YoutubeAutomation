@@ -15,6 +15,13 @@ from studio.kids.spec import COLORS
 COLOR_RGB = {"red": (230, 60, 60), "orange": (250, 150, 40), "yellow": (250, 215, 50), "green": (70, 180, 90),
              "blue": (60, 130, 230), "purple": (150, 90, 210), "pink": (245, 130, 180)}
 INK = (40, 40, 60)
+CAST_RGB: dict[str, tuple] = {}  # roster characters without 2D art: id -> (main, accent) RGB
+
+
+def register_cast(roster: dict) -> None:
+    """Remember roster colours so draw_character can draw any roster character as a round friend."""
+    for k, c in roster.items():
+        CAST_RGB[k] = tuple(tuple(int(c[f][i:i + 2], 16) for i in (1, 3, 5)) for f in ("main", "accent"))
 
 
 def _ell(d: ImageDraw.ImageDraw, cx: float, cy: float, rx: float, ry: float, fill, outline=None) -> None:
@@ -106,6 +113,14 @@ def draw_character(d: ImageDraw.ImageDraw, name: str, cx: float, cy: float, s: f
         _ell(d, cx, cy - h * 0.2, h * 0.6, h * 0.75, col)
         d.polygon([(cx - h * 0.1, cy + h * 0.55), (cx + h * 0.1, cy + h * 0.55), (cx, cy + h * 0.45)], fill=col)
         d.line([(cx, cy + h * 0.55), (cx + h * 0.1, cy + h * 1.0)], fill=INK, width=2)
+    elif name in CAST_RGB:
+        main, accent = CAST_RGB[name]
+        _ell(d, cx, cy + h * 0.4, h * 0.65, h * 0.55, main)
+        _ell(d, cx, cy + h * 0.5, h * 0.4, h * 0.38, accent)
+        for sx in (-1, 1):
+            _ell(d, cx + sx * h * 0.42, cy - h * 0.62, h * 0.18, h * 0.2, main)
+        _ell(d, cx, cy - h * 0.2, h * 0.6, h * 0.55, main)
+        _face(d, cx, cy - h * 0.2, h * 1.1)
     elif name == "flower":
         col = COLOR_RGB[COLORS[idx % len(COLORS)]]
         d.line([(cx, cy), (cx, cy + h)], fill=(70, 160, 80), width=max(3, int(h * 0.1)))

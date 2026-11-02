@@ -575,6 +575,17 @@ def kids_script(topic: str = typer.Argument(..., help="e.g. 'counting five littl
     typer.echo(f"Script ready: projects/kids_{d['slug']}/script.json ({len(d['scenes'])} scenes).")
 
 
+@kids_app.command("cast")
+def kids_cast() -> None:
+    """List the reference cast (built in plus assets/kids/roster/*.json) and this channel's selection."""
+    from studio.growth import channels
+    from studio.kids import cast
+    ctx = _ctx()
+    chosen = {c["id"] for c in cast.for_channel(channels.get(ctx.settings.root))}
+    for c in cast.load().values():
+        typer.echo(f"{'*' if c['id'] in chosen else ' '} {c['id']:8} {c['name']} ({c['species']}): {c['role']}")
+
+
 @kids_app.command("build")
 def kids_build(topic: str, force: bool = FORCE,
                renderer: str = typer.Option("", help="2d (default) or blender; blender needs Blender on this PC "

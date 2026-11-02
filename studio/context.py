@@ -69,5 +69,7 @@ def build_ctx(root: Path | None = None, verbose: bool = False) -> Ctx:
     init_db(engine)
     session = sessionmaker(bind=engine, expire_on_commit=False, future=True)()
     from studio.growth import channels
+    from studio.kids import cast
+    cast.add_dir(settings.assets_dir / "kids" / "roster")
     session.info["channel_id"] = channels.active_id(settings.root)
     return Ctx(settings=settings, engine=engine, session=session)

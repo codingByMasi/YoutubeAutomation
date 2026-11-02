@@ -11,6 +11,11 @@ import sys
 
 import bpy
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import rhyme_cast  # noqa: E402
+
+CAST_INFO = {}  # roster characters from the scene JSON: name -> {main, accent, builder}
+
 COLORS = {"red": (0.9, 0.2, 0.2), "orange": (1.0, 0.55, 0.1), "yellow": (1.0, 0.82, 0.15), "green": (0.25, 0.7, 0.3),
           "blue": (0.2, 0.5, 0.95), "purple": (0.55, 0.3, 0.85), "pink": (0.96, 0.5, 0.7), "white": (1, 1, 1),
           "ink": (0.12, 0.12, 0.2), "brown": (0.55, 0.35, 0.2)}
@@ -60,6 +65,8 @@ def face(root, y, z, spread=0.28, r=0.09):
 
 def build_character(name, color_override=None):
     """Return an empty parent for one character built from primitives (about 1.6 units tall)."""
+    if name in CAST_INFO:
+        return rhyme_cast.build(name, CAST_INFO[name])
     root = bpy.data.objects.new("c_" + name, None)
     bpy.context.collection.objects.link(root)
     body = color_override or BODY.get(name, "yellow")
@@ -442,6 +449,7 @@ def main(cfg):
     bpy.ops.object.light_add(type="SUN", location=(4, -6, 8))
     bpy.context.object.data.energy = 1.8 if bg == "night" else 2.6
     bpy.context.object.rotation_euler = (math.radians(50), 0, math.radians(30))
+    CAST_INFO.update(cfg.get("cast") or {})
     names, count = cfg["characters"], cfg["count"]
     gap = min(2.4, 9.0 / max(count, 1))
     scale = min(1.0, 1.0 + (3 - count) * 0.05) if count < 3 else min(1.0, 2.4 / gap)
