@@ -500,3 +500,6 @@ shared `token.json`). (4) Google Testing-mode refresh tokens expire after 7 days
 "In production" (or accept re-signing weekly). Sign-in now asks for `prompt=consent` so a refresh token is always issued.
 New: `python -m studio.cli youtube-status [--check] [--fix]` (per channel connected/expired/missing, no secrets),
 Setup-page status with a Fix button, and an Issues-panel fix `youtube_signin`.
+
+## Pixabay photos behind cast scenes (2026-11-02)
+Cast scenes (lectern, skit, silhouette, title, archive) now use a Pixabay/Commons photo as a darkened, blurred backdrop when the image provider finds a relevant one (visual_intent queries, reuse ledger, perceptual de-dup, licence stored as an `image` asset). Map, diagram, calendar and easel keep their drawn paper. If the key is rejected, offline, or nothing fits, the drawn backdrop is used. Owner: nothing to configure beyond PIXABAY_API_KEY in .env.

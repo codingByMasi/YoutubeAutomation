@@ -168,8 +168,19 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
             drawn = None  # a cast scene (studio/history/render.py) replaces stock footage for this segment
             if cast_on and isinstance(seg.get("scene"), str) and seg["scene"] in cast_mod.SCENE_TYPES:
                 audio = Path(rows[pos].audio_path) if pos in rows and rows[pos].audio_path else None
+                photo = None
+                if images and seg["scene"] in cast_render.PHOTO_KINDS:  # a real photo behind the cast, if one fits
+                    try:
+                        photo = find_valid(images, story_visuals.queries_for(seg) if use_intent else
+                                           seg["visual_keywords"], used_img, "image", hashes, rejected, avoid)
+                    except Exception as exc:  # noqa: BLE001 - key rejected / offline: keep the drawn backdrop
+                        log.warning("Photo backdrop skipped for segment %d: %s", pos, exc)
+                    if photo:
+                        new_assets.append(Asset(video_id=video_id, kind="image", path=str(photo.path),
+                                    source=f"{photo.provider}: {photo.author}".strip(), licence=photo.licence,
+                                    attribution_url=photo.page_url))
                 drawn = cast_render.render_scene(seg, duration, out / "cast" / f"cast_{pos:03d}.mp4", out / "cast",
-                                                 audio, faction0, cast_stage)
+                                                 audio, faction0, cast_stage, photo.path if photo else None)
                 scene_counts["cast"] = scene_counts.get("cast", 0) + 1
             queries = story_visuals.queries_for(seg) if use_intent else seg["visual_keywords"]
             query = " ".join([str((seg.get("visual_intent") or {}).get("must_show") or ""), seg.get("narration", "")]) \

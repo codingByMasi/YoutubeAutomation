@@ -163,6 +163,30 @@ def backdrop(kind: str) -> Image.Image:
     return _back_cache[kind]
 
 
+PHOTO_KINDS = ("lectern", "skit", "silhouette", "title", "archive")  # scenes whose backdrop may be a real photo
+_photo_cache: dict[str, Image.Image] = {}
+
+
+def photo_backdrop(path: Path) -> Image.Image | None:
+    """A stock photo as a 1280x720 backdrop: cover-cropped, softly blurred, darkened and warmed so cast and text stay
+    readable on top. None when the file cannot be opened (the drawn backdrop is used instead)."""
+    from PIL import ImageEnhance, ImageFilter
+    key = f"{path}:{path.stat().st_mtime_ns}" if path.exists() else str(path)
+    if key not in _photo_cache:
+        try:
+            im = Image.open(path).convert("RGB")
+        except (OSError, ValueError):
+            return None
+        scale = max(W / im.width, H / im.height)
+        im = im.resize((max(W, round(im.width * scale)), max(H, round(im.height * scale))), Image.LANCZOS)
+        x0, y0 = (im.width - W) // 2, (im.height - H) // 2
+        im = im.crop((x0, y0, x0 + W, y0 + H)).filter(ImageFilter.GaussianBlur(2.2))
+        im = ImageEnhance.Brightness(im).enhance(0.62)
+        warm = Image.new("RGB", (W, H), PAPER_DARK)
+        _photo_cache[key] = _vignette(Image.blend(im, warm, 0.12), 0.45)
+    return _photo_cache[key]
+
+
 # ---------------------------------------------------------------- characters
 class Cast:
     """Sprites for the recurring roster plus the video's own historical figures (same faction colour all video)."""
@@ -300,8 +324,10 @@ def banner(img: Image.Image, text: str, cy: int, sub: str = "", width: int = 880
 class Scene:
     """One segment's scene. `frame(t)` returns the picture at second t of `dur`."""
 
-    def __init__(self, seg: dict, dur: float, cst: Cast, env: list[float], faction0: int = 0) -> None:
+    def __init__(self, seg: dict, dur: float, cst: Cast, env: list[float], faction0: int = 0,
+                 photo: Path | None = None) -> None:
         self.seg, self.dur, self.cast, self.env = seg, dur, cst, env
+        self.photo = photo_backdrop(photo) if photo and (seg.get("scene") or "title") in PHOTO_KINDS else None
         self.kind = seg.get("scene") or "title"
         self.data = seg.get("scene_data") or {}
         self.who = list(seg.get("cast") or ["quill"])
@@ -326,7 +352,7 @@ class Scene:
 
     def frame(self, t: float) -> Image.Image:
         fn = getattr(self, f"_{self.kind}", self._title)
-        img = backdrop(self.back).copy()
+        img = (self.photo if self.photo is not None else backdrop(self.back)).copy()
         fn(img, t)
         return img
 
@@ -602,24 +628,25 @@ def _flag(d: ImageDraw.ImageDraw, x: float, y: float, color: str, text: str) -> 
 _CODE_STAMP = hashlib.sha1(Path(__file__).read_bytes()).hexdigest()[:8]  # drawing code changed -> redraw
 
 
-def fingerprint(seg: dict, dur: float, audio: Path | None) -> str:
+def fingerprint(seg: dict, dur: float, audio: Path | None, photo: Path | None = None) -> str:
     """Hash of everything that decides how a scene looks (re-render only when it changes)."""
     keys = {k: seg.get(k) for k in ("scene", "scene_data", "cast", "speech", "chapter")}
-    keys.update(dur=round(dur, 2), audio=audio.stat().st_size if audio and Path(audio).exists() else 0, code=_CODE_STAMP)
+    keys.update(photo=f"{photo.name}:{photo.stat().st_size}" if photo and Path(photo).exists() else "",
+                dur=round(dur, 2), audio=audio.stat().st_size if audio and Path(audio).exists() else 0, code=_CODE_STAMP)
     return hashlib.sha1(json.dumps(keys, sort_keys=True, default=str).encode()).hexdigest()[:12]
 
 
 def render_scene(seg: dict, dur: float, out: Path, work: Path, audio: Path | None = None, faction0: int = 0,
-                 cst: Cast | None = None) -> Path:
+                 cst: Cast | None = None, photo: Path | None = None) -> Path:
     """Render one cast scene to `out` (silent H.264, 1280x720, 24 fps, `dur` seconds). Reuses an identical earlier clip."""
     ff.ensure_ffmpeg()
     stamp = out.with_suffix(".stamp")
-    fp = fingerprint(seg, dur, audio)
+    fp = fingerprint(seg, dur, audio, photo)
     if out.exists() and stamp.exists() and stamp.read_text() == fp:
         return out
     n = max(1, round(dur * FPS))
     cst = cst or Cast(work)
-    scene = Scene(seg, dur, cst, envelope(audio, n), faction0)
+    scene = Scene(seg, dur, cst, envelope(audio, n), faction0, photo)
     cmd = ["ffmpeg", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-", "-an",
            "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(out)]
     proc = subprocess.Popen(ff.low_memory_cmd(cmd), stdin=subprocess.PIPE, stderr=subprocess.PIPE)

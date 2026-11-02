@@ -119,3 +119,26 @@ def test_kids_roster_has_animated_2d_art_and_puddles_are_allowed():
     assert "puddle" in spec.CHARACTERS
     if sprites.available():
         assert SpriteBank().get("pip", 120) is not None
+
+
+@needs_cairo
+def test_photo_backdrop_replaces_drawn_backdrop_only_for_photo_scenes(tmp_path):
+    from PIL import Image
+    photo = tmp_path / "p.jpg"
+    Image.new("RGB", (1600, 900), (10, 200, 30)).save(photo)
+    assert render.photo_backdrop(photo).size == (1280, 720)
+    assert render.photo_backdrop(tmp_path / "missing.jpg") is None
+    (tmp_path / "bad.jpg").write_bytes(b"not an image")
+    assert render.photo_backdrop(tmp_path / "bad.jpg") is None  # unreadable photo: drawn backdrop is used
+    base = {"cast": ["quill"], "scene_data": {"title": "T"}}
+    for kind, expect in (("lectern", True), ("map", False)):
+        sc = render.Scene({**base, "scene": kind}, 2.0, render.Cast(tmp_path), [], 0, photo)
+        assert (sc.photo is not None) is expect
+        assert sc.frame(0.5).size == (1280, 720)
+
+
+def test_photo_changes_the_scene_fingerprint(tmp_path):
+    a = tmp_path / "a.jpg"
+    a.write_bytes(b"x" * 10)
+    seg = {"scene": "lectern"}
+    assert render.fingerprint(seg, 2, None) != render.fingerprint(seg, 2, None, a)
