@@ -14,5 +14,12 @@
     "Teddy Bear, Teddy Bear",
     "bedtime songs"
   ],
-  "builder": "benny"
+  "builder": "benny",
+  "voice": {
+    "edge": "en-US-GuyNeural",
+    "rate": -8,
+    "pitch": -6,
+    "kokoro": "am_michael",
+    "speed": 0.92
+  }
 }

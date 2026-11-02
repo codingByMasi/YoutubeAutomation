@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <title>rosie</title>
+  <ellipse cx="200" cy="372" rx="110" ry="14" fill="#000" opacity="0.12"/>
+  <ellipse cx="146" cy="70" rx="30" ry="78" fill="#F59BC2" transform="rotate(-10 146 70)"/><ellipse cx="146" cy="76" rx="15" ry="56" fill="#FFE3EE" transform="rotate(-10 146 76)"/>
+  <ellipse cx="258" cy="62" rx="30" ry="78" fill="#F59BC2" transform="rotate(14 258 62)"/><ellipse cx="258" cy="70" rx="15" ry="56" fill="#FFE3EE" transform="rotate(14 258 70)"/>
+  <ellipse cx="200" cy="290" rx="100" ry="84" fill="#F59BC2"/>
+  <ellipse cx="200" cy="304" rx="62" ry="56" fill="#FFE3EE"/>
+  <circle cx="296" cy="338" r="30" fill="#FFFFFF"/>
+  <ellipse cx="146" cy="362" rx="34" ry="14" fill="#F59BC2"/><ellipse cx="254" cy="362" rx="34" ry="14" fill="#F59BC2"/>
+  <circle cx="200" cy="170" r="92" fill="#F59BC2"/>
+  <ellipse cx="200" cy="200" rx="44" ry="34" fill="#FFE3EE"/>
+  <path d="M188 186 Q200 176 212 186 Q200 200 188 186Z" fill="#D8527F"/>
+  <circle cx="132" cy="190" r="17" fill="#ff9eb5" opacity="0.7"/>
+  <circle cx="268" cy="190" r="17" fill="#ff9eb5" opacity="0.7"/>
+  <g id="eyes-open">
+    <circle cx="163" cy="160" r="19" fill="#fff"/><circle cx="237" cy="160" r="19" fill="#fff"/>
+    <circle cx="167" cy="162" r="11" fill="#2b2b3d"/><circle cx="233" cy="162" r="11" fill="#2b2b3d"/>
+    <circle cx="171" cy="157" r="4" fill="#fff"/><circle cx="237" cy="157" r="4" fill="#fff"/>
+  </g>
+  <g id="eyes-closed">
+    <path d="M145 163 Q163 177 181 163" stroke="#2b2b3d" stroke-width="7" fill="none" stroke-linecap="round"/>
+    <path d="M219 163 Q237 177 255 163" stroke="#2b2b3d" stroke-width="7" fill="none" stroke-linecap="round"/>
+  </g>
+  <g id="mouth-closed"><path d="M172 214 Q200 238 228 214" stroke="#2b2b3d" stroke-width="7" fill="none" stroke-linecap="round"/></g>
+  <g id="mouth-open"><path d="M170 210 Q200 262 230 210 Z" fill="#2b2b3d"/><ellipse cx="200" cy="232" rx="14" ry="8" fill="#ff7a8a"/></g>
+  <rect x="190" y="228" width="8" height="14" rx="3" fill="#fff"/><rect x="202" y="228" width="8" height="14" rx="3" fill="#fff"/>
+</svg>

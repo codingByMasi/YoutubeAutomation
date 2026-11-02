@@ -60,3 +60,23 @@ three of the same scene in a row (maps and diagrams excepted).
 2. Tone: the profile ships as `blend` (dramatic story, light comic asides). Switch to `comedic` or `dramatic` by
    setting `story.tone` on the channel.
 3. Sponsor slots: the references have them; the profile has none. Say if you want a mid-roll placeholder.
+
+## Cast of ten and per-character voices
+
+Four characters were added to the original six (`brine`, `hindsight`, `ironhand`, `alma`). Art direction: **paper-cutout
+storybook**: one flat body template, identity from silhouette (`shape`: standard, tall, wide, stocky, small),
+headwear, prop, letter badge and colour. This keeps every historical figure cheap to generate and matches the
+existing sprite contract. Preview: `youtube-studio/characters-v2/history-cast-of-10.png` in the project files.
+
+| Id | Name | Job | Shape |
+|---|---|---|---|
+| `brine` | Admiral Brine | sea power: fleets, harbours, trade routes | wide |
+| `hindsight` | Inspector Hindsight | the clue everyone missed | tall |
+| `ironhand` | Ironhand | weapons, tools, factories | stocky |
+| `alma` | Almanac Alma | dates, calendars, how long it took | small |
+
+Every roster entry has `personality` and a `voice` (see `studio/providers/voices.py`): `edge` (edge-tts name), `rate` %,
+`pitch` Hz, `kokoro` (offline voice id) and `speed`. `cast.voice_for(id)` returns it; `voices.engines(voice)` builds
+the edge and Kokoro engines and `voices.prosody(voice)` the rate/pitch dict they take. Nothing in the video pipeline
+voices characters yet (speech lines are on-screen text); this is the hook for it. Check edge names with
+`edge-tts --list-voices`: the names were not verified against the live service from the build sandbox.
