@@ -106,7 +106,11 @@ def test_scene_script_is_standalone_and_py311_to_313_syntax() -> None:
         tree = ast.parse(src, feature_version=version)
     imported = {a.name.split(".")[0] for n in ast.walk(tree) if isinstance(n, ast.Import) for a in n.names}
     imported |= {n.module.split(".")[0] for n in ast.walk(tree) if isinstance(n, ast.ImportFrom) and n.module}
-    assert imported <= {"bpy", "json", "math", "mathutils", "os", "sys"}
+    # rhyme_cast is a sibling file with no studio import
+    assert imported <= {"bpy", "json", "math", "mathutils", "os", "sys", "rhyme_cast"}
+    cast_src = (provider.SCRIPT.parent / "rhyme_cast.py").read_text(encoding="utf-8")
+    assert "studio" not in {a.name.split(".")[0] for n in ast.walk(ast.parse(cast_src)) if isinstance(n, ast.Import)
+                            for a in n.names}
 
 
 def test_scene_script_knows_every_character_and_background() -> None:

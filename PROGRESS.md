@@ -389,6 +389,17 @@ in `script.json`, and the generated YouTube description lists every source under
 - `Ctx.close()`; the web app closes every context at the end of each rerun and rolls back sessions after failed steps.
 - "database is locked" gets a plain message (app and CLI subprocess output), plus tools to find/stop other Studio processes and clear stale journal files (`studio/util/dblock.py`, needs `psutil`: run `pip install -r requirements.txt`).
 
+## Kids reference cast (2026-11-02)
+- Five original recurring characters: Benny Bear, Pip the Duckling, Mango Monkey, Dotty Ladybug, Tilly Turtle (`studio/kids/roster/*.json`,
+  hand-made primitive 3D models in `studio/blender/rhyme_cast.py`; stills in project files `youtube-studio/kids-cast/`).
+- Easy to add more: drop `assets/kids/roster/<id>.json` (id, name, species, personality, main, accent, optional role/catchphrase/look/rhymes).
+  Without a hand-made model the 3D renderer draws a generic round character in your colours and 2D draws a round face, so it works at once.
+- Per channel: profile field `kids_cast` (list of ids; empty = whole roster). `kids script` puts the channel's cast and personalities in the prompt and
+  accepts roster ids in `visual.characters`. `kids cast` lists them.
+- Limits: simple shapes, no skeleton or lip-sync; they bounce, sway, pop in. Tested: unit tests (APIs mocked) and a real Blender (Cycles CPU) smoke render;
+  Eevee on a PC GPU not tested here. The finance thread's character system was not on main, so this extends the existing per-channel profile instead.
+- No web-app picker yet; set `kids_cast` via the channel profile (CLI/JSON).
+
 ## Host character 3D scenes (2026-11-01)
 - New scene kind `host` (`studio/scenes/host.py`, `build_host`/`scene_host` in `studio/blender/scene_script.py`): the
   channel mascot acts per beat (9 actions, 5 sets, 7 generic props), camera cuts, mouth follows the narration audio

@@ -46,6 +46,7 @@ DEFAULTS: dict = {
     "host_scenes": "auto",  # "auto": the mascot acts out some segments as a 3D host scene (3d/mixed style); "off"
     "mascot": {},  # name, kind, color, look, personality, catchphrase, intro_line, outro_line, on_thumbnail
     "theme": {},  # bg, accent, accent2, text, heading_font, intro_style, outro_style, thumbnail_style, motion
+    "kids_cast": [],  # kids channels: ids from studio/kids/cast.py roster; empty = the whole roster
     "story": {},  # story-profile overrides (lengths, wps, flags...): see studio/story/profile.py
     "playlists": [],  # name, description, title_pattern, topics, youtube_id
 }
@@ -64,6 +65,8 @@ def _clean(values: dict) -> dict:
         out["theme"] = identity.clean_theme(out["theme"])
     if "playlists" in out:
         out["playlists"] = identity.clean_playlists(out["playlists"])
+    if "kids_cast" in out:
+        out["kids_cast"] = [str(c).strip() for c in (out["kids_cast"] or []) if str(c).strip()]
     if "type" in out:
         out["type"] = channel_types.normalize(out["type"])
     for key, allowed in channel_types.CHOICES.items():

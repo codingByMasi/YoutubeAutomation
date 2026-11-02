@@ -230,3 +230,48 @@ def test_render_frame_with_sprites_and_camera_changes_pixels() -> None:
     fancy = draw.render_frame(scene, 1.0, bg, 0, font, False, sprites.SpriteBank(None), 2.0, 0.5, "zoom_in")
     assert plain.size == fancy.size == (320, 180)
     assert plain.tobytes() != fancy.tobytes()
+
+
+# ---------- reference cast ----------
+def test_cast_roster_has_five_valid_characters_and_spec_accepts_them() -> None:
+    from studio.kids import cast, spec
+
+    roster = cast.load()
+    assert {"benny", "pip", "mango", "dotty", "tilly"} <= set(roster)
+    data = {"title": "t", "description": "d", "kind": "counting", "source": "original",
+            "scenes": [{"kind": "verse", "lines": ["one two"],
+                        "visual": {"background": "sky", "motion": "bounce", "characters": ["pip"]}}]}
+    assert not [p for p in spec.validate(data) if "characters" in p]
+
+
+def test_cast_user_character_is_just_a_json_file(tmp_path) -> None:
+    import json
+
+    from studio.kids import cast, draw
+
+    (tmp_path / "zed.json").write_text(json.dumps({"id": "zed", "name": "Zed", "species": "zebra",
+                                                   "personality": "Stripy.", "main": "#FFFFFF",
+                                                   "accent": "#222222"}), encoding="utf-8")
+    cast.add_dir(tmp_path)
+    try:
+        assert "zed" in cast.ids()
+        assert cast.blender_cast(["zed", "pip"])["zed"]["builder"] == ""
+        draw.register_cast(cast.load())
+        assert draw.CAST_RGB["zed"][0] == (255, 255, 255)
+    finally:
+        cast._extra_dirs.remove(tmp_path)
+
+
+def test_cast_errors_are_clear_and_channel_selection_works() -> None:
+    import pytest
+
+    from studio.errors import StudioError
+    from studio.kids import cast
+
+    with pytest.raises(StudioError, match="missing"):
+        cast.check({"id": "x"})
+    with pytest.raises(StudioError, match="Unknown kids character"):
+        cast.for_channel({"kids_cast": ["nobody"]})
+    assert [c["id"] for c in cast.for_channel({"kids_cast": ["tilly", "pip"]})] == ["tilly", "pip"]
+    assert len(cast.for_channel({})) >= 5
+    assert "Tilly Turtle" in cast.brief(cast.for_channel({"kids_cast": ["tilly"]}))
