@@ -91,10 +91,42 @@ def critique(video_id: int, force: bool = FORCE) -> None:
 
 
 @app.command()
-def script(idea_id: int = typer.Argument(..., help="Approved idea id."), force: bool = FORCE) -> None:
+def script(idea_id: int = typer.Argument(..., help="Approved idea id."), force: bool = FORCE,
+           auto: bool = typer.Option(False, "--auto", help="Story engine: story_plan > script > story_review "
+                                     "(3 prompt files, checks in code). Without it: the classic single prompt."),
+           ) -> None:
     """Generate 15 titles, the full script, and the segment list (script.md + script.json)."""
     from studio.stages import script as m
-    m.run(_ctx(), idea_id, force=force)
+    m.run(_ctx(), idea_id, force=force, auto=auto)
+
+
+@app.command("next")
+def next_cmd(video_id: int = typer.Argument(..., help="Video id.")) -> None:
+    """Print what is pending for a video (which prompt file to answer) and the exact command to run next."""
+    from studio.story import engine
+    what, cmd = engine.next_step(_ctx(), video_id)
+    typer.echo(f"Pending: {what}")
+    typer.echo(f"Next command: python -m studio.cli {cmd}")
+
+
+@app.command("facts")
+def facts_cmd(video_id: int = typer.Argument(..., help="Video id."),
+              accept: list[str] = typer.Option([], "--accept", help="Fact id you checked yourself (repeatable)."),
+              reverify: bool = typer.Option(False, "--reverify", help="Fetch the sources again.")) -> None:
+    """Show a video's fact ledger and its verification status; accept facts you checked by hand."""
+    from studio.story import engine
+    from studio.story import facts as fm
+    c = _ctx()
+    out = c.settings.project_dir(video_id)
+    for fid in accept:
+        engine.accept_fact(c, video_id, fid)
+    facts = fm.load_facts(out)
+    if reverify:
+        facts = fm.verify_all(facts, cache=None)
+        fm.save_facts(out, facts)
+    typer.echo(fm.summary(facts))
+    for f in facts:
+        typer.echo(f"  {f['id']:<4} {f.get('status', '?'):<11} {str(f.get('figure'))[:14]:<14} {f['claim'][:70]}")
 
 
 @app.command()
@@ -256,10 +288,10 @@ def status(sync: bool = typer.Option(False, "--sync", help="Check YouTube and ma
 
 
 @app.command("run-all")
-def run_all(seed: str) -> None:
+def run_all(seed: str, classic: bool = typer.Option(False, "--classic", help="Single-prompt script path.")) -> None:
     """Research a seed, then take the top approved idea through thumbnail and stop at review."""
     from studio.manage import run_all as m
-    m.run(_ctx(), seed)
+    m.run(_ctx(), seed, classic=classic)
 
 
 @app.command()
@@ -339,12 +371,22 @@ def channels_edit(channel_id: str = typer.Argument(None, help="Channel id (defau
                   scene_style: str = typer.Option(None, "--scene-style", help="2d, 3d or mixed; blank = type default."),
                   music: str = typer.Option(None, help="generated or none."),
                   music_mood: str = typer.Option(None, "--music-mood", help="minor or major."),
-                  tts_provider: str = typer.Option(None, "--tts-provider", help="edge, eleven or silent.")) -> None:
+                  tts_provider: str = typer.Option(None, "--tts-provider", help="edge, eleven or silent."),
+                  story: str = typer.Option(None, "--story", help='Story-profile overrides as JSON, e.g. '
+                                            '\'{"min_minutes": 6, "flags": {"prosody": false}}\'.')) -> None:
     """Change fields on a channel."""
+    import json as _json
+
     from studio.growth import channels
     fields = _fields(name, niche, description, posts_per_week, voice, language, audience, youtube_channel_id,
                      type_, renderer=renderer, scene_style=scene_style, music=music, music_mood=music_mood,
                      tts_provider=tts_provider)
+    if story is not None:
+        try:
+            fields["story"] = _json.loads(story)
+        except ValueError as exc:
+            raise StudioError("--story is not valid JSON.", str(exc),
+                              "Example: --story '{\"flags\": {\"prosody\": false}}'") from exc
     channels.update(_channels_root(), channel_id, **fields)
     typer.echo("Saved.")
 
@@ -624,12 +666,47 @@ def kids_demo(force: bool = FORCE, renderer: str = typer.Option("", help="2d (de
     typer.echo(f"Built {m.run(_ctx(), force=force, renderer=renderer or None)}")
 
 
+def _log_issue(exc: BaseException) -> None:
+    """Record a failure in logs/issues.json with a plain cause and a fix (never raises)."""
+    try:
+        from studio import health
+        it = health.record(_state["ctx"].settings.root if "ctx" in _state else Path.cwd(), "command", exc,
+                           context=" ".join(sys.argv[1:4]))
+        if it and it["fix_label"]:
+            typer.secho(f"Fix in the app (Issues panel) or run: python -m studio.cli fix {it['id']}   "
+                        f"[{it['fix_label']}]", fg=typer.colors.CYAN, err=True)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+@app.command("issues")
+def issues_cmd(all_: bool = typer.Option(False, "--all", help="Include resolved issues.")) -> None:
+    """List recorded problems with their plain-language cause and fix."""
+    from studio import health
+    root = _ctx().settings.root
+    items = health.load(root) if all_ else health.open_issues(root)
+    if not items:
+        typer.echo("No open issues.")
+    for i in items:
+        typer.echo(f"[{i['id']}] {i['component']} x{i['count']} ({i['status']}): {i['cause']}")
+        if i["fix_label"]:
+            typer.echo(f"    fix: python -m studio.cli fix {i['id']}   ({i['fix_label']})")
+
+
+@app.command("fix")
+def fix_cmd(issue_id: str = typer.Argument(..., help="Issue id from `issues`.")) -> None:
+    """Run the fix for a recorded issue (changes settings, clears caches or installs an optional package)."""
+    from studio import health
+    typer.echo(health.run_fix(_ctx().settings.root, issue_id))
+
+
 def run() -> None:
     """Entry point that prints StudioErrors cleanly."""
     try:
         app()
     except StudioError as exc:
         typer.secho(str(exc), fg=typer.colors.RED if exc.exit_code != 3 else typer.colors.YELLOW, err=True)
+        _log_issue(exc)
         sys.exit(exc.exit_code)
     except KeyboardInterrupt:
         typer.echo("Cancelled.", err=True)

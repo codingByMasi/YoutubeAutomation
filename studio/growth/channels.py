@@ -45,6 +45,7 @@ DEFAULTS: dict = {
     "tagline": "",
     "mascot": {},  # name, kind, color, look, personality, catchphrase, intro_line, outro_line, on_thumbnail
     "theme": {},  # bg, accent, accent2, text, heading_font, intro_style, outro_style, thumbnail_style, motion
+    "story": {},  # story-profile overrides (lengths, wps, flags...): see studio/story/profile.py
     "playlists": [],  # name, description, title_pattern, topics, youtube_id
 }
 

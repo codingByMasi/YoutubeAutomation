@@ -17,21 +17,32 @@ from studio.llm import ask_json, prompt_paths
 from studio.models import Idea
 from studio.stages.base import get_video, stage_index
 from studio.stages.script import (
-    BANNED_PHRASES,
     DEFAULT_STYLE,
     _brief,
     _spec_section,
     load_package,
     normalize_package,
-    prompt_text,
-    save_package,
+    replace_package,
     validate_package,
-    write_package,
 )
+from studio.story import profile as story_profile
+from studio.story import prompts as story_prompts
 from studio.util.answer_json import parse_answer
 
 CRITERIA = ["hook", "stakes", "curiosity_loops", "pacing", "concreteness", "clarity", "story_arc",
             "payoff_ending", "originality", "trust"]
+# Channel-specific criteria added to the rubric per prompt pack.
+PACK_CRITERIA = {"explainer": ["number_accuracy", "actionability"], "history": ["accuracy", "dread"],
+                 "kids": ["simplicity", "safety"], "general": []}
+
+
+def criteria_for(pack: str) -> list[str]:
+    """The rubric for a prompt pack: the 10 shared criteria plus the channel type's own."""
+    return CRITERIA + PACK_CRITERIA.get(pack, [])
+
+
+def score_skeleton(pack: str) -> str:
+    return ", ".join(f'"{c}": 3' for c in criteria_for(pack))
 PASS_SCORE = 4
 DEVICES = {"question", "reveal", "example", "pattern_break", "explain"}
 HOOK_FORMULAS = {"number_stakes", "contradiction", "hidden_answer", "cold_open", "villain_system", "before_after",
@@ -39,8 +50,9 @@ HOOK_FORMULAS = {"number_stakes", "contradiction", "hidden_answer", "cold_open",
 
 
 # ---------- outline ----------
-def validate_outline(d: dict) -> list[str]:
-    """Problems that make a retention outline unusable."""
+def validate_outline(d: dict, profile: dict | None = None) -> list[str]:
+    """Problems that make a retention outline unusable. A kids profile relaxes the loop and beat-count rules."""
+    kids = bool(profile and profile.get("kids"))
     problems = []
     for key in ("audience_question", "big_idea", "promise", "title_promise"):
         if not str(d.get(key, "")).strip():
@@ -55,8 +67,9 @@ def validate_outline(d: dict) -> list[str]:
         if len(first.split()) > 14:
             problems.append(f"hook first sentence is {len(first.split())} words (12 or fewer): {first[:50]!r}")
     beats = d.get("beats") or []
-    if not 10 <= len(beats) <= 18:
-        problems.append(f"need 10-18 beats, got {len(beats)}")
+    lo_b = 6 if kids else 10
+    if not lo_b <= len(beats) <= 18:
+        problems.append(f"need {lo_b}-18 beats, got {len(beats)}")
     flat = 0
     clock, last_interrupt = 0.0, 0.0
     for b in beats:
@@ -72,20 +85,20 @@ def validate_outline(d: dict) -> list[str]:
             problems.append(f"beat {b.get('n')}: more than two explain beats in a row")
         if b.get("device") != "explain":
             last_interrupt = clock
-        elif clock - last_interrupt > 40:
+        elif clock - last_interrupt > (60 if kids else 40):
             problems.append(f"beat {b.get('n')}: {clock - last_interrupt:.0f}s since the last interrupt (max 40)")
         clock += b["seconds"]
     if beats and isinstance(beats[0].get("seconds"), (int, float)) and beats[0]["seconds"] > 15:
         problems.append("beat 1 is the hook: at most 15 seconds")
     loops = d.get("loops") or []
-    if len(loops) < 3:
+    if len(loops) < (0 if kids else 3):
         problems.append("need at least 3 open loops")
     early = 0.0
     starts = {}
     for b in beats:
         starts[b.get("n")] = early
         early += b["seconds"] if isinstance(b.get("seconds"), (int, float)) else 0
-    if sum(starts.get(lp.get("plant"), 1e9) <= 60 for lp in loops) < 2:
+    if not kids and sum(starts.get(lp.get("plant"), 1e9) <= 60 for lp in loops) < 2:
         problems.append("plant at least two open loops in the first 60 seconds")
     for lp in loops:
         if not (isinstance(lp.get("payoff"), int) and isinstance(lp.get("plant"), int) and lp["payoff"] > lp["plant"]):
@@ -94,7 +107,7 @@ def validate_outline(d: dict) -> list[str]:
     for key in ("callback", "takeaway", "cta_question", "next_video"):
         if not str(end.get(key, "")).strip():
             problems.append(f"ending.{key} is empty")
-    if not d.get("sources"):
+    if not d.get("sources") and not kids:
         problems.append("sources is empty")
     if len(d.get("thumbnail_ideas") or []) != 3:
         problems.append("need 3 thumbnail_ideas")
@@ -121,11 +134,11 @@ def run_outline(ctx: Ctx, idea_id: int, force: bool = False) -> dict:
                          "The outline shapes the script, so it must come first.",
                          f"Use `critique {video.id}` to improve the existing script instead.")
     topic = ctx.session.get(Idea, idea_id).topic
-    prompt = prompt_text("outline").format(
-        topic=topic, brief=_brief(ctx.settings.root),
-        style=_spec_section(ctx.settings.root, 9, DEFAULT_STYLE), hooks=prompt_text("hooks"))
+    prof = story_profile.for_channel(ctx.settings.root)
+    prompt = story_prompts.compose("outline", prof, topic=topic, brief=_brief(ctx.settings.root),
+                                   style=_spec_section(ctx.settings.root, 9, DEFAULT_STYLE))
     d = ask_json(ctx.settings, ctx.settings.project_dir(video.id), "outline", prompt,
-                 validate=validate_outline, force=force)
+                 validate=lambda x: validate_outline(x, prof), force=force)
     pick = next(h for h in d["hooks"] if h.get("pick"))
     typer.echo(f"Outline OK: {len(d['beats'])} beats, {len(d['loops'])} open loops. Hook ({pick['formula']}): "
                f"{pick['line']}")
@@ -134,10 +147,10 @@ def run_outline(ctx: Ctx, idea_id: int, force: bool = False) -> dict:
 
 
 # ---------- critique and rewrite ----------
-def validate_critique(d: dict) -> list[str]:
+def validate_critique(d: dict, criteria: list[str] | None = None, profile: dict | None = None) -> list[str]:
     problems = []
     scores = d.get("scores") or {}
-    for c in CRITERIA:
+    for c in criteria or CRITERIA:
         if not isinstance(scores.get(c), int) or not 0 <= scores[c] <= 5:
             problems.append(f"scores.{c} must be an integer 0-5")
     if not str(d.get("verdict", "")).strip():
@@ -149,7 +162,7 @@ def validate_critique(d: dict) -> list[str]:
         problems.append("revised must be the complete script package")
     else:
         normalize_package(revised)
-        problems += [f"revised script: {p}" for p in validate_package(revised)]
+        problems += [f"revised script: {p}" for p in validate_package(revised, profile)]
     return problems
 
 
@@ -173,30 +186,30 @@ def run_critique(ctx: Ctx, video_id: int, force: bool = False) -> dict:
     clean = {k: v for k, v in pkg.items() if k not in ("build", "shorts", "visual_rejects")}
     for seg in clean["segments"]:
         seg.pop("visual", None)
-    prompt = prompt_text("critique").format(
-        topic=topic, hooks=prompt_text("hooks"), banned=", ".join(f'"{p}"' for p in BANNED_PHRASES),
-        package=json.dumps(clean, indent=2, ensure_ascii=False))
+    prof = story_profile.for_channel(ctx.settings.root)
+    crit = criteria_for(prof["pack"])
+    prompt = story_prompts.compose("critique", prof, topic=topic, package=json.dumps(clean, indent=2, ensure_ascii=False),  # noqa: E501
+                                   score_skeleton=score_skeleton(prof["pack"]))
     if force:
         (out / "critique.json").unlink(missing_ok=True)
-    d = ask_json(ctx.settings, out, "critique", prompt, validate=validate_critique, force=force)
+    d = ask_json(ctx.settings, out, "critique", prompt, validate=lambda x: validate_critique(x, CRITERIA),
+                 force=force)  # legacy command: base rubric required, channel criteria optional
     scores = d["scores"]
-    weak = [c for c in CRITERIA if scores[c] < PASS_SCORE]
-    total = sum(scores.values())
-    typer.secho(f"Critique of the first draft: {total}/{5 * len(CRITERIA)}. Weakest: "
+    crit = [c for c in crit if isinstance(scores.get(c), int)]
+    weak = [c for c in crit if scores[c] < PASS_SCORE]
+    total = sum(scores[c] for c in crit)
+    typer.secho(f"Critique of the first draft: {total}/{5 * len(crit)}. Weakest: "
                 f"{', '.join(f'{c} {scores[c]}' for c in sorted(weak, key=scores.get)[:4]) or 'none'}.",
                 fg=typer.colors.YELLOW if weak else typer.colors.GREEN)
     typer.echo(f"Verdict: {d['verdict']}")
     for f in d["fixes"][:10]:
         typer.echo(f"  - {f}")
-    (out / "script.original.json").write_text(json.dumps(pkg, indent=2, ensure_ascii=False), encoding="utf-8")
-    save_package(ctx, video, d["revised"])
-    ctx.session.commit()
-    write_package(ctx, video_id, d["revised"])
+    n = replace_package(ctx, video, d["revised"])  # one DB transaction; history script.v<n>.json
     (out / "critique.json").write_text(json.dumps({k: d[k] for k in ("scores", "verdict", "fixes")}, indent=2),
                                        encoding="utf-8")
     from studio.stages.qa import quality_report
     rep = quality_report(d["revised"])
-    typer.echo(f"Rewrite applied (original kept as script.original.json). Quality score now {rep['score']}/100.")
+    typer.echo(f"Rewrite applied (original kept as script.original.json, previous as script.v{n}.json). Quality score now {rep['score']}/100.")  # noqa: E501
     for w in rep["warnings"]:
         typer.secho(f"  - {w}", fg=typer.colors.YELLOW)
     typer.echo(f"Next: voice {video_id}")
