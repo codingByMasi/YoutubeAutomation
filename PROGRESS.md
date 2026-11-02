@@ -448,3 +448,11 @@ shared `token.json`). (4) Google Testing-mode refresh tokens expire after 7 days
 "In production" (or accept re-signing weekly). Sign-in now asks for `prompt=consent` so a refresh token is always issued.
 New: `python -m studio.cli youtube-status [--check] [--fix]` (per channel connected/expired/missing, no secrets),
 Setup-page status with a Fix button, and an Issues-panel fix `youtube_signin`.
+
+## 2026-11-02: weekly planner for three channels (finance, history, kids), 4 videos per week
+Status: done. New `week` command (`studio/growth/weekly_plan.py`), profile fields `publish_days` and `publish_time`
+(`channels add/edit --publish-days 1,3 --publish-time 16:00`), tests in `tests/test_weekly_plan.py`.
+Decisions: "4 per week" is read as 4 total: finance 2 (Tue, Thu 16:00), history 1 (Sun 15:00), kids 1 (Sat 09:00); times are
+the owner's local time (`publish --at` converts to UTC). The planner only suggests `publish <id> --at ...`; it never uploads,
+and the private-by-default upload and typed-yes gates are untouched. Budget uses measured renders (~2.2 min machine time per
+finished minute, from e2e-test/quality-report.md) plus estimated owner minutes and Claude handoff prompts per video.

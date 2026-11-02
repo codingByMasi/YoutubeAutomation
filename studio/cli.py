@@ -287,6 +287,31 @@ def comments(target: str = typer.Argument(..., help="A video id to draft replies
 
 
 @app.command()
+def week(save: bool = typer.Option(True, help="Also write reports/week.md.")) -> None:
+    """This week's plan across every channel: what is due, which topics to approve, time budget. Publishes nothing."""
+    from datetime import date
+
+    from studio.growth import channels, weekly_plan
+    from studio.models import Idea, Title, Video
+    ctx = _ctx()
+    s = ctx.session
+    chans = channels.list_channels(ctx.settings.root)
+    due: dict[str, list[dict]] = {}
+    for c in chans:
+        ids = s.query(Idea.id).filter(Idea.channel_id == c["id"]).scalar_subquery()
+        for v in s.query(Video).filter(Video.idea_id.in_(ids), Video.youtube_video_id.is_(None)).order_by(Video.id):
+            t = s.query(Title).filter_by(video_id=v.id, is_pick=True).first()
+            due.setdefault(c["id"], []).append({"id": v.id, "stage": v.stage, "publish_at": v.publish_at,
+                                               "title": t.text if t else s.get(Idea, v.idea_id).topic})
+    text = weekly_plan.render_markdown(weekly_plan.build(chans, due, date.today()))
+    typer.echo(text)
+    if save:
+        out = ctx.settings.root / "reports" / "week.md"
+        out.parent.mkdir(exist_ok=True)
+        out.write_text(text, encoding="utf-8")
+
+
+@app.command()
 def calendar(weeks: int = typer.Option(4)) -> None:
     """4-week content calendar from approved ideas, with gaps flagged against cadence."""
     from studio.manage import calendar as m
@@ -338,6 +363,8 @@ def _fields(name, niche, description, posts_per_week, voice, language, audience,
                  voice=voice,
                  language=language, audience=audience, youtube_channel_id=youtube_channel_id)
     given.update(production)
+    if isinstance(given.get("publish_days"), str):  # "1,4" -> [1, 4]
+        given["publish_days"] = [d for d in given["publish_days"].replace(" ", "").split(",") if d]
     return {k: v for k, v in given.items() if v is not None}
 
 
@@ -362,12 +389,14 @@ def channels_add(name: str = typer.Argument(..., help="Channel name."),
                  music: str = typer.Option(None, help="generated or none."),
                  music_mood: str = typer.Option(None, "--music-mood", help="minor or major."),
                  tts_provider: str = typer.Option(None, "--tts-provider", help="edge, eleven or silent."),
+                 publish_days: str = typer.Option(None, "--publish-days", help="Weekdays 0=Mon..6=Sun, e.g. 1,4."),
+                 publish_time: str = typer.Option(None, "--publish-time", help="HH:MM local time, e.g. 16:00."),
                  activate: bool = typer.Option(True, help="Switch to the new channel.")) -> None:
     """Add a channel profile."""
     from studio.growth import channels
     fields = _fields(None, niche, description, posts_per_week, voice, language, audience, youtube_channel_id,
                      type_, renderer=renderer, scene_style=scene_style, music=music, music_mood=music_mood,
-                     tts_provider=tts_provider)
+                     tts_provider=tts_provider, publish_days=publish_days, publish_time=publish_time)
     cid = channels.add(_channels_root(), name, activate=activate, **fields)
     typer.echo(f"Added channel '{cid}'" + (" and made it active." if activate else "."))
 
@@ -385,6 +414,8 @@ def channels_edit(channel_id: str = typer.Argument(None, help="Channel id (defau
                   music: str = typer.Option(None, help="generated or none."),
                   music_mood: str = typer.Option(None, "--music-mood", help="minor or major."),
                   tts_provider: str = typer.Option(None, "--tts-provider", help="edge, eleven or silent."),
+                  publish_days: str = typer.Option(None, "--publish-days", help="Weekdays 0=Mon..6=Sun, e.g. 1,4."),
+                  publish_time: str = typer.Option(None, "--publish-time", help="HH:MM local time, e.g. 16:00."),
                   story: str = typer.Option(None, "--story", help='Story-profile overrides as JSON, e.g. '
                                             '\'{"min_minutes": 6, "flags": {"prosody": false}}\'.')) -> None:
     """Change fields on a channel."""
@@ -393,7 +424,7 @@ def channels_edit(channel_id: str = typer.Argument(None, help="Channel id (defau
     from studio.growth import channels
     fields = _fields(name, niche, description, posts_per_week, voice, language, audience, youtube_channel_id,
                      type_, renderer=renderer, scene_style=scene_style, music=music, music_mood=music_mood,
-                     tts_provider=tts_provider)
+                     tts_provider=tts_provider, publish_days=publish_days, publish_time=publish_time)
     if story is not None:
         try:
             fields["story"] = _json.loads(story)

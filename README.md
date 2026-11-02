@@ -401,6 +401,7 @@ python -m studio.cli run-all "how cruise lines make money"
 | `comments <video_id>` | Draft comment replies to a file (never posts) |
 | `comments post <file>` | Post edited replies, one typed `yes` per reply |
 | `calendar` | 4-week content calendar |
+| `week` | This week across all channels: slots (per-channel `--publish-days`/`--publish-time`), topics to approve, `publish --at` commands, time budget. Publishes nothing |
 | `status [--sync]` | Every video and its current stage; `--sync` marks published videos live |
 | `quota` | Today's YouTube API quota use |
 | `demo` | Keyless dry run that builds a sample MP4 |
