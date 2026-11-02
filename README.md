@@ -33,10 +33,10 @@ The older numbered pages stay available for finer control. Everything below also
 Everything above also runs from a browser app built with Streamlit: pick a topic, copy the script request into
 Claude and paste the answer back, click once to make the video, then watch and download it.
 
-**Run on Windows** (PowerShell in this folder; needs Python 3.11+ and ffmpeg on PATH):
+**Run on Windows** (PowerShell in this folder; needs Python 3.11 to 3.13 (3.12 best; 3.14+ not supported yet) and ffmpeg on PATH):
 
 ```
-py -3.11 -m venv .venv
+py -3.12 -m venv .venv
 .venv\Scripts\pip install -r requirements.txt
 .venv\Scripts\python -m streamlit run app.py
 ```
@@ -245,7 +245,7 @@ python -m studio.cli channels stats --demo                         # labelled SA
 
 ## 1. Requirements
 
-- Python 3.11+
+- Python 3.11 to 3.13 (3.12 recommended; 3.14+ lacks wheels for some packages, e.g. onnxruntime)
 - ffmpeg installed and on PATH
   - macOS: `brew install ffmpeg`
   - Ubuntu/Debian: `sudo apt install ffmpeg`
@@ -261,7 +261,12 @@ cd yt-studio
 python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
+pip install faster-whisper   # optional: word-accurate captions (otherwise timed from the script)
 ```
+
+Use Python 3.11 to 3.13 (3.12 is best). On Python 3.14+ `pip` fails with an `onnxruntime` / `ResolutionImpossible`
+error because some packages have no installer yet. On Windows `run_app.bat` picks 3.12 automatically if it is installed
+alongside a newer Python: get it from https://www.python.org/downloads/release/python-3128/.
 
 ## 3. Google Cloud setup (one time, done by hand)
 
