@@ -34,6 +34,7 @@ class Settings:
     llm_provider: str = "claude_code"
     llm_api_key: str = ""
     llm_model: str = ""
+    llm_critic_provider: str = ""  # optional: run only story_review through this API provider ("" = handoff)
     channel_id: str = ""
     google_client_secret_path: str = "./client_secret.json"
     pexels_api_key: str = ""
@@ -150,6 +151,7 @@ def load_settings(root: Path | None = None) -> Settings:
         llm_provider=(os.getenv("LLM_PROVIDER") or "claude_code").strip().lower(),
         llm_api_key=clean_secret(os.getenv("LLM_API_KEY")),
         llm_model=os.getenv("LLM_MODEL", "").strip(),
+        llm_critic_provider=(os.getenv("LLM_CRITIC_PROVIDER") or "").strip().lower(),
         channel_id=os.getenv("CHANNEL_ID", "").strip(),
         google_client_secret_path=os.getenv("GOOGLE_CLIENT_SECRET_PATH", "./client_secret.json").strip(),
         pexels_api_key=_env_key("PEXELS_API_KEY", "PEXELS_KEY", "PEXELS_APIKEY", "PEXELS"),
@@ -170,6 +172,12 @@ def load_settings(root: Path | None = None) -> Settings:
             f"LLM_PROVIDER={s.llm_provider!r} is not supported.",
             f"Supported: {', '.join(sorted(LLM_PROVIDERS))}.",
             "Set LLM_PROVIDER=claude_code to have Claude Code answer prompt files (no key needed).",
+        )
+    if s.llm_critic_provider and s.llm_critic_provider not in API_LLM_PROVIDERS:
+        raise ConfigError(
+            f"LLM_CRITIC_PROVIDER={s.llm_critic_provider!r} is not supported.",
+            f"Supported: {', '.join(sorted(API_LLM_PROVIDERS))} (or leave empty to use the file handoff).",
+            "Clear LLM_CRITIC_PROVIDER in .env, or set it to an API provider with LLM_API_KEY and LLM_MODEL.",
         )
     if s.tts_provider not in TTS_PROVIDERS:
         raise ConfigError(

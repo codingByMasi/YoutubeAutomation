@@ -91,10 +91,41 @@ def critique(video_id: int, force: bool = FORCE) -> None:
 
 
 @app.command()
-def script(idea_id: int = typer.Argument(..., help="Approved idea id."), force: bool = FORCE) -> None:
+def script(idea_id: int = typer.Argument(..., help="Approved idea id."), force: bool = FORCE,
+           auto: bool = typer.Option(False, "--auto", help="Story engine: story_plan > script > story_review "
+                                     "(3 prompt files, checks in code). Without it: the classic single prompt."),
+           ) -> None:
     """Generate 15 titles, the full script, and the segment list (script.md + script.json)."""
     from studio.stages import script as m
-    m.run(_ctx(), idea_id, force=force)
+    m.run(_ctx(), idea_id, force=force, auto=auto)
+
+
+@app.command("next")
+def next_cmd(video_id: int = typer.Argument(..., help="Video id.")) -> None:
+    """Print what is pending for a video (which prompt file to answer) and the exact command to run next."""
+    from studio.story import engine
+    what, cmd = engine.next_step(_ctx(), video_id)
+    typer.echo(f"Pending: {what}")
+    typer.echo(f"Next command: python -m studio.cli {cmd}")
+
+
+@app.command("facts")
+def facts_cmd(video_id: int = typer.Argument(..., help="Video id."),
+              accept: list[str] = typer.Option([], "--accept", help="Fact id you checked yourself (repeatable)."),
+              reverify: bool = typer.Option(False, "--reverify", help="Fetch the sources again.")) -> None:
+    """Show a video's fact ledger and its verification status; accept facts you checked by hand."""
+    from studio.story import engine, facts as fm
+    c = _ctx()
+    out = c.settings.project_dir(video_id)
+    for fid in accept:
+        engine.accept_fact(c, video_id, fid)
+    facts = fm.load_facts(out)
+    if reverify:
+        facts = fm.verify_all(facts, cache=None)
+        fm.save_facts(out, facts)
+    typer.echo(fm.summary(facts))
+    for f in facts:
+        typer.echo(f"  {f['id']:<4} {f.get('status', '?'):<11} {str(f.get('figure'))[:14]:<14} {f['claim'][:70]}")
 
 
 @app.command()
@@ -256,10 +287,10 @@ def status(sync: bool = typer.Option(False, "--sync", help="Check YouTube and ma
 
 
 @app.command("run-all")
-def run_all(seed: str) -> None:
+def run_all(seed: str, classic: bool = typer.Option(False, "--classic", help="Single-prompt script path.")) -> None:
     """Research a seed, then take the top approved idea through thumbnail and stop at review."""
     from studio.manage import run_all as m
-    m.run(_ctx(), seed)
+    m.run(_ctx(), seed, classic=classic)
 
 
 @app.command()

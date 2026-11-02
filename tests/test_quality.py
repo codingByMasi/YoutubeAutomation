@@ -57,7 +57,7 @@ def test_banned_phrase_and_missing_sources_block():
 
 
 def test_audio_loudness_and_peak():
-    ok = gate.evaluate(pkg(), "explainer", audio={"lufs": -16.2, "true_peak": -2.0})
+    ok = gate.evaluate(pkg(), "explainer", audio={"lufs": -14.3, "true_peak": -2.0})
     bad = gate.evaluate(pkg(), "explainer", audio={"lufs": -9.0, "true_peak": 0.5})
     assert ok["dimensions"]["audio"] == 100
     assert bad["dimensions"]["audio"] < 60

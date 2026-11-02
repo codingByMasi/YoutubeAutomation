@@ -33,11 +33,22 @@ def raise_no_ideas() -> None:
                       "Run research with a new seed, or approve an idea with `approve-idea <id>`.")
 
 
-def run(ctx: Ctx, seed: str) -> Video:
+def run(ctx: Ctx, seed: str, classic: bool = False) -> Video:
+    """Research, then the story engine (story_plan > script > story_review), then voice..thumbnail.
+
+    Stops at every prompt-file handoff (exit code 3) and prints the exact command that continues the run."""
+    from studio.errors import PendingLLMResponse
     ranked = research.run(ctx, seed)
     v = pick_video(ctx, ranked)
     typer.echo(f"\n== Working on video {v.id} ==")
-    script.run(ctx, v.idea_id)       # may stop here for Claude Code to answer the prompt
+    try:
+        script.run(ctx, v.idea_id, auto=not classic)  # may stop for Claude Code to answer a prompt
+    except PendingLLMResponse as exc:
+        from studio.story import engine
+        what, cmd = engine.next_step(ctx, v.id)
+        typer.secho(f"\nHandoff: {what}\nThen continue with: python -m studio.cli run-all \"{seed}\"  "
+                    f"(or: python -m studio.cli {cmd})", fg=typer.colors.YELLOW)
+        raise
     voice.run(ctx, v.id)
     visuals.run(ctx, v.id)
     build.run(ctx, v.id)

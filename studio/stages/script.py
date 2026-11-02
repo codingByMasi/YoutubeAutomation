@@ -14,7 +14,9 @@ from studio.llm import ask_json
 from studio.models import Idea, Script, Segment, Title, Video
 from studio.stages.base import run_stage
 
-BANNED_PHRASES = ["you won't believe", "shocking", "guaranteed", "secret they don't want you to know", "get rich"]
+from studio.story.banned import BANNED_PHRASES  # noqa: E402  (moved: see studio/story/banned.py)
+from studio.story.banned import banned_in as _banned_in  # noqa: E402
+
 CHART_TYPES = {"bar", "pie", "line", "flow", "number"}
 BEATS = {"question", "reveal", "example", "pattern_break"}
 # Beats the model tends to invent -> the allowed beat they mean. None = plain explanation (no retention interrupt).
@@ -41,16 +43,18 @@ TITLE_COUNT = 15
 HOOK_MAX_SECONDS = 15
 BEAT_GAP_MAX = 40
 CHART_GAP_MAX = 90
-LENGTH_RANGE_MIN = (10, 15)  # typical range for the prompt; only a too-short video is warned about
-MIN_WARN_MINUTES = 5          # no maximum length
+# Length numbers live in the channel's story profile (studio/story/profile.py). These are only fallbacks for
+# callers that have no profile (older tests, the kids song path).
+LENGTH_RANGE_MIN = (8, 12)
+MIN_WARN_MINUTES = 6
 DEFAULT_BRIEF = "Business-model and economics explainers, English, faceless narration with charts."
 DEFAULT_STYLE = "Clear, curious, analytical, no hype. Show the money with a chart for every major figure."
 
 
 # ---------- validation (pure functions, unit tested) ----------
 def banned_in(text: str) -> list[str]:
-    low = text.lower().replace("’", "'")
-    return [p for p in BANNED_PHRASES if p in low]
+    """Banned phrases in text (the shared list lives in studio/story/banned.py)."""
+    return _banned_in(text)
 
 
 def validate_title(text: str) -> list[str]:
@@ -147,8 +151,11 @@ def validate_chart(chart: dict, source_ids: set[str], where: str) -> list[str]:
     return problems
 
 
-def validate_package(d: dict) -> list[str]:
-    """Hard problems that make a script package unusable. Near-miss beats are fixed first, on every path."""
+def validate_package(d: dict, profile: dict | None = None, facts: list[dict] | None = None) -> list[str]:
+    """Hard problems that make a script package unusable. Near-miss beats are fixed first, on every path.
+
+    With a story `profile` the channel-type checks run too (word counts, sentence rules, open-loop ids); with
+    `facts` (the verified ledger) every figure and chart value must trace to a fact id."""
     normalize_package(d)
     problems = validate_titles(d.get("titles") or [])
     sources = d.get("sources") or []
@@ -187,6 +194,14 @@ def validate_package(d: dict) -> list[str]:
     texts = d.get("thumbnail_texts") or []
     if len(texts) != 3 or any(not 1 <= len(str(t).split()) <= 5 for t in texts):
         problems.append("thumbnail_texts must be 3 strings of 1-5 words")
+    if profile is not None and segs:
+        from studio.story import checks, facts as facts_mod, loops
+        from studio.story.profile import enabled
+        problems += checks.profile_problems(d, profile)
+        if enabled(profile, "loop_ids"):
+            problems += loops.loop_problems(d, profile)
+        if facts is not None and enabled(profile, "fact_ledger"):
+            problems += facts_mod.trace_problems(d, facts)
     return problems
 
 
@@ -200,13 +215,14 @@ def timeline(segs: list[dict], key: str = "est_seconds") -> list[tuple[float, fl
     return out
 
 
-def pacing_warnings(segs: list[dict], key: str = "est_seconds") -> list[str]:
+def pacing_warnings(segs: list[dict], key: str = "est_seconds", min_minutes: float | None = None) -> list[str]:
     """Soft checks: total length, gaps between retention beats and between charts."""
+    min_minutes = MIN_WARN_MINUTES if min_minutes is None else min_minutes
     warns = []
     spans = timeline(segs, key)
     total = spans[-1][1] if spans else 0
-    if total < MIN_WARN_MINUTES * 60:
-        warns.append(f"total length {total / 60:.1f} min is under {MIN_WARN_MINUTES} min (no maximum is enforced)")
+    if total < min_minutes * 60:
+        warns.append(f"total length {total / 60:.1f} min is under {min_minutes:g} min")
     for label, field, gap_max in (("retention beat", "beat", BEAT_GAP_MAX), ("chart", "chart_data", CHART_GAP_MAX)):
         last = 0.0
         for (start, _), seg in zip(spans, segs):
@@ -239,18 +255,24 @@ def _spec_section(root: Path, number: int, default: str) -> str:
 NO_OUTLINE = "(No outline was made for this video: design the hook, open loops and beat order yourself.)"
 
 
-def prompt_text(name: str) -> str:
-    """Text of studio/prompts/<name>.md."""
-    return (Path(__file__).parent.parent / "prompts" / f"{name}.md").read_text(encoding="utf-8")
+def prompt_text(name: str, pack: str = "explainer") -> str:
+    """Text of studio/prompts/<pack>/<name>.md; a pack without that file falls back to studio/prompts/<name>.md."""
+    from studio.story import prompts
+    return prompts.read(name, pack)
 
 
-def build_prompt(root: Path, topic: str, outline: dict | None = None) -> str:
-    lo, hi = LENGTH_RANGE_MIN
-    return prompt_text("script").format(
-        topic=topic, brief=_brief(root), style=_spec_section(root, 9, DEFAULT_STYLE),
-        banned=", ".join(f'"{p}"' for p in BANNED_PHRASES), min_minutes=lo, max_minutes=hi,
-        hooks=prompt_text("hooks"),
-        outline=json.dumps(outline, indent=2, ensure_ascii=False) if outline else NO_OUTLINE)
+def build_prompt(root: Path, topic: str, outline: dict | None = None, facts: list[dict] | None = None) -> str:
+    """Script prompt for the active channel's pack. `outline` is the plan (outline + chosen hook) when given."""
+    from studio.story import facts as facts_mod, ledger, prompts
+    from studio.story import profile as sp
+    prof = sp.for_channel(root)
+    return prompts.compose(
+        "script", prof, topic=topic, brief=_brief(root), style=_spec_section(root, 9, DEFAULT_STYLE),
+        outline=prompts.j(outline) if outline else NO_OUTLINE,
+        facts_block=prompts.j(facts_mod.prompt_view(facts)) if facts else "(no facts list for this video)",
+        facts=prompts.j(facts_mod.prompt_view(facts)) if facts else "(no facts list for this video)",
+        recent=ledger.prompt_text(root) if sp.enabled(prof, "repetition_ledger") else "(not tracked)",
+        plan=prompts.j(outline) if outline else NO_OUTLINE)
 
 
 # ---------- outputs ----------
@@ -294,6 +316,33 @@ def save_package(ctx: Ctx, video: Video, d: dict) -> None:
                       visual_keywords=", ".join(seg["visual_keywords"]), est_seconds=float(seg["est_seconds"])))
 
 
+def replace_package(ctx: Ctx, video: Video, revised: dict) -> int:
+    """Atomically swap a video's script for `revised`: one DB transaction, files restored on any failure.
+
+    Keeps `script.original.json` (first draft, written once) and a numbered history `script.v1.json`, `v2`...
+    holding each package that was replaced. Returns the history number written."""
+    out = ctx.settings.project_dir(video.id)
+    old = json.loads((out / "script.json").read_text(encoding="utf-8"))
+    old_md = (out / "script.md").read_text(encoding="utf-8") if (out / "script.md").exists() else None
+    if not (out / "script.original.json").exists():
+        (out / "script.original.json").write_text(json.dumps(old, indent=2, ensure_ascii=False), encoding="utf-8")
+    n = 1
+    while (out / f"script.v{n}.json").exists():
+        n += 1
+    (out / f"script.v{n}.json").write_text(json.dumps(old, indent=2, ensure_ascii=False), encoding="utf-8")
+    try:
+        save_package(ctx, video, revised)
+        ctx.session.flush()
+        ctx.session.commit()
+    except Exception:
+        ctx.session.rollback()
+        (out / "script.json").write_text(json.dumps(old, indent=2, ensure_ascii=False), encoding="utf-8")
+        if old_md is not None:
+            (out / "script.md").write_text(old_md, encoding="utf-8")
+        raise
+    return n
+
+
 def load_package(ctx: Ctx, video_id: int) -> dict:
     p = ctx.settings.project_dir(video_id) / "script.json"
     if not p.exists():
@@ -316,8 +365,60 @@ def video_for_idea(ctx: Ctx, idea_id: int) -> Video:
     return v
 
 
-def run(ctx: Ctx, idea_id: int, force: bool = False) -> Video:
+def run_engine_script(ctx: Ctx, video: Video, outline: dict, force: bool = False) -> Video:
+    """Task 2 of the story engine: the script, written to the plan and checked against facts, loops and rotation."""
+    from studio.stages.qa import quality_report
+    from studio.story import facts as facts_mod, hooks as hooks_mod, models as M, profile as sp
+    topic = ctx.session.get(Idea, video.idea_id).topic
+    out_dir = ctx.settings.project_dir(video.id)
+    prof = sp.for_channel(ctx.settings.root)
+    facts = facts_mod.load_facts(out_dir) or None
+    loop_ids = {str(lp.get("id")) for lp in outline.get("loops", [])}
+    notes: list[str] = []
+
+    def check(data: dict) -> list[str]:
+        notes.clear()
+        notes.extend(normalize_package(data))
+        problems = validate_package(data, prof, facts)
+        if data.get("hook_type") and data["hook_type"] != outline.get("hook_type"):
+            problems.append(f"hook_type must be {outline.get('hook_type')!r} (the plan's chosen hook), "
+                            f"got {data.get('hook_type')!r}")
+        if sp.enabled(prof, "hook_rotation"):
+            from studio.story import ledger
+            msg = hooks_mod.rotation_problem(str(data.get("hook_type", "")), ctx.settings.root, 3, video.id)
+            if msg:
+                problems.append(msg)
+        for i, seg in enumerate(data.get("segments") or [], 1):
+            for key in ("plants_loop", "pays_loop"):
+                v = seg.get(key)
+                for lid in ([] if not v else v if isinstance(v, list) else [v]):
+                    if loop_ids and str(lid) not in loop_ids:
+                        problems.append(f"segment {i}: {key} {lid!r} is not a loop id in the plan {sorted(loop_ids)}")
+        return problems
+
+    def work() -> None:
+        d = ask_json(ctx.settings, out_dir, "script", build_prompt(ctx.settings.root, topic, outline, facts),
+                     validate=check, model=M.ScriptModel, force=False)
+        d.setdefault("hook_type", outline.get("hook_type", ""))
+        d.setdefault("arc", outline.get("arc") if isinstance(outline.get("arc"), str) else "")
+        for n in notes:
+            typer.secho(f"auto-fixed: {n}", fg=typer.colors.YELLOW)
+        save_package(ctx, video, d)
+        for w in quality_report(d)["warnings"]:
+            typer.secho(f"warning: {w}", fg=typer.colors.YELLOW)
+
+    r = run_stage(ctx.session, video, "scripted", work, force)
+    typer.echo(r.message)
+    return video
+
+
+def run(ctx: Ctx, idea_id: int, force: bool = False, auto: bool = False, fetch=None) -> Video:
+    """`script`. With auto=True runs the story engine (story_plan -> script -> story_review)."""
     video = video_for_idea(ctx, idea_id)
+    if auto:
+        from studio.story import engine
+        engine.auto(ctx, video, force=force, fetch=fetch)
+        return video
     topic = ctx.session.get(Idea, idea_id).topic
 
     def work() -> None:

@@ -176,8 +176,9 @@ def check_audio(pkg: dict, t: dict, audio: dict | None) -> list[dict]:
     if abs(gap) > t["lufs_tolerance"]:
         out.append(_issue("audio", "major", f"Loudness {audio['lufs']:.1f} LUFS is {abs(gap):.1f} from the "
                           f"{t['lufs_target']:g} target.", "Re-run `build --force` (it normalises loudness)."))
-    if audio.get("true_peak") is not None and audio["true_peak"] > -1.0:
-        out.append(_issue("audio", "major", f"True peak {audio['true_peak']:.1f} dB risks clipping.",
+    tp = t.get("true_peak", -1.0)
+    if audio.get("true_peak") is not None and audio["true_peak"] > tp + 0.3:
+        out.append(_issue("audio", "major", f"True peak {audio['true_peak']:.1f} dB is above the {tp:g} dB ceiling.",
                           "Rebuild; lower the music or the limiter ceiling."))
     if build and not build.get("music") and t["needs_cta"] is False:
         out.append(_issue("audio", "minor", "No music bed in a kids video.", "Add a track to assets/music."))
@@ -207,9 +208,11 @@ def check_metadata(pkg: dict, t: dict, thumb: Path | None) -> list[dict]:
 
 def evaluate(pkg: dict, ctype: str = profiles.DEFAULT_TYPE, tuning: dict | None = None,
              audio: dict | None = None, thumb: Path | None = None, peers: list[tuple[str, dict]] | None = None,
-             in_series: bool | None = None) -> dict:
+             in_series: bool | None = None, story_profile: dict | None = None) -> dict:
     """Score a package. Returns {score, verdict (pass|warn|block), dimensions, issues, channel_type, thresholds}."""
     t = profiles.thresholds(ctype, tuning)
+    if story_profile:
+        t.update(lufs_target=story_profile["lufs_target"], true_peak=story_profile["true_peak"])
     checks = {"script": check_script(pkg, t), "hook": check_hook(pkg, t), "pacing": check_pacing(pkg, t),
               "visuals": check_visuals(pkg, t), "audio": check_audio(pkg, t, audio),
               "metadata": check_metadata(pkg, t, thumb), "fit": growth.check_fit(pkg, t),

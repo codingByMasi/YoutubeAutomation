@@ -9,7 +9,7 @@ TYPES: dict[str, dict] = {
     "explainer": {
         "label": "Business / economics explainer", "hook_max_seconds": 15, "hook_first_sentence_words": 12,
         "beat_gap_max": 40, "sentence_max_words": 22, "card_share_max": 0.3, "min_minutes": 6,
-        "min_open_loops": 2, "min_tags": 5, "lufs_target": -16.0, "lufs_tolerance": 2.5,
+        "min_open_loops": 2, "min_tags": 5, "lufs_target": -14.0, "lufs_tolerance": 2.0,
         "block_below": 55, "pass_at": 75, "needs_cta": True, "needs_sources": True,
         "fit_checks": True, "stock_share_max": 0.6, "similarity_max": 0.25, "originality_checks": True,
         "series_hint": True,
@@ -19,7 +19,7 @@ TYPES: dict[str, dict] = {
     "story": {
         "label": "Narrative / documentary story", "hook_max_seconds": 20, "hook_first_sentence_words": 16,
         "beat_gap_max": 50, "sentence_max_words": 24, "card_share_max": 0.25, "min_minutes": 6,
-        "min_open_loops": 3, "min_tags": 5, "lufs_target": -16.0, "lufs_tolerance": 2.5,
+        "min_open_loops": 3, "min_tags": 5, "lufs_target": -14.0, "lufs_tolerance": 2.0,
         "block_below": 55, "pass_at": 75, "needs_cta": True, "needs_sources": True,
         "fit_checks": True, "stock_share_max": 0.8, "similarity_max": 0.25, "originality_checks": True,
         "series_hint": True,
@@ -29,7 +29,7 @@ TYPES: dict[str, dict] = {
     "kids": {
         "label": "Kids songs and learning", "hook_max_seconds": 8, "hook_first_sentence_words": 8,
         "beat_gap_max": 20, "sentence_max_words": 12, "card_share_max": 0.1, "min_minutes": 2,
-        "min_open_loops": 0, "min_tags": 5, "lufs_target": -16.0, "lufs_tolerance": 2.0,
+        "min_open_loops": 0, "min_tags": 5, "lufs_target": -14.0, "lufs_tolerance": 2.0,
         "block_below": 60, "pass_at": 80, "needs_cta": False, "needs_sources": False,
         "fit_checks": False, "stock_share_max": 1.0, "similarity_max": 0.4, "originality_checks": False,
         "series_hint": False,

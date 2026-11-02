@@ -254,8 +254,11 @@ def run(ctx: Ctx, video_id: int, force: bool = False) -> None:
         events = sfx_events(segs, plans)
         total = spans[-1][1] if spans else None
         clean = out / "clean.mp4"  # no burned captions; Shorts are cut from this
+        from studio.story import profile as story_profile
+        sprof = story_profile.for_channel(ctx.settings.root)
         ff.run(ff.mix_cmd(tmp / "picture.mp4", tmp / "narration.wav", clean, music, MUSIC_DB,
-                          sfx={k: snd[k] for k in sound.SFX}, sfx_events=events, total=total), "mixing audio")
+                          sfx={k: snd[k] for k in sound.SFX}, sfx_events=events, total=total,
+                          lufs=sprof["lufs_target"], true_peak=sprof["true_peak"]), "mixing audio")
         main = tmp / "main.mp4"
         ff.run(["ffmpeg", "-y", "-i", str(clean), "-vf", ff._sub_filter(main_ass),
                 "-c:v", "libx264", "-preset", ff.profile().preset, "-crf", str(ff.profile().crf), "-pix_fmt", "yuv420p",
