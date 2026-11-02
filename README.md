@@ -479,3 +479,11 @@ statement, a mascot, a colour theme and playlist plans (presets: `finance-storie
 with your own JSON (`niche_statement`, `tagline`, `mascot`, `theme`, `playlists`). The mascot shows on thumbnails
 and the sign-off card, the theme colours charts/cards/thumbnails, and playlists become series. After creating each
 playlist in YouTube Studio, put its id in `playlists[].youtube_id` so `publish` adds videos to it automatically.
+
+
+## 60-second videos and the history cast renderer
+- `python -m studio.cli channels edit <channel> --story '{"preset": "short60"}'` makes `script --auto` plan a native 60 s video.
+- History channels draw their own scenes (host at a lectern, skits with speech bubbles, a map, a numbered diagram, a calendar)
+  from the cast in `studio/history/cast.py`. Segments carry `scene`, `cast`, `speech` and `scene_data` (see the prompt block).
+- Offline voice: `pip install kokoro-onnx soundfile`, put `kokoro-v1.0.onnx` and `voices-v1.0.bin` (from the kokoro-onnx GitHub
+  release `model-files-v1.0`) in `assets/models/kokoro/`. It is used when `kokoro` is missing and before edge-tts.

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <title>dotty</title>
+  <ellipse cx="200" cy="372" rx="110" ry="14" fill="#000" opacity="0.12"/>
+  <path d="M170 82 Q150 40 128 44" stroke="#1b1b26" stroke-width="7" fill="none" stroke-linecap="round"/><circle cx="126" cy="44" r="10" fill="#ffd93b"/>
+  <path d="M230 82 Q250 40 272 44" stroke="#1b1b26" stroke-width="7" fill="none" stroke-linecap="round"/><circle cx="274" cy="44" r="10" fill="#ffd93b"/>
+  <ellipse cx="200" cy="282" rx="118" ry="92" fill="#e8212e"/>
+  <path d="M200 192 V372" stroke="#1b1b26" stroke-width="8"/>
+  <circle cx="140" cy="262" r="17" fill="#1b1b26"/><circle cx="262" cy="258" r="17" fill="#1b1b26"/><circle cx="158" cy="328" r="14" fill="#1b1b26"/><circle cx="246" cy="326" r="14" fill="#1b1b26"/><circle cx="108" cy="316" r="11" fill="#1b1b26"/><circle cx="294" cy="306" r="11" fill="#1b1b26"/>
+  <circle cx="200" cy="165" r="95" fill="#1b1b26"/>
+  <ellipse cx="172" cy="104" rx="24" ry="10" fill="#fff" opacity="0.12" transform="rotate(-20 172 104)"/>
+  <circle cx="132" cy="190" r="17" fill="#ff7a8a" opacity="0.55"/><circle cx="268" cy="190" r="17" fill="#ff7a8a" opacity="0.55"/>
+  <g id="eyes-open">
+    <circle cx="163" cy="155" r="19" fill="#fff"/><circle cx="237" cy="155" r="19" fill="#fff"/>
+    <circle cx="167" cy="157" r="11" fill="#2b2b3d"/><circle cx="233" cy="157" r="11" fill="#2b2b3d"/>
+    <circle cx="171" cy="152" r="4" fill="#fff"/><circle cx="237" cy="152" r="4" fill="#fff"/>
+  </g>
+  <g id="eyes-closed">
+    <path d="M145 158 Q163 172 181 158" stroke="#2b2b3d" stroke-width="7" fill="none" stroke-linecap="round"/>
+    <path d="M219 158 Q237 172 255 158" stroke="#2b2b3d" stroke-width="7" fill="none" stroke-linecap="round"/>
+  </g>
+  <g id="mouth-closed"><path d="M172 214 Q200 238 228 214" stroke="#ffffff" stroke-width="7" fill="none" stroke-linecap="round"/></g>
+  <g id="mouth-open"><path d="M170 210 Q200 262 230 210 Z" fill="#ffffff"/><ellipse cx="200" cy="232" rx="14" ry="8" fill="#ff7a8a"/></g>
+</svg>

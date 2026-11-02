@@ -6,7 +6,8 @@ import re
 
 from studio.kids import cast
 
-CHARACTERS = ["duck", "cat", "dog", "fish", "bunny", "bird", "star", "sun", "apple", "ball", "balloon", "flower"]
+CHARACTERS = ["duck", "cat", "dog", "fish", "bunny", "bird", "star", "sun", "apple", "ball", "balloon", "flower",
+              "puddle"]
 BACKGROUNDS = ["sky", "meadow", "ocean", "night", "farm"]
 MOTIONS = ["bounce", "sway", "slide", "pop"]
 KINDS = ["nursery_rhyme", "counting", "colors", "animals", "shapes", "bedtime"]

@@ -148,33 +148,44 @@ def run(ctx: Ctx, slug: str, force: bool = False, size: tuple[int, int] = (1280,
                    "finishing the video")
     if track is not None:
         ff.run(["ffmpeg", "-y", "-i", str(joined), "-stream_loop", "-1", "-i", str(track), "-filter_complex",
-                "[1:a]volume=-20dB[m];[0:a][m]amix=inputs=2:duration=first:normalize=0[a]", "-map", "0:v",
+                "[1:a]volume=-20dB[m];[0:a][m]amix=inputs=2:duration=first:normalize=0,"
+                "loudnorm=I=-16:TP=-1.5:LRA=11[a]", "-map", "0:v",
                 "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-movflags", "+faststart", str(final)],
                "mixing music")
-    thumbnail(data, d / "thumbnail.jpg", font_file)
+    thumbnail(data, d / "thumbnail.jpg", font_file, sprites=sprites)
     return final
 
 
-def thumbnail(data: dict, out: Path, font_file: str, size: tuple[int, int] = (1280, 720)) -> Path:
-    """Bright 1280x720 thumbnail: first scene's characters with a short title. No faces of real children."""
+def thumbnail(data: dict, out: Path, font_file: str, size: tuple[int, int] = (1280, 720),
+              sprites: SpriteBank | None = None) -> Path:
+    """Bright 1280x720 thumbnail: the first scene's characters (real art when available) with a short title."""
     first = data["scenes"][0]
     img = draw.background(first["visual"]["background"], *size)
     d = ImageDraw.Draw(img)
     chars = first["visual"]["characters"][:3]
     for i, c in enumerate(chars):
-        draw.draw_character(d, c, size[0] * (i + 1) / (len(chars) + 1), size[1] * 0.3, size[1] * 0.38, idx=i)
-    f = ImageFont.truetype(font_file, 84)
-    words_, lines, cur = data["title"].split(), [], ""
-    for wd in words_:  # wrap so long titles stay inside the frame
-        if cur and len(cur) + len(wd) + 1 > 16:
-            lines.append(cur)
-            cur = wd
+        cx, big = size[0] * (i + 1) / (len(chars) + 1), size[1] * 0.46
+        spr = sprites.get(c, int(big * 1.25), False, True) if sprites is not None else None
+        if spr is not None:
+            img.paste(spr, (int(cx - spr.width / 2), int(size[1] * 0.04)), spr)
         else:
-            cur = f"{cur} {wd}".strip()
-    lines.append(cur)
+            draw.draw_character(d, c, cx, size[1] * 0.3, size[1] * 0.38, idx=i)
+    title = data["title"].split("|")[0].strip()  # the short part: "Pip Counts Five Puddles"
+    for fs in (92, 80, 68, 58):
+        f = ImageFont.truetype(font_file, fs)
+        words_, lines, cur = title.split(), [], ""
+        for wd in words_:  # wrap so long titles stay inside the frame
+            if cur and f.getlength(f"{cur} {wd}") > size[0] - 120:
+                lines.append(cur)
+                cur = wd
+            else:
+                cur = f"{cur} {wd}".strip()
+        lines.append(cur)
+        if len(lines) <= 2:
+            break
+    y0 = size[1] * 0.74 - (len(lines) - 1) * fs * 0.55
     for k, ln in enumerate(lines[:3]):
-        d.text((size[0] / 2, size[1] * (0.68 + 0.14 * k)), ln, font=f, anchor="mm", fill=(255, 235, 60),
-               stroke_width=8, stroke_fill=draw.INK)
+        d.text((size[0] / 2, y0 + k * fs * 1.12), ln, font=f, anchor="mm", fill=(255, 235, 60), stroke_width=8,
+               stroke_fill=draw.INK)
     img.save(out, "JPEG", quality=88)
     return out
-

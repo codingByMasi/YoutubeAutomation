@@ -52,7 +52,8 @@ def check_script(pkg: dict, t: dict) -> list[dict]:
                           "Split long sentences: write for the ear."))
     if t["needs_sources"] and not pkg.get("sources"):
         out.append(_issue("script", "critical", "No sources listed.", "Every figure needs a source."))
-    loops = sum(bool(TEASER.search(g["narration"])) or bool(g.get("open_loop")) for g in segs[:-1])
+    loops = sum(bool(TEASER.search(g["narration"])) or bool(g.get("open_loop")) or bool(g.get("plants_loop"))
+                for g in segs[:-1])
     if len(segs) >= 6 and loops < t["min_open_loops"]:
         out.append(_issue("script", "minor", f"Only {loops} open loop(s); aim for {t['min_open_loops']}+.",
                           "Plant a teaser early and pay it off later."))
@@ -61,7 +62,7 @@ def check_script(pkg: dict, t: dict) -> list[dict]:
         if not CTA_WORDS.search(last):
             out.append(_issue("script", "major", "No call to action in the last segment.",
                               "Ask one concrete question and name the next video."))
-        elif "?" not in last and not re.search(r"\bnext video\b", last, re.I):
+        elif "?" not in last and not re.search(r"\bnext (video|time)\b|\b(which|what|why|how)\b", last, re.I):
             out.append(_issue("script", "minor", "The call to action is generic.",
                               "Tie it to this topic: a specific question or the next video."))
     if banned_in(narration):
@@ -70,13 +71,20 @@ def check_script(pkg: dict, t: dict) -> list[dict]:
     return out
 
 
+def _picture_kind(seg: dict) -> str | None:
+    """Kind of picture a segment shows; drawn cast scenes count by scene type (skit, map, diagram...)."""
+    vis = seg.get("visual") or {}
+    scene = vis.get("scene") or {}
+    return scene.get("kind") if scene.get("mode") == "cast" else vis.get("kind")
+
+
 def check_hook(pkg: dict, t: dict) -> list[dict]:
     segs = pkg.get("segments") or []
     if not segs:
         return []
     hook = segs[0]["narration"]
     first_sentence = (_sentences(hook) or [hook])[0]
-    first_two = " ".join(_sentences(hook)[:2])
+    first_two = " ".join(_sentences(hook)[:3 if _dur(segs[0]) < 10 else 2])  # short hooks have room for three
     out = []
     if WEAK_OPENERS.match(hook):
         out.append(_issue("hook", "critical", "The hook opens with a greeting or 'in this video'.",
@@ -133,7 +141,7 @@ def check_visuals(pkg: dict, t: dict) -> list[dict]:
         out.append(_issue("visuals", "major", f"{cards} of {len(segs)} segments are plain cards "
                           f"(limit {t['card_share_max'] * 100:.0f}%).",
                           "Add a free PIXABAY_API_KEY or use more concrete visual_keywords."))
-    kinds = {(g.get("visual") or {}).get("kind") for g in segs} - {None}
+    kinds = {_picture_kind(g) for g in segs} - {None}
     if len(segs) > 5 and len(kinds) < 2:
         out.append(_issue("visuals", "minor", "Every segment uses the same kind of picture.",
                           "Mix photos, clips, charts and diagrams."))
@@ -238,6 +246,11 @@ def evaluate(pkg: dict, ctype: str = profiles.DEFAULT_TYPE, tuning: dict | None 
     t = profiles.thresholds(ctype, tuning)
     if story_profile:
         t.update(lufs_target=story_profile["lufs_target"], true_peak=story_profile["true_peak"])
+        if story_profile.get("short_form"):  # a native short video: its own length, loop and hook limits
+            t.update(min_minutes=story_profile["min_minutes"] * 0.9,
+                     hook_max_seconds=story_profile["beat_seconds"][0] + 4,
+                     min_open_loops=story_profile.get("min_loops", 2),
+                     beat_gap_max=story_profile["beat_seconds"][1])
     checks = {"script": check_script(pkg, t), "hook": check_hook(pkg, t), "pacing": check_pacing(pkg, t),
               "visuals": check_visuals(pkg, t), "audio": check_audio(pkg, t, audio),
               "metadata": check_metadata(pkg, t, thumb), "fit": growth.check_fit(pkg, t),

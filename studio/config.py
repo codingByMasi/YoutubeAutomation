@@ -34,7 +34,7 @@ class Settings:
     llm_provider: str = "claude_code"
     llm_api_key: str = ""
     llm_model: str = ""
-    tts_order: str = "kokoro,edge,piper"  # voice engines tried in this order (missing ones are skipped)
+    tts_order: str = "kokoro,onnx,edge,piper"  # voice engines tried in this order (missing ones are skipped)
     piper_model: str = ""  # path to a Piper .onnx voice (offline fallback)
     llm_critic_provider: str = ""  # optional: run only story_review through this API provider ("" = handoff)
     channel_id: str = ""
@@ -159,7 +159,7 @@ def load_settings(root: Path | None = None) -> Settings:
         llm_api_key=clean_secret(os.getenv("LLM_API_KEY")),
         llm_model=os.getenv("LLM_MODEL", "").strip(),
         llm_critic_provider=(os.getenv("LLM_CRITIC_PROVIDER") or "").strip().lower(),
-        tts_order=(os.getenv("TTS_ORDER") or "kokoro,edge,piper").strip().lower(),
+        tts_order=(os.getenv("TTS_ORDER") or "kokoro,onnx,edge,piper").strip().lower(),
         piper_model=os.getenv("PIPER_MODEL", "").strip(),
         channel_id=os.getenv("CHANNEL_ID", "").strip(),
         google_client_secret_path=os.getenv("GOOGLE_CLIENT_SECRET_PATH", "./client_secret.json").strip(),

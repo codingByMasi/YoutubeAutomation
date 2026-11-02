@@ -135,7 +135,7 @@ def run(ctx: Ctx, video_id: int, force: bool = False, tts: TTS | None = None,
         est = sum(r.est_seconds for r in rows)
         write_package(ctx, video_id, pkg)
         typer.echo(f"Narration: {total / 60:.1f} min (estimated {est / 60:.1f} min).")
-        for w in pacing_warnings(pkg["segments"], "real_seconds"):
+        for w in pacing_warnings(pkg["segments"], "real_seconds", sp.for_channel(ctx.settings.root)["min_minutes"]):
             typer.secho(f"warning: {w}", fg=typer.colors.YELLOW)
 
     r = run_stage(s, video, "voiced", work, force)

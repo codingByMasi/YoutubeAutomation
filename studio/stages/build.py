@@ -16,7 +16,7 @@ from studio.providers import captions, sound
 from studio.providers.whisper import cues_from_words, script_cues, to_srt, whisper_words
 from studio.quality import rules
 from studio.stages.base import get_video, run_stage
-from studio.stages.qa import quality_report, write_report
+from studio.stages.qa import _story_profile, quality_report, write_report
 from studio.stages.script import load_package, timeline, write_package
 from studio.stages.timing import plan_segment, shot_max_for
 from studio.stages.visuals import visual_paths
@@ -374,7 +374,7 @@ def run(ctx: Ctx, video_id: int, force: bool = False) -> None:
         pkg["build"] = {"final": str(final), "clean": str(clean), "intro_seconds": round(intro_s, 3),
                         "duration": round(duration, 3), "music": str(music) if music else None,
                         "captions": caption_source}
-        report = quality_report(pkg)
+        report = quality_report(pkg, _story_profile(ctx))
         write_report(out, report)
         for line in report["warnings"][:8]:
             typer.secho(f"quality: {line}", fg=typer.colors.YELLOW)

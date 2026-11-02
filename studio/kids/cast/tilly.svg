@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <title>tilly</title>
+  <ellipse cx="200" cy="372" rx="110" ry="14" fill="#000" opacity="0.12"/>
+  <ellipse cx="200" cy="270" rx="150" ry="104" fill="#2f8f5b"/>
+  <path d="M130 228 L168 196 L232 196 L270 228 L250 270 L150 270 Z" fill="#e8892a" opacity="0.9"/>
+  <path d="M60 300 Q200 250 340 300" stroke="#1f6b41" stroke-width="8" fill="none"/>
+  <ellipse cx="96" cy="350" rx="34" ry="22" fill="#6dc76b"/><ellipse cx="304" cy="350" rx="34" ry="22" fill="#6dc76b"/>
+  <circle cx="200" cy="165" r="95" fill="#6dc76b"/>
+  <g transform="translate(262 92)"><circle cx="0" cy="-14" r="11" fill="#ff7aa8"/><circle cx="13" cy="-4" r="11" fill="#ff7aa8"/><circle cx="8" cy="12" r="11" fill="#ff7aa8"/><circle cx="-8" cy="12" r="11" fill="#ff7aa8"/><circle cx="-13" cy="-4" r="11" fill="#ff7aa8"/><circle cx="0" cy="0" r="8" fill="#ffd93b"/></g>
+  <circle cx="132" cy="190" r="17" fill="#ff9eb5" opacity="0.7"/>
+  <circle cx="268" cy="190" r="17" fill="#ff9eb5" opacity="0.7"/>
+  <g id="eyes-open">
+    <circle cx="163" cy="155" r="19" fill="#fff"/><circle cx="237" cy="155" r="19" fill="#fff"/>
+    <circle cx="167" cy="157" r="11" fill="#2b2b3d"/><circle cx="233" cy="157" r="11" fill="#2b2b3d"/>
+    <circle cx="171" cy="152" r="4" fill="#fff"/><circle cx="237" cy="152" r="4" fill="#fff"/>
+  </g>
+  <g id="eyes-closed">
+    <path d="M145 158 Q163 172 181 158" stroke="#2b2b3d" stroke-width="7" fill="none" stroke-linecap="round"/>
+    <path d="M219 158 Q237 172 255 158" stroke="#2b2b3d" stroke-width="7" fill="none" stroke-linecap="round"/>
+  </g>
+  <g id="mouth-closed"><path d="M172 214 Q200 238 228 214" stroke="#2b2b3d" stroke-width="7" fill="none" stroke-linecap="round"/></g>
+  <g id="mouth-open"><path d="M170 210 Q200 262 230 210 Z" fill="#2b2b3d"/><ellipse cx="200" cy="232" rx="14" ry="8" fill="#ff7a8a"/></g>
+</svg>

@@ -2,7 +2,7 @@
 
 Claude Code: update this file at the end of every milestone and whenever you make a decision. Read it first in every new session.
 
-**Last updated:** 2026-11-01
+**Last updated:** 2026-11-02
 **Current milestone:** M8 done; next is the owner's setup and the first real video
 **Overall status:** Build complete. 93 tests pass (`pytest -q`), `ruff check .` is clean, and `demo` builds a playable 1080p MP4
 
@@ -400,6 +400,7 @@ in `script.json`, and the generated YouTube description lists every source under
 - `Ctx.close()`; the web app closes every context at the end of each rerun and rolls back sessions after failed steps.
 - "database is locked" gets a plain message (app and CLI subprocess output), plus tools to find/stop other Studio processes and clear stale journal files (`studio/util/dblock.py`, needs `psutil`: run `pip install -r requirements.txt`).
 
+
 ## Slow 3D pictures step (2026-11-01)
 - Cause found on the owner's PC: video 3 was in `3d`/`mixed` style, so all 13 bar/pie charts became Blender scenes. Eevee on that PC
   needs ~2.5 s per frame; a 20 s scene is 300 frames (~12 min), so the step needed ~2.5 h with no progress shown. It was working, not hung.
@@ -448,6 +449,46 @@ Status: done (profile, prompts, cast module, tests). Not done: a 2D history scen
 (see docs/history-cast-system.md). Decisions: history pack changed from dread/second-person to animated storytelling
 (tone `blend`); loop distance left at 30-180 s; no sponsor slots; cast names are placeholders for the owner to rename.
 Owner must configure: nothing; optionally set `story.tone` (`blend`, `comedic`, `dramatic`) on the history channel.
+## Kids reference cast (2026-11-02)
+- Five original recurring characters: Benny Bear, Pip the Duckling, Mango Monkey, Dotty Ladybug, Tilly Turtle (`studio/kids/roster/*.json`,
+  hand-made primitive 3D models in `studio/blender/rhyme_cast.py`; stills in project files `youtube-studio/kids-cast/`).
+- Easy to add more: drop `assets/kids/roster/<id>.json` (id, name, species, personality, main, accent, optional role/catchphrase/look/rhymes).
+  Without a hand-made model the 3D renderer draws a generic round character in your colours and 2D draws a round face, so it works at once.
+- Per channel: profile field `kids_cast` (list of ids; empty = whole roster). `kids script` puts the channel's cast and personalities in the prompt and
+  accepts roster ids in `visual.characters`. `kids cast` lists them.
+- Limits: simple shapes, no skeleton or lip-sync; they bounce, sway, pop in. Tested: unit tests (APIs mocked) and a real Blender (Cycles CPU) smoke render;
+  Eevee on a PC GPU not tested here. The finance thread's character system was not on main, so this extends the existing per-channel profile instead.
+- No web-app picker yet; set `kids_cast` via the channel profile (CLI/JSON).
+
+
+## 2026-11-02: end-to-end 60 s test (history + kids) and what it fixed
+Full run of both channel types to a finished 60 s video (stopped before review and publish; typed-yes gates untouched).
+Report, videos and thumbnails: project files `youtube-studio/e2e-test/`. Measured here (4 CPU, no GPU): history 67.5 s video
+made in about 2.3 min of machine time (voice 31 s, pictures 55 s, build 47 s, thumbnails 1.5 s); kids 56 s video in 49 s.
+
+**Added**
+- `studio/history/render.py`: the history cast scene renderer (lectern, skit with speech bubbles, map, diagram, calendar,
+  easel, archive, silhouette, title). Mouths follow the narration loudness, characters blink. `visuals` draws one clip per
+  segment that has a string `scene` when the `cast_scenes` flag is on; `build` shows it as one shot. `scene_data` holds
+  map points, diagram steps, calendar days, titles. `studio/history/thumb.py`: cast thumbnails for history.
+- `short60` story preset (`channels edit --story '{"preset": "short60"}'`): a native ~60 s video (5-10 beats of 4-20 s,
+  2 open loops, shorter hook). Outline checks, prompts, QA and the quality gate read it; other channels are unchanged.
+- `KokoroOnnxTTS`: offline neural voice (`pip install kokoro-onnx soundfile` + the two model files from the kokoro-onnx
+  GitHub release into `assets/models/kokoro/`). Tried after `kokoro` and before edge-tts (`TTS_ORDER`), `KOKORO_VOICE`, `KOKORO_SPEED`.
+- Kids: real animated 2D art (blink, mouth) for the 5 roster characters, a `puddle` object, loudness normalised to -16 LUFS,
+  thumbnail uses the sprites and fits long titles.
+- History descriptions use a neutral source line instead of the finance disclaimer; no business tags on non-business channels.
+
+**Fixed (found by the test)**: `scene` as a string (cast scene) crashed the older 2D/3D scene code; QA and gate warned wrongly
+for short videos (length, loops from `plants_loop`, repeated pictures for drawn scenes, hook question in sentence 3, CTA wording).
+
+**Decisions**: native 60 s videos get their own preset instead of loosening the long-video rules; a title must match the hook
+(the gate caught a title about elephants on a script that never mentions them). Cast art is still code-drawn placeholder.
+
+**Not done / owner decisions**: stock footage (no key, network blocked here), Whisper word alignment (model host blocked),
+edge-tts not testable here, per-character voices, real 3D for kids (6.3 s per frame on this CPU with Cycles: use a GPU PC),
+sung vocals (OpenUtau), `gate` for kids (needs a DB video), `kids` has no research or title/SEO step.
+
 
 ## 2026-11-02: YouTube sign-in kept asking again and again
 Causes found: (1) the CLI used the *current folder* as the studio folder while the app used its own folder, so

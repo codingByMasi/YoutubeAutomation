@@ -81,7 +81,7 @@ def validate_plan(d: dict, prof: dict, root: Path | None = None, video_id: int |
     ids = [lp.get("id") for lp in o.get("loops", [])]
     if len(ids) != len(set(ids)):
         problems.append("loop ids must be unique")
-    problems += validate_outline(_outline_for_checks(d, prof, ranked), prof if prof.get("kids") else None)
+    problems += validate_outline(_outline_for_checks(d, prof, ranked), prof)
     return problems
 
 
@@ -95,7 +95,7 @@ def run_plan(ctx: Ctx, video: Video, force: bool = False, fetch=None) -> dict:
         "story_plan", prof, topic=topic, brief=_brief(root), style=_spec_section(root, 9, DEFAULT_STYLE),
         audience=prof["audience"], language=prof["language"], region=prof["region"],
         beat_sheet=" > ".join(prof["beat_sheet"]), hook_formulas=", ".join(prof["hook_formulas"]),
-        hook_words=8 if prof.get("kids") else 12, fact_count="2-4 counting facts at most" if prof.get("kids") else "8-14",  # noqa: E501
+        hook_words=8 if prof.get("kids") else 12, fact_count="2-4 counting facts at most" if prof.get("kids") else prof.get("fact_count", "8-14"),  # noqa: E501
         facts_note=("Kids: facts are optional; use counting numbers only and leave `source_url` empty with "
                     "`is_estimate` true." if not sp.enabled(prof, "fact_ledger") else ""),
         recent=ledger.prompt_text(root, exclude_video=video.id) if sp.enabled(prof, "repetition_ledger")

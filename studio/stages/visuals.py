@@ -133,6 +133,8 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
         animated = 0
         blender = render3d.Blender3D(ctx.settings.blender_path)
         scene_counts: dict[str, int] = {}
+        from studio.history import cast as cast_mod
+        from studio.history import render as cast_render
         planned = {p: scenes.plan_for(g, p, prod) for p, g in enumerate(pkg["segments"], 1)}
         todo3d = {p: min(float(g.get("real_seconds") or g["est_seconds"]), render3d.MAX_SECONDS)
                   for p, g in enumerate(pkg["segments"], 1) if (planned[p] or {}).get("mode") == "3d"}
@@ -150,6 +152,9 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
         avoid = story_visuals.recent_assets(ctx.settings.root, 3, video_id) \
             if sprofile.enabled(sprof, "footage_reuse_ledger") else set()
         scorer = story_visuals.make_scorer() if sprofile.enabled(sprof, "semantic_visuals") else None
+        cast_on = sprofile.enabled(sprof, "cast_scenes")
+        cast_stage = cast_render.Cast(out / "cast") if cast_on else None
+        faction0 = 0
         for pos, seg in enumerate(pkg["segments"], 1):
             left3d = None
             if budget.sec_per_frame and todo3d:
@@ -160,10 +165,16 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
             duration = float(seg.get("real_seconds") or seg["est_seconds"])
             bg_seconds, _ = split_segment(duration, bool(seg.get("chart_data")))
             found = []
+            drawn = None  # a cast scene (studio/history/render.py) replaces stock footage for this segment
+            if cast_on and isinstance(seg.get("scene"), str) and seg["scene"] in cast_mod.SCENE_TYPES:
+                audio = Path(rows[pos].audio_path) if pos in rows and rows[pos].audio_path else None
+                drawn = cast_render.render_scene(seg, duration, out / "cast" / f"cast_{pos:03d}.mp4", out / "cast",
+                                                 audio, faction0, cast_stage)
+                scene_counts["cast"] = scene_counts.get("cast", 0) + 1
             queries = story_visuals.queries_for(seg) if use_intent else seg["visual_keywords"]
             query = " ".join([str((seg.get("visual_intent") or {}).get("must_show") or ""), seg.get("narration", "")]) \
                 if scorer else ""
-            for k in range(max(1, shots_needed(bg_seconds, shot_max=shot_max_for(pos, limits)))):
+            for k in range(0 if drawn else max(1, shots_needed(bg_seconds, shot_max=shot_max_for(pos, limits)))):
                 # alternate video and photo so the picture type changes with every shot; fall back to the other
                 order = [("clip", stock, used), ("image", images, used_img)]
                 got = False
@@ -179,7 +190,12 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
                         break
                 if not got:
                     break  # nothing more to find for this segment
-            if found:
+            if drawn:
+                vis.update(kind="scene", path=str(drawn), paths=[str(drawn)], scene_clip=str(drawn),
+                           scene={"kind": seg["scene"], "mode": "cast", "fell_back": False})
+                new_assets.append(Asset(video_id=video_id, kind="scene", path=str(drawn), licence=OWN_LICENCE,
+                                        source=f"generated cast scene ({seg['scene']})"))
+            elif found:
                 vis.update(kind=found[0][0], path=str(found[0][1].path), paths=[str(c.path) for _, c in found])
             else:
                 fallbacks += 1

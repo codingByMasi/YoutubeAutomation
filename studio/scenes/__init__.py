@@ -25,7 +25,7 @@ HELP = {
 def validate_scene(scene: object, where: str, seg: dict | None = None,
                    source_ids: set[str] | None = None) -> list[str]:
     """Problems with a segment's optional `scene` (empty list when fine or absent)."""
-    if scene in (None, {}):
+    if scene in (None, {}) or isinstance(scene, str):  # a string is a cast scene type (studio/history/cast.py)
         return []
     if not isinstance(scene, dict):
         return [f"{where}: scene must be an object"]
@@ -123,6 +123,8 @@ def plan(seg: dict, style: str, override: str = "") -> dict | None:
     A chart3d scene in 2D mode needs nothing extra: the regular 2D chart is its equivalent.
     """
     scene = seg.get("scene") or None
+    if isinstance(scene, str):  # cast scene type: drawn by studio/history/render.py, not a 2D/3D scene kind
+        scene = None
     seg_style = override or (scene or {}).get("style", "")
     if scene is None:
         items = chart_items(seg)

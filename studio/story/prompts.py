@@ -60,7 +60,8 @@ def compose(name: str, prof: dict, **values) -> str:
         hooks=read("hooks", prof["pack"]), cast_block=_cast_block(prof), tone=prof.get("tone", ""),
         recent="(no earlier videos on this channel yet)", facts_block="(none)")
     vals.update(values)
-    return read(name, prof["pack"]).format_map(vals)
+    from studio.story.profile import short_form_note
+    return read(name, prof["pack"]).format_map(vals) + short_form_note(prof)
 
 
 def j(obj: object) -> str:
