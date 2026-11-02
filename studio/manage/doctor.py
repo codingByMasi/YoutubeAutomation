@@ -119,11 +119,14 @@ def run_checks(settings: Settings) -> list[Check]:
                          "Use the channel ID (UC...), not the @handle.", "channel_id"))
     else:
         out.append(Check("YouTube upload", OK, "CHANNEL_ID set."))
-    if settings.token_path.exists():
-        out.append(Check("YouTube upload", OK, "Signed in (token.json exists)."))
+    from studio.youtube import auth
+    st = auth.status(settings)
+    if st["state"] == "connected":
+        out.append(Check("YouTube upload", OK, f"Signed in ({settings.token_path.name} found)."))
     else:
-        out.append(Check("YouTube upload", WARN, "Not signed in to Google yet.",
-                         "Press 'Sign in to Google' in the app (Setup page); a browser opens once.", "signin"))
+        out.append(Check("YouTube upload", WARN, st["message"],
+                         st["fix"] or "Press 'Sign in to Google' on the Setup page.",
+                         "signin"))
     return out
 
 
