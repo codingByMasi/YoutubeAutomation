@@ -337,6 +337,10 @@ def save_response(ctx: Ctx, video_id: int, text: str, task: str = "script") -> P
     clean = normalize_answer(text)  # raises a StudioError saying what is wrong and where
     _, rf = prompt_paths(ctx.settings.project_dir(video_id), task)
     rf.write_text(clean, encoding="utf-8")
+    # The user answered the prompt they were shown. Drop the recorded prompt hash so the answer is trusted even if
+    # the prompt text has been rebuilt differently since (code update, new topic ledger entry); otherwise the
+    # cache would call it stale, archive it, and ask again.
+    rf.with_name(rf.name.replace(".response.json", ".meta.json")).unlink(missing_ok=True)
     return rf
 
 
@@ -376,6 +380,24 @@ def fix_request(problems: list[str], task: str = "script") -> str:
             "Allowed `beat` values: question, reveal, example, pattern_break, or null. Charts with real figures need "
             "`source_ids` that exist in `sources`; a flow diagram with empty `values`, or a chart titled "
             "'made-up example', needs no source.")
+
+
+_TERMINAL_HINT = re.compile(r"(In Claude Code|Prompt written to|re-run|Re-run|LLM_PROVIDER)[^\n]*", re.I)
+
+
+def plain_pending(error: str) -> str:
+    """A 'waiting for an answer' message with no file paths or terminal commands, for the app."""
+    if "Prompt written to" in error or "LLM_PROVIDER" in error:
+        return "The request for Claude is ready. Copy it, paste Claude's reply into the box below, then press Apply."
+    return _TERMINAL_HINT.sub("", error).strip()
+
+
+def reply_again_request(error: str) -> str:
+    """Text to paste to Claude when its reply could not be read at all (cut off, not JSON, wrong task)."""
+    why = (error.split("\n")[0] if error else "it could not be read as JSON")[:300]
+    return ("Your last reply could not be used by the studio: " + why + "\n\nPlease send the complete answer again "
+            "as ONE JSON object only (start with { and end with }), no other text, no code fences, nothing cut off, "
+            "and exactly the keys the request asked for.")
 
 
 def rejected_answer(ctx: Ctx, video_id: int, task: str = "script") -> str:
