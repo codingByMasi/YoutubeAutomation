@@ -12,7 +12,7 @@ from PIL import ImageDraw, ImageFont
 
 from studio.context import Ctx
 from studio.errors import StageError, StudioError
-from studio.kids import build3d, draw, music, openutau, spec
+from studio.kids import build3d, cast, draw, music, openutau, spec
 from studio.kids.script import project_dir
 from studio.kids.sing_mix import sung_mix_cmd
 from studio.kids.sprites import SpriteBank
@@ -99,6 +99,7 @@ def run(ctx: Ctx, slug: str, force: bool = False, size: tuple[int, int] = (1280,
     if problems:
         raise StudioError("script.json is invalid:\n  - " + "\n  - ".join(problems), "",
                           "Fix the script (see the prompt file) and re-run.")
+    draw.register_cast(cast.load())
     ff.ensure_ffmpeg()
     from studio import production
     prod = production.resolve(ctx.settings)

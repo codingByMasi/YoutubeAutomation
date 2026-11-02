@@ -15,11 +15,13 @@ from PIL import Image, ImageDraw, ImageFont
 
 from studio.errors import StudioError
 
-MASCOT_KINDS = ("coin", "owl", "robot")
+# the 3D host characters (see scene_script.build_host); "analyst" is a stylised person
+MASCOT_KINDS = ("coin", "owl", "robot", "piggy", "bull", "analyst")
 MOODS = ("happy", "surprised", "thinking")
 CARD_STYLES = ("none", "card")  # intro / outro: nothing, or a short branded title/sign-off card
 MASCOT_FIELDS = {"name": "", "kind": "coin", "color": "", "look": "", "personality": "", "catchphrase": "",
-                 "intro_line": "", "outro_line": "", "on_thumbnail": True}
+                 "intro_line": "", "outro_line": "", "on_thumbnail": True,
+                 "skin": "", "hair": "", "hair_style": "short"}  # skin/hair/hair_style: analyst only
 THEME_FIELDS = {"bg": "", "accent": "", "accent2": "", "text": "", "heading_font": "", "intro_style": "none",
                 "outro_style": "card", "thumbnail_style": "", "motion": ""}
 PLAYLIST_FIELDS = {"name": "", "description": "", "title_pattern": "", "topics": [], "youtube_id": ""}
@@ -105,6 +107,10 @@ def clean_mascot(values: dict | None) -> dict:
         raise StudioError(f"'{out['kind']}' is not a mascot kind.", f"Choose one of: {', '.join(MASCOT_KINDS)}.",
                           "Change mascot kind.")
     out["color"] = _color(out["color"], "mascot colour")
+    out["skin"], out["hair"] = _color(out["skin"], "mascot skin colour"), _color(out["hair"], "mascot hair colour")
+    out["hair_style"] = str(out["hair_style"] or "short").strip().lower()
+    if out["hair_style"] not in ("short", "curly"):
+        raise StudioError(f"'{out['hair_style']}' is not a hair style.", "Choose short or curly.", "Change hair_style.")
     out["on_thumbnail"] = bool(out["on_thumbnail"])
     for k in ("name", "look", "personality", "catchphrase", "intro_line", "outro_line"):
         out[k] = str(out[k] or "").strip()
@@ -274,6 +280,31 @@ def mascot_image(mascot: dict, size: int = 400, mood: str = "happy") -> Image.Im
         d.ellipse([c - r * 0.95, c - r * 0.85, c + r * 0.95, c + r * 1.0], fill=base, outline=dark, width=big // 60)
         d.polygon([(c - r * 0.1, c + r * 0.12), (c + r * 0.1, c + r * 0.12), (c, c + r * 0.34)], fill="#F59E0B")
         _face(d, c, c - r * 0.1, r * 0.9, mood)
+    elif kind == "piggy":
+        for sx in (-1, 1):
+            d.polygon([(c + sx * r * 0.75, c - r * 0.55), (c + sx * r * 0.5, c - r), (c + sx * r * 0.2, c - r * 0.7)],
+                      fill=dark)
+        d.ellipse([c - r, c - r * 0.85, c + r, c + r * 0.9], fill=base, outline=dark, width=big // 60)
+        _face(d, c, c - r * 0.18, r * 0.9, mood)
+        d.ellipse([c - r * 0.3, c + r * 0.12, c + r * 0.3, c + r * 0.5], fill=dark)
+    elif kind == "bull":
+        for sx in (-1, 1):
+            d.polygon([(c + sx * r * 0.75, c - r * 0.5), (c + sx * r * 1.25, c - r * 1.05),
+                       (c + sx * r * 0.45, c - r * 0.7)], fill="#FFFFFF", outline=dark)
+        d.ellipse([c - r * 0.95, c - r * 0.85, c + r * 0.95, c + r * 0.95], fill=base, outline=dark, width=big // 60)
+        _face(d, c, c - r * 0.25, r * 0.9, mood)
+        d.ellipse([c - r * 0.45, c + r * 0.2, c + r * 0.45, c + r * 0.75], fill=dark)
+    elif kind == "analyst":  # a stylised person: shoulders, head, hair and glasses
+        skin = mascot.get("skin") or "#E0A87C"
+        hair = mascot.get("hair") or "#2B1B12"
+        d.pieslice([c - r * 1.0, c + r * 0.35, c + r * 1.0, c + r * 1.9], 180, 360, fill=base)
+        d.ellipse([c - r * 0.5, c - r * 0.85, c + r * 0.5, c + r * 0.4], fill=skin)
+        d.pieslice([c - r * 0.55, c - r * 0.95, c + r * 0.55, c + r * 0.1], 180, 360, fill=hair)
+        _face(d, c, c - r * 0.2, r * 0.8, mood)
+        for sx in (-1, 1):
+            gx = c + sx * r * 0.272
+            d.ellipse([gx - r * 0.2, c - r * 0.37, gx + r * 0.2, c - r * 0.03], outline="#1B1B1B", width=big // 90)
+        d.line([c - r * 0.07, c - r * 0.25, c + r * 0.07, c - r * 0.25], fill="#1B1B1B", width=big // 90)
     elif kind == "robot":
         d.line([c, c - r * 1.0, c, c - r * 0.75], fill=dark, width=big // 40)
         d.ellipse([c - r * 0.1, c - r * 1.12, c + r * 0.1, c - r * 0.92], fill=dark)

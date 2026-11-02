@@ -268,12 +268,18 @@ def sfx_filters(events: list[tuple[str, float]], first_input: int) -> tuple[list
 
 
 SFX_DB = {"whoosh": -14, "pop": -17, "hit": -12}
-LOUDNORM = "loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000"  # YouTube's reference loudness is about -14 LUFS
+LOUDNORM = "loudnorm=I=-14:TP=-1:LRA=11,aresample=48000"  # default target; YouTube's reference is about -14 LUFS
+
+
+def loudnorm(lufs: float = -14.0, true_peak: float = -1.0) -> str:
+    """ffmpeg loudnorm filter for a configurable integrated loudness and true-peak ceiling."""
+    return f"loudnorm=I={lufs:g}:TP={true_peak:g}:LRA=11,aresample=48000"
 
 
 def mix_cmd(video: Path, voice: Path, out: Path, music: Path | None, music_db: float = -20.0,
             subtitles: Path | None = None, sfx: dict[str, Path] | None = None,
-            sfx_events: list[tuple[str, float]] | None = None, total: float | None = None) -> list[str]:
+            sfx_events: list[tuple[str, float]] | None = None, total: float | None = None,
+            lufs: float = -14.0, true_peak: float = -1.0) -> list[str]:
     """Mux narration onto the video, with looped music ducked under the voice, optional sound effects at
     given times, loudness-normalised. Burns subtitles when given (re-encodes the picture)."""
     cmd = ["ffmpeg", "-y", "-i", str(video), "-i", str(voice)]
@@ -300,10 +306,10 @@ def mix_cmd(video: Path, voice: Path, out: Path, music: Path | None, music_db: f
             parts += lines
             mix_in.append("[sfx]")
         parts.append(f"{''.join(mix_in)}amix=inputs={len(mix_in)}:duration=first:dropout_transition=0:"
-                     f"normalize=0,{LOUDNORM}[a]")
+                     f"normalize=0,{loudnorm(lufs, true_peak)}[a]")
         cmd += ["-filter_complex", ";".join(parts), "-map", "0:v", "-map", "[a]"]
     else:
-        cmd += ["-af", LOUDNORM, "-map", "0:v", "-map", "1:a"]
+        cmd += ["-af", loudnorm(lufs, true_peak), "-map", "0:v", "-map", "1:a"]
     p = profile()
     # Without subtitles the picture is already encoded: copy it instead of encoding the whole video again.
     video_codec = (["-c:v", "libx264", "-preset", p.preset, "-crf", str(p.crf), "-pix_fmt", "yuv420p"] if subtitles

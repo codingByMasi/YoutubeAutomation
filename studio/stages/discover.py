@@ -22,12 +22,18 @@ log = get_logger("discover")
 AUTO_SEED = "auto"
 SKIP_WORDS = set("a an the of to in on for and or how why what is are does do did can with my your their its".split())
 # Off-channel: games, pay/jobs, how-to-hustle and clickbait. The channel explains business models.
-BLOCKED = {
-    "simulator", "tycoon", "roblox", "minecraft", "gta", "game", "games", "gameplay", "mod", "mods", "cheat",
-    "hack", "free", "salary", "salaries", "pay", "paid", "employee", "employees", "job", "jobs", "hiring",
-    "career", "careers", "interview", "crew", "worker", "workers", "wage", "wages", "income", "app", "apk",
-    "download", "reddit", "movie", "song", "lyrics", "meme", "sims",
-}
+BLOCKED_PATTERNS = [re.compile(p, re.I) for p in (
+    r"\b(simulator|tycoon|roblox|minecraft|gta|gameplay|walkthrough|cheats?(?: codes?)?|mods?|apk|lyrics|memes?)\b",
+    r"\bhow (?:much|to) .*\b(?:employees?|workers?|crew|staff)\b.*\b(?:make|earn|paid)\b",
+    r"\bhow much (?:do|does|are|is) .*\b(?:paid|pay)\b", r"\b(?:salary|salaries|wages?|hourly pay)\b",
+    r"\b(?:jobs?|careers?) (?:at|in|with)\b", r"\b(?:hiring|job interview|interview questions)\b",
+    r"\bhow to (?:get|find|land) (?:a )?(?:job|hired)\b", r"\b(?:free (?:download|robux|v-?bucks|gift ?cards?|money))\b",  # noqa: E501
+    r"\b(?:download|install) (?:the )?(?:app|apk)\b", r"\b(?:hack|hacks|hacked) (?:for|to|into)\b",
+    r"\bmake money (?:in|on|playing) (?:the )?(?:game|games|roblox|sims)\b", r"\bgame (?:guide|tips)\b",
+    r"\breddit (?:thread|post)\b", r"\b(?:movie|song) (?:review|trailer)\b",
+)]
+# Kept for callers that import it: single words are no longer enough on their own to drop a topic.
+BLOCKED: set[str] = set()
 FIT_WORDS = {"money", "profit", "profits", "business", "economics", "revenue", "earn", "earns", "makes", "make",
              "model", "billion", "cost", "price", "pricing", "work", "works", "failed", "collapse", "rich",
              "worth", "valuation", "scam", "trap", "margin", "subsidy", "monopoly"}
@@ -67,8 +73,7 @@ def is_duplicate(topic: str, others: list[frozenset[str]]) -> bool:
 
 def off_channel(topic: str) -> bool:
     """True for topics the channel would not make (games, salaries, jobs, downloads...)."""
-    words = set(re.findall(r"[a-z0-9]+", topic.lower()))
-    return bool(words & BLOCKED)
+    return any(p.search(topic) for p in BLOCKED_PATTERNS)
 
 
 def fits_channel(topic: str, seed: str = "", strict: bool = True) -> bool:

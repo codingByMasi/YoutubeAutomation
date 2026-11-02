@@ -12,9 +12,11 @@ numpy>=1.26
 cairosvg>=2.7  # kids mode SVG characters (optional: falls back to code-drawn shapes)
 pytest>=8.0
 streamlit>=1.40
-# Optional extras (install only if you use them):
-# faster-whisper>=1.0   # word-accurate captions; without it captions come from the script text
+# Optional extras (install only if you use them; see requirements-optional.txt for the story-engine extras):
 # anthropic>=0.40       # LLM_PROVIDER=anthropic
 # openai>=1.40          # LLM_PROVIDER=openai
 # google-genai>=1.0     # LLM_PROVIDER=gemini
 psutil>=5.9
+pydantic>=2.5            # validates every LLM answer (one model per task)
+requests>=2.31           # fact verification fetches source pages
+faster-whisper>=1.0      # word-accurate captions and caption-sync checks (falls back to script timing if it cannot run)

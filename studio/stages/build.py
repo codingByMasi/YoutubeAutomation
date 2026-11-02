@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
@@ -20,6 +21,7 @@ from studio.stages.script import load_package, timeline, write_package
 from studio.stages.timing import plan_segment, shot_max_for
 from studio.stages.visuals import visual_paths
 from studio.util import ffmpeg as ff
+from studio.util import progress
 from studio.util.logging import get_logger
 
 log = get_logger("build")
@@ -43,6 +45,27 @@ def licence_for(path: Path) -> str:
 def first_file(folder: Path, exts: set[str]) -> Path | None:
     files = sorted(p for p in folder.glob("*") if p.suffix.lower() in exts) if folder.exists() else []
     return files[0] if files else None
+
+
+def _mood_music(ctx, assets: Path, segs: list[dict], spans, sprof: dict):
+    """Per-chapter mood bed (tense/neutral/resolve) for story-engine scripts; None means use the standard bed.
+
+    An owner file in assets/music/<mood>/ wins for the dominant mood. Any failure falls back to the plain bed."""
+    from studio.story import mood as mood_mod
+    from studio.story import profile as sprofile
+    if not (sprofile.enabled(sprof, "mood_music") and any(g.get("emotion") for g in segs)):
+        return None
+    try:
+        plan = mood_mod.plan(segs, spans, sprof)
+        top = max(plan["chapters"], key=lambda c: c[1] - c[0])[2]
+        own = mood_mod.mood_folder_track(assets / "music", top)
+        if own:
+            return own
+        return sound.mood_bed(assets / "cache" / "sound" / "mood_bed.wav", plan["chapters"], plan["drops"])
+    except Exception as exc:  # noqa: BLE001 - music is never worth failing a build
+        from studio import health
+        health.record(ctx.settings.root, "music (mood bed)", exc)
+        return None
 
 
 def _title_card(ctx: Ctx, prod: dict, pkg: dict, tmp: Path) -> Path | None:
@@ -131,8 +154,9 @@ def sfx_events(segs: list[dict], plans: list[list[tuple[Path, float]]]) -> list[
     return events
 
 
-def render_picture(segs: list[dict], work: Path,
-                   limits: dict | None = None) -> tuple[list[Path], list[list[tuple[Path, float]]]]:
+def render_picture(segs: list[dict], work: Path, limits: dict | None = None,
+                   on_step: Callable[[int, int], None] | None = None
+                   ) -> tuple[list[Path], list[list[tuple[Path, float]]]]:
     """Render every shot, cross-dissolve the shots inside each segment, and return (segment clips, plans).
 
     Segments are joined by a hard cut (with a whoosh); shots within a segment dissolve into each other.
@@ -181,15 +205,24 @@ def render_picture(segs: list[dict], work: Path,
             ff.run(ff.xfade_cmd(files, [s for _, s in plan], out), f"dissolving shots of segment {pos}")
         return out
 
+    steps = [0]
+
+    def report(total: int) -> None:
+        steps[0] += 1
+        if on_step:
+            on_step(steps[0], total)
+
     with typer.progressbar(length=len(jobs) + len(segs), label="Rendering shots") as bar, \
             ThreadPoolExecutor(workers()) as pool:
         for f in as_completed([pool.submit(render, j) for j in jobs]):
             f.result()  # re-raises the first failure
             bar.update(1)
+            report(len(jobs) + len(segs))
         outs = []
         for f in [pool.submit(join, pos) for pos in range(1, len(segs) + 1)]:
             outs.append(f.result())
             bar.update(1)
+            report(len(jobs) + len(segs))
     return outs, plans
 
 
@@ -198,8 +231,17 @@ def run(ctx: Ctx, video_id: int, force: bool = False) -> None:
     video = get_video(s, video_id)
 
     def work() -> None:
+        with progress.tracking(ctx.settings.project_dir(video_id), "build", 1, "steps") as prog:
+            _work(prog)
+
+    def _work(prog: progress.Run) -> None:
         ff.ensure_ffmpeg()
         out = ctx.settings.project_dir(video_id)
+
+        def on_step(done: int, total: int) -> None:
+            # shots and joins are the bulk of the work; mixing, captions and the final encode take a little more
+            prog.total = total + 2
+            prog.step(done, f"Rendering shot or join {done} of {total}")
         tmp = out / "build_tmp"
         tmp.mkdir(exist_ok=True)
         pkg = load_package(ctx, video_id)
@@ -207,9 +249,11 @@ def run(ctx: Ctx, video_id: int, force: bool = False) -> None:
         assets = ctx.settings.assets_dir
 
         # 1. picture track
-        seg_clips, plans = render_picture(segs, tmp, rules.edit_limits(ctx.settings.root))
+        seg_clips, plans = render_picture(segs, tmp, rules.edit_limits(ctx.settings.root), on_step=on_step)
         ff.run(ff.concat_cmd(ff.concat_list(seg_clips, tmp / "parts.txt"), tmp / "picture.mp4",
                              reencode=False), "joining segments")
+
+        prog.step(prog.total - 1, "Adding narration, captions and music")
 
         # 2. narration track
         voices = [out / "voice" / f"seg_{i:03d}.mp3" for i in range(1, len(segs) + 1)]
@@ -218,10 +262,27 @@ def run(ctx: Ctx, video_id: int, force: bool = False) -> None:
 
         # 3. captions: word-timed (whisper if installed, else estimated from segment timings)
         spans = timeline(segs)
-        words = whisper_words(tmp / "narration.wav")
-        caption_source = "whisper" if words else "script"
+        from studio import health
+        from studio.story import narration as nar
+        from studio.story import profile as sprofile
+        sprof_c = sprofile.for_channel(ctx.settings.root)
+        stored = [g.get("words") for g in segs]
+        words, ref = None, None
+        if all(stored):  # word times straight from the voice engine (no extra model run)
+            words, caption_source = nar.abs_words(stored, spans), "tts"
+        if sprofile.enabled(sprof_c, "caption_sync_check") or words is None:
+            try:
+                ref = whisper_words(tmp / "narration.wav")
+            except Exception as exc:  # noqa: BLE001 - whisper trouble must not stop the build
+                health.record(ctx.settings.root, "captions (whisper)", exc)
+                typer.secho("Whisper could not run, so captions are timed from the voice/script instead "
+                            "(see the Issues panel).", fg=typer.colors.YELLOW)
+        if words is None:
+            words, caption_source = (ref, "whisper") if ref else (None, "script")
         words = words or captions.words_from_script(spans, [g["narration"] for g in segs])
-        cues = cues_from_words(words) if caption_source == "whisper" else script_cues(
+        sync = nar.sync_report(words, ref, [g["narration"] for g in segs]) if (ref and caption_source == "tts") else []
+        (out / "caption_sync.json").write_text(json.dumps(sync), encoding="utf-8")
+        cues = cues_from_words(words) if caption_source in ("whisper", "tts") else script_cues(
             spans, [g["narration"] for g in segs])
         chapters, prev = [], None
         for (start, _), g in zip(spans, segs):
@@ -239,13 +300,17 @@ def run(ctx: Ctx, video_id: int, force: bool = False) -> None:
         prod = production.resolve(ctx.settings, video_id)
         snd = sound.ensure_sound(assets / "cache" / "sound", prod["music_mood"])
         music = first_file(assets / "music", AUDIO_EXT) if prod["music"] != "none" else None
+        if music is None and prod["music"] != "none":
+            music = _mood_music(ctx, assets, segs, spans, sprof_c)
         if prod["music"] == "none":
             music = snd["silence"]
             s.add(Asset(video_id=video_id, kind="music", path=str(music), source="no music (channel setting)",
                         licence=sound.OWN_LICENCE))
         elif music:
-            s.add(Asset(video_id=video_id, kind="music", path=str(music), source=music.name,
-                        licence=licence_for(music)))
+            generated = music.name == "mood_bed.wav"
+            s.add(Asset(video_id=video_id, kind="music", path=str(music),
+                        source="generated mood music bed" if generated else music.name,
+                        licence=sound.OWN_LICENCE if generated else licence_for(music)))
         else:
             music = snd["music"]
             s.add(Asset(video_id=video_id, kind="music", path=str(music), source="generated music bed",
@@ -254,8 +319,11 @@ def run(ctx: Ctx, video_id: int, force: bool = False) -> None:
         events = sfx_events(segs, plans)
         total = spans[-1][1] if spans else None
         clean = out / "clean.mp4"  # no burned captions; Shorts are cut from this
+        from studio.story import profile as story_profile
+        sprof = story_profile.for_channel(ctx.settings.root)
         ff.run(ff.mix_cmd(tmp / "picture.mp4", tmp / "narration.wav", clean, music, MUSIC_DB,
-                          sfx={k: snd[k] for k in sound.SFX}, sfx_events=events, total=total), "mixing audio")
+                          sfx={k: snd[k] for k in sound.SFX}, sfx_events=events, total=total,
+                          lufs=sprof["lufs_target"], true_peak=sprof["true_peak"]), "mixing audio")
         main = tmp / "main.mp4"
         ff.run(["ffmpeg", "-y", "-i", str(clean), "-vf", ff._sub_filter(main_ass),
                 "-c:v", "libx264", "-preset", ff.profile().preset, "-crf", str(ff.profile().crf), "-pix_fmt", "yuv420p",

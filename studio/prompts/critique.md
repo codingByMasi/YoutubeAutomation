@@ -22,6 +22,11 @@ source, and do not copy any other creator's work.
 - `originality`: a fresh angle, own examples and comparisons; sources cited; estimates labelled.
 - `trust`: no hype, no banned phrases ({banned}), no investment advice or guarantees.
 
+- `number_accuracy`: every figure traces to a fact id in facts.json and is worded as the fact says; estimates are
+  worded as estimates; no number is rounded in a way that changes the point.
+- `actionability`: the viewer leaves with one thing they can check, compare or do; not-financial-advice is handled
+  in plain words, with no promises of returns.
+
 # Rules for the rewrite
 - Same JSON shape as the script package below (titles, thumbnail_texts, sources, segments, cta, and so on).
 - Segments 8-30 seconds each, hook at most 15, `est_seconds` = words / 2.5, `beat` (only `question`, `reveal`, `example`, `pattern_break` or `null`; never "explain") set at least every 20-40 s,
@@ -36,8 +41,7 @@ source, and do not copy any other creator's work.
 
 # Output: one JSON object with exactly these keys
 {{
-  "scores": {{"hook": 3, "stakes": 3, "curiosity_loops": 3, "pacing": 3, "concreteness": 3, "clarity": 3,
-             "story_arc": 3, "payoff_ending": 3, "originality": 3, "trust": 3}},
+  "scores": {{{score_skeleton}}},
   "verdict": "two sentences: the biggest reason viewers would leave, and what the rewrite does about it",
   "fixes": ["quote of weak line -> what was wrong -> what the rewrite does (5-10 items, worst first)"],
   "revised": {{ "... the complete revised script package, same keys as the current one ..." : "" }}

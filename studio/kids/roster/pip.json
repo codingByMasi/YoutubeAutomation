@@ -1,0 +1,18 @@
+{
+  "id": "pip",
+  "name": "Pip the Duckling",
+  "species": "duckling",
+  "role": "Cheerful lead who starts the songs",
+  "personality": "Bouncy, brave and a little bossy; always the first to say 'let's sing!'.",
+  "catchphrase": "Quack-quack, let's sing!",
+  "main": "#FFD83A",
+  "accent": "#FF8A1F",
+  "look": "Small yellow duckling with a feather tuft and a red scarf.",
+  "rhymes": [
+    "Five Little Ducks",
+    "Old MacDonald",
+    "Rain, Rain, Go Away",
+    "animal sounds"
+  ],
+  "builder": "pip"
+}

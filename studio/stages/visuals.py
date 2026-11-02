@@ -17,9 +17,11 @@ from studio.providers.images import make_images
 from studio.quality import rules
 from studio.scenes import render3d
 from studio.scenes import stage as scene_stage
+from studio.scenes.budget import SceneBudget
 from studio.stages.base import get_video, run_stage
 from studio.stages.script import CHART_GAP_MAX, load_package, timeline, write_package
 from studio.stages.timing import shot_max_for, shots_needed, split_segment
+from studio.util import progress
 from studio.util.logging import get_logger
 from studio.util.media_check import check_media, dhash, similar, video_hash
 
@@ -34,15 +36,25 @@ def media_hash(path: Path, kind: str) -> int | None:
     return video_hash(path) if kind == "clip" else dhash(path)
 
 
-def find_valid(prov, keywords: list[str], seen: set, kind: str, hashes: list[int], rejected: list[str]):
+def find_valid(prov, keywords: list[str], seen: set, kind: str, hashes: list[int], rejected: list[str],
+               avoid: set[str] | None = None, scorer=None, query: str = ""):
     """Next candidate from `prov` that passes the quality gate and is not a near-duplicate of an earlier shot.
 
-    Bad candidates are noted in `rejected` and skipped (the provider already marks them as seen).
+    Bad candidates are noted in `rejected` and skipped (the provider already marks them as seen). Assets in
+    `avoid` (used by the channel's last videos) are skipped while tries remain; the last try accepts a reuse.
+    With a semantic `scorer`, up to three candidates are fetched and the best match for `query` is kept.
     """
-    for _ in range(MAX_TRIES):
+    for attempt in range(MAX_TRIES):
         clip = prov.find(keywords, seen)
         if clip is None:
             return None
+        if scorer is not None and query:
+            extra = [c for c in (prov.find(keywords, seen) for _ in range(2)) if c is not None]
+            from studio.story.visuals import best_candidate
+            clip = best_candidate(scorer, query, [clip, *extra])
+        if avoid and clip.page_url in avoid and attempt < MAX_TRIES - 1:
+            rejected.append(f"{clip.path.name}: used in a recent video")
+            continue
         problems = check_media(clip.path, kind)
         h = None if problems else media_hash(clip.path, kind)
         if not problems and h is not None and any(similar(h, o) for o in hashes):
@@ -85,10 +97,13 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
     def work() -> None:
         from studio import production
         prod = production.resolve(ctx.settings, video_id)
-        with brand.use(prod["palette"], prod.get("theme")):
-            _work(prod)
+        folder = ctx.settings.project_dir(video_id)
+        total = len(load_package(ctx, video_id)["segments"])
+        with progress.tracking(folder, "visuals", total, "segments") as prog, \
+                brand.use(prod["palette"], prod.get("theme")):
+            _work(prod, prog)
 
-    def _work(prod: dict) -> None:
+    def _work(prod: dict, prog: progress.Run) -> None:
         nonlocal stock, images
         if stock is UNSET:
             name, stock = make_footage(ctx.settings)
@@ -118,17 +133,43 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
         animated = 0
         blender = render3d.Blender3D(ctx.settings.blender_path)
         scene_counts: dict[str, int] = {}
+        planned = {p: scenes.plan_for(g, p, prod) for p, g in enumerate(pkg["segments"], 1)}
+        todo3d = {p: min(float(g.get("real_seconds") or g["est_seconds"]), render3d.MAX_SECONDS)
+                  for p, g in enumerate(pkg["segments"], 1) if (planned[p] or {}).get("mode") == "3d"}
+        budget = SceneBudget(count=len(todo3d), folder=out)
+        budget.segments, budget.run = len(pkg["segments"]), prog
+        progress.clear_cancel(out)
+        if todo3d:
+            typer.echo(f"{len(todo3d)} scenes will be rendered in 3D (about {render3d.FPS_3D} frames per second of "
+                       f"video). Progress and time left are shown per scene; cancel any time with "
+                       f"'cancel {video_id}' or the Cancel button.")
+        from studio.story import profile as sprofile
+        from studio.story import visuals as story_visuals
+        sprof = sprofile.for_channel(ctx.settings.root)
+        use_intent = sprofile.enabled(sprof, "visual_intent")
+        avoid = story_visuals.recent_assets(ctx.settings.root, 3, video_id) \
+            if sprofile.enabled(sprof, "footage_reuse_ledger") else set()
+        scorer = story_visuals.make_scorer() if sprofile.enabled(sprof, "semantic_visuals") else None
         for pos, seg in enumerate(pkg["segments"], 1):
+            left3d = None
+            if budget.sec_per_frame and todo3d:
+                left3d = (budget.remaining + todo3d.get(pos, 0)) * render3d.FPS_3D * budget.sec_per_frame
+            prog.step(pos - 1, f"Segment {pos} of {len(pkg['segments'])}", eta_seconds=left3d,
+                      scene=budget.finished, scenes=budget.count)
             vis: dict = {}
             duration = float(seg.get("real_seconds") or seg["est_seconds"])
             bg_seconds, _ = split_segment(duration, bool(seg.get("chart_data")))
             found = []
+            queries = story_visuals.queries_for(seg) if use_intent else seg["visual_keywords"]
+            query = " ".join([str((seg.get("visual_intent") or {}).get("must_show") or ""), seg.get("narration", "")]) \
+                if scorer else ""
             for k in range(max(1, shots_needed(bg_seconds, shot_max=shot_max_for(pos, limits)))):
                 # alternate video and photo so the picture type changes with every shot; fall back to the other
                 order = [("clip", stock, used), ("image", images, used_img)]
                 got = False
                 for kind, prov, seen in (order if k % 2 == 0 else order[::-1]):
-                    clip = find_valid(prov, seg["visual_keywords"], seen, kind, hashes, rejected) if prov else None
+                    clip = find_valid(prov, queries, seen, kind, hashes, rejected, avoid, scorer,
+                                      query) if prov else None
                     if clip:
                         got = True
                         found.append((kind, clip))
@@ -157,10 +198,20 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
                 for f in frames:
                     new_assets.append(Asset(video_id=video_id, kind="chart", path=str(f),
                                 source=source_line(seg["chart_data"], pkg["sources"]), licence=OWN_LICENCE))
-            pl = scenes.plan(seg, prod["scene_style"], prod["segment_styles"].get(pos, ""))
+            pl = planned[pos]
             if pl:
                 note = scene_note(seg, pl["scene"], pkg["sources"])
-                res = scene_stage.draw(pl, seg, pos, out / "scenes", charts_dir, blender, note, duration)
+                budget.remaining = sum(s for p, s in todo3d.items() if p > pos)
+                res = scene_stage.draw(pl, seg, pos, out / "scenes", charts_dir, blender, note, duration, budget,
+                                       Path(rows[pos].audio_path) if pos in rows and rows[pos].audio_path else None)
+                if pos in todo3d:
+                    todo3d.pop(pos)
+                    if res["mode"] == "3d":
+                        left = ""
+                        if budget.sec_per_frame and budget.remaining:
+                            left = progress.fmt_duration(budget.remaining * render3d.FPS_3D * budget.sec_per_frame)
+                        typer.echo(f"3D scene {budget.finished} of {budget.count} done"
+                                   + (f"; about {left} left for the rest." if left else "."))
                 scene_counts[res["mode"]] = scene_counts.get(res["mode"], 0) + 1
                 vis["scene"] = {"kind": res["kind"], "mode": res["mode"], "fell_back": res["fell_back"]}
                 if res["clip"]:
@@ -181,6 +232,8 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
                               Asset.kind.in_(["clip", "image", "card", "chart", "scene"])).delete()
         s.add_all(new_assets)
         s.commit()  # release the write lock before reports and file writes
+        story_visuals.record_assets(ctx.settings.root, video_id,
+                                    [a.attribution_url for a in new_assets if a.kind in ("clip", "image") and a.attribution_url])  # noqa: E501
         write_package(ctx, video_id, pkg)
         if rejected:
             typer.echo(f"Quality gate rejected {len(rejected)} bad or duplicate candidates (e.g. {rejected[0]}).")

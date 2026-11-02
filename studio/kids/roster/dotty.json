@@ -1,0 +1,17 @@
+{
+  "id": "dotty",
+  "name": "Dotty Ladybug",
+  "species": "ladybug",
+  "role": "Curious spotter of colours and numbers",
+  "personality": "Curious and observant; counts her spots and notices colours.",
+  "catchphrase": "Spot the spots!",
+  "main": "#E8212E",
+  "accent": "#1B1B26",
+  "look": "Round red ladybug with black dots, a black face and yellow-tipped antennae.",
+  "rhymes": [
+    "colour songs",
+    "counting dots",
+    "bug and garden rhymes"
+  ],
+  "builder": "dotty"
+}
