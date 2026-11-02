@@ -73,7 +73,7 @@ def plan(pack: str) -> dict:
     hooks = []
     for i in range(8):
         t = types[i % len(types)]
-        hooks.append({"hook_type": t, "line": f"Why does variant {i} cost 4 times more? Find out by the end."
+        hooks.append({"hook_type": t, "line": f"Why does variant {chr(65+i)} cost four times more? Find out at the end."
                       if not kids else f"Look, it is Pip! Where is the ball {i}?", "why": "curiosity gap",
                       "score": {"curiosity": 3 + i % 3, "clarity": 4, "stakes": 3 + i % 2, "promise": 4}})
     return {"facts": facts() if not kids else facts()[:4],

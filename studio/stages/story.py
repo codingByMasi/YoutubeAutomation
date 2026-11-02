@@ -17,9 +17,8 @@ from studio.llm import ask_json, prompt_paths
 from studio.models import Idea
 from studio.stages.base import get_video, stage_index
 from studio.stages.script import (
-    DEFAULT_STYLE,
     _brief,
-    _spec_section,
+    _style,
     load_package,
     normalize_package,
     replace_package,
@@ -143,7 +142,7 @@ def run_outline(ctx: Ctx, idea_id: int, force: bool = False) -> dict:
     topic = ctx.session.get(Idea, idea_id).topic
     prof = story_profile.for_channel(ctx.settings.root)
     prompt = story_prompts.compose("outline", prof, topic=topic, brief=_brief(ctx.settings.root),
-                                   style=_spec_section(ctx.settings.root, 9, DEFAULT_STYLE))
+                                   style=_style(ctx.settings.root, prof))
     d = ask_json(ctx.settings, ctx.settings.project_dir(video.id), "outline", prompt,
                  validate=lambda x: validate_outline(x, prof), force=force)
     pick = next(h for h in d["hooks"] if h.get("pick"))
