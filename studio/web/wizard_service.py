@@ -75,3 +75,53 @@ def script_next_step(ctx: Ctx, video: Video, engine: bool = False) -> dict:
                             "then paste the new reply."}
     return {"step": 2, "task": task, "rejected": False, "done": False,
             "headline": f"Next: copy the request into Claude, then paste its reply for {label} below."}
+
+
+FLOW_LABELS = {"plan": "Plan story", "script": "Write script", "review": "Review"}
+_FLOW_TASK = {"plan": "story_plan", "script": "script"}
+_FLOW_INSTRUCTION = {
+    "plan": "Claude finds real facts with sources and plans the hook and open loops. This is what makes the "
+            "script accurate and worth watching.",
+    "script": "Claude now writes the full script from your plan.",
+    "review": "Claude scores the script, finds where viewers would leave, and rewrites it stronger.",
+}
+
+
+def script_flow(ctx: Ctx, video: Video) -> dict:
+    """The Script screen as one path: {steps: [(id, label, state)], current, task, instruction, legacy, done_count}.
+
+    state is 'done', 'skipped', 'now' or 'todo'. `current` is None when the script is approved. The plan always
+    comes first, so a script is never requested without facts and open loops. A script written before the story
+    plan existed (`legacy`) shows the plan as skipped and goes straight to the review."""
+    from studio.story import engine as eng
+    from studio.story import profile as sp
+
+    st = eng.load_state(ctx.settings.project_dir(video.id))
+    review_on = sp.enabled(sp.for_channel(ctx.settings.root), "story_review")
+    scripted = STAGES.index(video.stage) >= STAGES.index("scripted")
+    legacy = scripted and st["plan"] != "done" and st["script"] != "done"
+    keys = ["plan", "script"] + (["review"] if review_on else [])
+    done = {k: st[k] == "done" or (k == "script" and scripted) for k in keys}
+    if legacy:
+        done["plan"] = True
+    current = next((k for k in keys if not done[k]), None)
+    steps = [(k, FLOW_LABELS[k], "skipped" if legacy and k == "plan" else "done" if done[k]
+              else "now" if k == current else "todo") for k in keys]
+    task = None
+    if current == "review":
+        task = "story_review" if legacy else eng.pending_task_name(ctx, video.id)
+    elif current:
+        task = _FLOW_TASK[current]
+    return {"steps": steps, "current": current, "task": task, "legacy": legacy,
+            "instruction": _FLOW_INSTRUCTION.get(current or "", ""), "done_count": sum(done.values())}
+
+
+def skip_review(ctx: Ctx, video: Video) -> None:
+    """Mark the review done without running it (the owner chose to move on)."""
+    from studio.story import engine as eng
+
+    out = ctx.settings.project_dir(video.id)
+    st = eng.load_state(out)
+    st["plan"] = st["plan"] if st["plan"] == "done" else "done"
+    st["script"], st["review"] = "done", "done"
+    eng.save_state(out, st)

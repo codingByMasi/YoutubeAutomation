@@ -69,3 +69,30 @@ def test_engine_state_starts_with_story_plan(make_ctx):
     idea, v = _video(ctx)
     st = wiz.script_next_step(ctx, v, engine=True)
     assert st["task"] == "story_plan" and st["step"] == 1
+
+
+def test_script_flow_plan_first_then_done(make_ctx):
+    from studio.story import engine
+    from studio.web import wizard_service as wiz
+    ctx = make_ctx()
+    idea, v = _video(ctx)
+    f = wiz.script_flow(ctx, v)
+    assert f["current"] == "plan" and f["task"] == "story_plan"
+    assert [s[0] for s in f["steps"]] == ["plan", "script", "review"] and f["done_count"] == 0
+    out = ctx.settings.project_dir(v.id)
+    st = engine.load_state(out)
+    st["plan"] = "done"
+    engine.save_state(out, st)
+    assert wiz.script_flow(ctx, v)["current"] == "script"
+    wiz.skip_review(ctx, v)
+    assert wiz.script_flow(ctx, v)["current"] is None
+
+
+def test_script_flow_legacy_script_goes_to_review(make_ctx):
+    from studio.web import wizard_service as wiz
+    ctx = make_ctx()
+    idea, v = _video(ctx)
+    v.stage = "scripted"
+    ctx.session.commit()
+    f = wiz.script_flow(ctx, v)
+    assert f["legacy"] and f["current"] == "review" and f["steps"][0][2] == "skipped"
