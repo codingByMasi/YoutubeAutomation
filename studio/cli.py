@@ -144,6 +144,19 @@ def visuals(video_id: int, force: bool = FORCE) -> None:
 
 
 @app.command()
+def cancel(video_id: int) -> None:
+    """Stop the slow 3D rendering of a running `visuals` step; the remaining scenes are drawn in 2D instead."""
+    from studio.config import load_settings
+    from studio.util import progress
+    folder = load_settings().project_dir(video_id)
+    if not progress.is_active(folder):
+        typer.echo(f"Nothing is running for video {video_id}.")
+        return
+    progress.request_cancel(folder)
+    typer.echo("Cancel requested. The current 3D scene stops within a few seconds and the rest are drawn in 2D.")
+
+
+@app.command()
 def plan(video_id: int, draft: bool = typer.Option(False, "--draft", help="Show the fast-draft resolution.")) -> None:
     """Show what `visuals` and `build` will use (scenes, charts, search words, resolution, tools) before rendering."""
     from studio import plan_preview
@@ -274,6 +287,31 @@ def comments(target: str = typer.Argument(..., help="A video id to draft replies
 
 
 @app.command()
+def week(save: bool = typer.Option(True, help="Also write reports/week.md.")) -> None:
+    """This week's plan across every channel: what is due, which topics to approve, time budget. Publishes nothing."""
+    from datetime import date
+
+    from studio.growth import channels, weekly_plan
+    from studio.models import Idea, Title, Video
+    ctx = _ctx()
+    s = ctx.session
+    chans = channels.list_channels(ctx.settings.root)
+    due: dict[str, list[dict]] = {}
+    for c in chans:
+        ids = s.query(Idea.id).filter(Idea.channel_id == c["id"]).scalar_subquery()
+        for v in s.query(Video).filter(Video.idea_id.in_(ids), Video.youtube_video_id.is_(None)).order_by(Video.id):
+            t = s.query(Title).filter_by(video_id=v.id, is_pick=True).first()
+            due.setdefault(c["id"], []).append({"id": v.id, "stage": v.stage, "publish_at": v.publish_at,
+                                               "title": t.text if t else s.get(Idea, v.idea_id).topic})
+    text = weekly_plan.render_markdown(weekly_plan.build(chans, due, date.today()))
+    typer.echo(text)
+    if save:
+        out = ctx.settings.root / "reports" / "week.md"
+        out.parent.mkdir(exist_ok=True)
+        out.write_text(text, encoding="utf-8")
+
+
+@app.command()
 def calendar(weeks: int = typer.Option(4)) -> None:
     """4-week content calendar from approved ideas, with gaps flagged against cadence."""
     from studio.manage import calendar as m
@@ -325,6 +363,8 @@ def _fields(name, niche, description, posts_per_week, voice, language, audience,
                  voice=voice,
                  language=language, audience=audience, youtube_channel_id=youtube_channel_id)
     given.update(production)
+    if isinstance(given.get("publish_days"), str):  # "1,4" -> [1, 4]
+        given["publish_days"] = [d for d in given["publish_days"].replace(" ", "").split(",") if d]
     return {k: v for k, v in given.items() if v is not None}
 
 
@@ -349,12 +389,14 @@ def channels_add(name: str = typer.Argument(..., help="Channel name."),
                  music: str = typer.Option(None, help="generated or none."),
                  music_mood: str = typer.Option(None, "--music-mood", help="minor or major."),
                  tts_provider: str = typer.Option(None, "--tts-provider", help="edge, eleven or silent."),
+                 publish_days: str = typer.Option(None, "--publish-days", help="Weekdays 0=Mon..6=Sun, e.g. 1,4."),
+                 publish_time: str = typer.Option(None, "--publish-time", help="HH:MM local time, e.g. 16:00."),
                  activate: bool = typer.Option(True, help="Switch to the new channel.")) -> None:
     """Add a channel profile."""
     from studio.growth import channels
     fields = _fields(None, niche, description, posts_per_week, voice, language, audience, youtube_channel_id,
                      type_, renderer=renderer, scene_style=scene_style, music=music, music_mood=music_mood,
-                     tts_provider=tts_provider)
+                     tts_provider=tts_provider, publish_days=publish_days, publish_time=publish_time)
     cid = channels.add(_channels_root(), name, activate=activate, **fields)
     typer.echo(f"Added channel '{cid}'" + (" and made it active." if activate else "."))
 
@@ -372,6 +414,8 @@ def channels_edit(channel_id: str = typer.Argument(None, help="Channel id (defau
                   music: str = typer.Option(None, help="generated or none."),
                   music_mood: str = typer.Option(None, "--music-mood", help="minor or major."),
                   tts_provider: str = typer.Option(None, "--tts-provider", help="edge, eleven or silent."),
+                  publish_days: str = typer.Option(None, "--publish-days", help="Weekdays 0=Mon..6=Sun, e.g. 1,4."),
+                  publish_time: str = typer.Option(None, "--publish-time", help="HH:MM local time, e.g. 16:00."),
                   story: str = typer.Option(None, "--story", help='Story-profile overrides as JSON, e.g. '
                                             '\'{"min_minutes": 6, "flags": {"prosody": false}}\'.')) -> None:
     """Change fields on a channel."""
@@ -380,7 +424,7 @@ def channels_edit(channel_id: str = typer.Argument(None, help="Channel id (defau
     from studio.growth import channels
     fields = _fields(name, niche, description, posts_per_week, voice, language, audience, youtube_channel_id,
                      type_, renderer=renderer, scene_style=scene_style, music=music, music_mood=music_mood,
-                     tts_provider=tts_provider)
+                     tts_provider=tts_provider, publish_days=publish_days, publish_time=publish_time)
     if story is not None:
         try:
             fields["story"] = _json.loads(story)
@@ -483,6 +527,27 @@ def channels_sign_in(channel_id: str = typer.Argument(None, help="Channel id (de
     r = m.sign_in(settings, cid)
     typer.echo(f"Signed in '{cid}' as YouTube channel {r['title'] or r['youtube_channel_id'] or '(unknown)'}. "
                f"Token saved to {r['token']}.")
+
+
+@app.command("youtube-status")
+def youtube_status(check: bool = typer.Option(False, "--check", help="Also try a token refresh (needs internet) "
+                                              "to tell connected from expired."),
+                   fix: bool = typer.Option(False, "--fix", help="Adopt a legacy token.json for channels without "
+                                            "their own sign-in.")) -> None:
+    """Per-channel YouTube sign-in status (connected / expired / missing) and what to do. Prints no secrets."""
+    from studio.config import load_settings
+    from studio.youtube import auth
+    settings = load_settings()
+    typer.echo(f"Studio folder: {settings.root}")
+    typer.echo(f"Client file:   {settings.client_secret} ({'found' if settings.client_secret.exists() else 'MISSING'})")
+    rows = auth.status_all(settings, check=check, adopt=fix)
+    from studio import health
+    health.record_signin_problems(settings.root, rows)
+    for r in rows:
+        typer.echo(f"[{r['state'].upper():9}] {r['channel_id']}: {r['message']}")
+        typer.echo(f"            token file: {r['token']}")
+        if r["fix"]:
+            typer.echo(f"            next: {r['fix']}")
 
 
 def _range(days, start, end):
@@ -677,11 +742,18 @@ def kids_demo(force: bool = FORCE, renderer: str = typer.Option("", help="2d (de
     typer.echo(f"Built {m.run(_ctx(), force=force, renderer=renderer or None)}")
 
 
+def _home() -> Path:
+    import os
+
+    from studio.config import DEFAULT_HOME
+    return Path(os.getenv("STUDIO_HOME") or DEFAULT_HOME)
+
+
 def _log_issue(exc: BaseException) -> None:
     """Record a failure in logs/issues.json with a plain cause and a fix (never raises)."""
     try:
         from studio import health
-        it = health.record(_state["ctx"].settings.root if "ctx" in _state else Path.cwd(), "command", exc,
+        it = health.record(_state["ctx"].settings.root if "ctx" in _state else _home(), "command", exc,
                            context=" ".join(sys.argv[1:4]))
         if it and it["fix_label"]:
             typer.secho(f"Fix in the app (Issues panel) or run: python -m studio.cli fix {it['id']}   "

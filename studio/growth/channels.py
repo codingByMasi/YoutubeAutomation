@@ -26,6 +26,8 @@ DEFAULTS: dict = {
     "language": "English",
     "audience": "Curious adults 18-44 who want to understand how companies make money",
     "posts_per_week": 2,
+    "publish_days": [],  # weekdays to publish, 0=Mon..6=Sun; empty = the channel type's default (weekly_plan.py)
+    "publish_time": "",  # HH:MM in your local time; empty = the channel type's default
     "voice": "",  # edge-tts / ElevenLabs voice; empty = use TTS_VOICE from .env
     "renderer": "",  # 2d | blender; "" = RENDERER from .env
     "scene_style": "",  # 2d | 3d | mixed; "" = the channel type's default
@@ -43,10 +45,11 @@ DEFAULTS: dict = {
     # identity (see studio/growth/identity.py): positioning, host character, look, playlists
     "niche_statement": "",  # one sentence: who it is for, what they get, what makes it different
     "tagline": "",
+    "host_scenes": "auto",  # "auto": the mascot acts out some segments as a 3D host scene (3d/mixed style); "off"
     "mascot": {},  # name, kind, color, look, personality, catchphrase, intro_line, outro_line, on_thumbnail
     "theme": {},  # bg, accent, accent2, text, heading_font, intro_style, outro_style, thumbnail_style, motion
-    "story": {},  # story-profile overrides (lengths, wps, flags...): see studio/story/profile.py
     "kids_cast": [],  # kids channels: ids from studio/kids/cast.py roster; empty = the whole roster
+    "story": {},  # story-profile overrides (lengths, wps, flags...): see studio/story/profile.py
     "playlists": [],  # name, description, title_pattern, topics, youtube_id
 }
 
@@ -64,6 +67,20 @@ def _clean(values: dict) -> dict:
         out["theme"] = identity.clean_theme(out["theme"])
     if "playlists" in out:
         out["playlists"] = identity.clean_playlists(out["playlists"])
+    if "publish_days" in out:
+        try:
+            days = sorted({int(d) for d in (out["publish_days"] or [])})
+        except (TypeError, ValueError):
+            days = [-1]
+        if any(d < 0 or d > 6 for d in days):
+            raise StudioError("publish_days must be weekday numbers 0-6 (0 = Monday).",
+                              "Got something else.", "Example: --publish-days 1,4 for Tuesday and Friday.")
+        out["publish_days"] = days
+    if out.get("publish_time"):
+        if not re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", str(out["publish_time"]).strip()):
+            raise StudioError("publish_time must look like HH:MM.", f"Got {out['publish_time']!r}.",
+                              "Example: --publish-time 16:00 (24-hour, your local time).")
+        out["publish_time"] = str(out["publish_time"]).strip()
     if "kids_cast" in out:
         out["kids_cast"] = [str(c).strip() for c in (out["kids_cast"] or []) if str(c).strip()]
     if "type" in out:
