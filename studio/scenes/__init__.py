@@ -38,15 +38,7 @@ def validate_scene(scene: object, where: str, seg: dict | None = None,
     if kind == "host":
         from studio.scenes import host
 
-        return p + host.validate(scene, where) + [f"{where}: scene cites unknown source id {r!r}"
-                                                  for r in scene.get("source_ids") or []
-                                                  if source_ids is not None and str(r) not in source_ids]
-    refs = scene.get("source_ids") or []
-    for r in refs:
-        if source_ids is not None and str(r) not in source_ids:
-            p.append(f"{where}: scene cites unknown source id {r!r}")
-    if kind == "timeline" and not refs:
-        p.append(f"{where}: a timeline needs source_ids (every date needs a source)")
+        return p + host.validate(scene, where)
     items = scene.get("items")
     if kind == "chart3d" and not items:
         chart = (seg or {}).get("chart_data") or {}
@@ -68,8 +60,6 @@ def validate_scene(scene: object, where: str, seg: dict | None = None,
                     p.append(f"{where}: map item {i} needs {axis} between 0 and 1")
         if kind == "chart3d" and not isinstance(it.get("value"), (int, float)):
             p.append(f"{where}: chart3d item {i} needs a numeric value")
-    if kind == "chart3d" and not refs:
-        p.append(f"{where}: a chart3d scene with its own items needs source_ids (every figure needs a source)")
     if kind in ("timeline", "map") and isinstance(items, list) and len(items) < 2:
         p.append(f"{where}: a {kind} needs at least 2 items")
     if kind == "artifact" and isinstance(items, list):

@@ -15,9 +15,8 @@ retention outline (story bible) and 8 scored hook variants. Code verifies every 
 
 # 1. Facts (use web search; this part cannot be skipped)
 Search the web for real figures: filings, annual reports, official statistics, museum or archive pages, reputable
-articles. For EVERY figure give `source_url` (a page you actually opened) and `quote_snippet` (the exact words on
-that page that contain the figure). Code will fetch the URL and look for the figure or the snippet, so do not
-guess URLs. If you can only estimate, set `is_estimate` true and say how you estimated it in `claim`.
+articles. Where you have a source, give `source_url` (a page you actually opened) and `quote_snippet` (the exact words on
+that page that contain the figure). Sources are optional: leave `source_url` empty rather than guess a URL. If you can only estimate, set `is_estimate` true and say how you estimated it in `claim`.
 Aim for {fact_count} facts. Ids are `f1`, `f2`, ... Do not copy another creator's script or video: use facts only.
 {facts_note}
 

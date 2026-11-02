@@ -189,7 +189,7 @@ def validate_facts(facts: object) -> list[str]:
         if not fid or fid in seen:
             problems.append(f"fact {i}: id is empty or duplicated ({fid!r})")
         seen.add(fid)
-        for k in ("claim", "unit", "source_url"):
+        for k in ("claim", "unit"):
             if k not in f:
                 problems.append(f"fact {fid or i}: missing {k}")
         if not str(f.get("claim", "")).strip():
@@ -198,8 +198,9 @@ def validate_facts(facts: object) -> list[str]:
             problems.append(f"fact {fid or i}: is_estimate must be true or false")
         if f.get("figure") is not None and to_number(f.get("figure")) is None:
             problems.append(f"fact {fid or i}: figure {f.get('figure')!r} is not a number (use null for no figure)")
-        if not f.get("is_estimate") and not str(f.get("source_url", "")).startswith("http"):
-            problems.append(f"fact {fid or i}: a non-estimate fact needs a real https source_url")
+        url = str(f.get("source_url") or "")
+        if url and not url.startswith("http"):
+            problems.append(f"fact {fid or i}: source_url must be a real https link (or leave it empty)")
     return problems
 
 
@@ -270,6 +271,8 @@ def trace_problems(pkg: dict, facts: list[dict], allow_estimates: bool = True) -
                                     f"{ids or 'none'}; add the fact (with a source) or remove the number")
         for f in cited:
             if f.get("status") in ("unverified", "unfetchable"):
+                if not str(f.get("source_url") or "").strip() and not f.get("is_estimate"):
+                    continue  # no source given (sources are optional): nothing to verify against
                 if not (allow_estimates and f.get("is_estimate")):
                     problems.append(f"segment {i}: fact {f['id']} is {f['status']} and not flagged is_estimate; "
                                     "verify it, mark it an estimate, or drop it")

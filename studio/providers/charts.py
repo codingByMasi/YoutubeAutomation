@@ -46,14 +46,14 @@ def _needs_source(chart: dict) -> bool:
 
 
 def source_line(chart: dict, sources: list[dict]) -> str:
-    """Footnote naming every cited source; raises if the chart has none."""
+    """Footnote naming every cited source; empty when the chart cites none (sources are optional)."""
     by_id = {s["id"]: s for s in sources}
-    names = [by_id[i].get("title") or by_id[i]["url_or_note"] for i in chart.get("source_ids", []) if i in by_id]
+    names = [by_id[i].get("title") or by_id[i].get("url_or_note", "")
+             for i in chart.get("source_ids", []) if i in by_id]
     if not names and chart and not _needs_source(chart):
         return "Illustration, not real data" if chart.get("type") != "flow" else "Concept diagram"
     if not names:
-        raise StudioError(f"Chart {chart.get('title', '')!r} has no source.", "Every figure needs a source.",
-                          "Add source_ids to the chart in script.json and re-run `visuals --force`.")
+        return ""
     tag = "Estimate. " if chart.get("is_estimate") else ""
     return f"{tag}Source: {'; '.join(names)}"
 

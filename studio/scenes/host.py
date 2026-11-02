@@ -45,8 +45,6 @@ def validate(scene: dict, where: str) -> list[str]:
         name = pr.get("kind") if isinstance(pr, dict) else pr
         if name not in PROPS:
             p.append(f"{where}: host prop {i} {name!r} not in {list(PROPS)}")
-        elif isinstance(pr, dict) and pr.get("figure") and not scene.get("source_ids"):
-            p.append(f"{where}: a prop showing a figure needs scene source_ids (every figure needs a source)")
     return p
 
 

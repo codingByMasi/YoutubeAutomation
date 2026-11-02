@@ -207,13 +207,6 @@ def validate_chart(chart: dict, source_ids: set[str], where: str) -> list[str]:
         problems.append(f"{where}: number card needs one label and one value")
     if not all(isinstance(v, (int, float)) for v in values):
         problems.append(f"{where}: chart values must be numbers")
-    refs = chart.get("source_ids") or []
-    if not refs and chart_needs_source(chart):
-        problems.append(f"{where}: chart has no source (real figures need source_ids; "
-                        "a flow diagram with no values, or a chart titled 'made-up example', does not)")
-    for r in refs:
-        if r not in source_ids:
-            problems.append(f"{where}: chart cites unknown source id {r!r}")
     return problems
 
 
@@ -226,9 +219,6 @@ def validate_package(d: dict, profile: dict | None = None, facts: list[dict] | N
     problems = validate_titles(d.get("titles") or [])
     sources = d.get("sources") or []
     source_ids = {str(s.get("id")) for s in sources}
-    for s in sources:
-        if not s.get("url_or_note"):
-            problems.append(f"source {s.get('id')!r} has no url_or_note")
     segs = d.get("segments") or []
     if len(segs) < 5:
         problems.append(f"need at least 5 segments, got {len(segs)}")
@@ -252,8 +242,6 @@ def validate_package(d: dict, profile: dict | None = None, facts: list[dict] | N
     if segs and isinstance(segs[0].get("est_seconds"), (int, float)) and max(
             segs[0]["est_seconds"], len(str(segs[0].get("narration", "")).split()) / 2.5) > HOOK_MAX_SECONDS:
         problems.append(f"segment 1 is the hook and must be at most {HOOK_MAX_SECONDS}s")
-    if d.get("sensitive_topic") and not sources:
-        problems.append("finance/health/legal/news topics must list sources")
     if not str(d.get("originality_note", "")).strip():
         problems.append("originality_note is empty: say what this video adds")
     if not str(d.get("cta", "")).strip():

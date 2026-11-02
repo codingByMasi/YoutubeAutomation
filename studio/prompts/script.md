@@ -37,9 +37,8 @@ You are writing a complete YouTube video package for a faceless, narrated explai
 # Hard rules
 - Original analysis only. Do not copy or closely paraphrase any existing video, script or article.
   Explain the money flow in your own structure, with your own examples and comparisons.
-- Every chart with real figures needs `source_ids` that exist in `sources` (annual report, filing, reputable
-  article). Exceptions that need no source: a `flow` diagram with `"values": []` (a concept, not data), and a chart
-  whose title or unit says "made-up example" or "illustration" (a teaching example, never presented as real).
+- Sources are optional. If a chart or figure has one, list it in `sources` and cite it with `source_ids` (annual
+  report, filing, reputable article); if not, leave `sources` and `source_ids` empty. Never invent a source.
   Label estimates as estimates (`"is_estimate": true`). No investment advice; no guarantees.
 - Banned phrases anywhere: {banned}.
 - Titles: exactly 15, each under 70 characters, one clear promise, no ALL-CAPS words longer than
@@ -72,7 +71,7 @@ You are writing a complete YouTube video package for a faceless, narrated explai
 - A chart, diagram or number card (`chart_data`) at least every 60-90 seconds, and for every major figure.
 - Optional `scene` (leave it `null` when a plain chart or footage is enough): a short animated scene that the owner can
   draw in 3D or 2D. Use it for at most one segment in four, only where it explains something better than footage.
-  Kinds and their `items`: `timeline` (2-10 `{{label: "1066", text: "Norman conquest"}}`, in order, `source_ids` required),
+  Kinds and their `items`: `timeline` (2-10 `{{label: "1066", text: "Norman conquest"}}`, in order, `source_ids` optional),
   `map` (2-10 places in route order, `{{label, x, y}}` with x and y between 0 and 1: a schematic map, not real
   geography), `artifact` (exactly one `{{label, shape}}`, shape coin, column, vase or box), `chart3d` (bars
   from the segment's bar/line `chart_data`; give `items` `{{label, value}}` plus `source_ids` only if there is no chart_data).

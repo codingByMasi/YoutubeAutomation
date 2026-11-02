@@ -149,7 +149,7 @@ PACKS: dict[str, dict] = {
         "hook_formulas": ["hidden_answer", "contradiction", "cold_open", "number_stakes", "challenge_guess"],
         "min_minutes": 6, "max_minutes": 12, "shot_interval": (4, 7), "sentence_max_words": 18,
         "loop_distance": (60, 180), "min_loops_first_60s": 2, "analogy_every_seconds": 120,
-        "compliance": ["Cite a source for every figure; label estimates."],
+        "compliance": ["Cite a source when you have one (optional); label estimates."],
         "ending_style": "callback, takeaway, a question, next video",
         "needs_disclaimer": False, "number_first_hooks": False, "kids": False,
         "music_default": "neutral", "extra_banned": [],

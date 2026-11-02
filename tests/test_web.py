@@ -189,8 +189,7 @@ def test_rejected_answer_is_kept_and_explained(make_ctx):
     svc.capture(script.run, ctx, idea.id)
     broken = json.loads(SAMPLE.read_text(encoding="utf-8"))
     broken["segments"][2]["visual_keywords"] = []
-    broken["segments"][3]["chart_data"] = {"type": "bar", "title": "Revenue", "labels": ["a"], "values": [1],
-                                           "source_ids": []}
+    broken["segments"][3]["narration"] = ""
     text = json.dumps(broken)
     res = svc.submit_script(ctx, idea.id, video.id, text)
     assert not res.ok and len(res.problems) == 2 and json.loads(res.answer) == broken

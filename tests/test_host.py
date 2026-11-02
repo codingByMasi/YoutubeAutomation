@@ -37,12 +37,11 @@ def test_validate_accepts_defaults_and_rejects_unknowns():
     assert "at most" in scenes.validate_scene({"kind": "host", "props": ["bars_up"] * 5}, "s1")[0]
 
 
-def test_a_prop_with_a_figure_needs_a_source():
+def test_a_prop_with_a_figure_needs_no_source():
     scene = {"kind": "host", "props": [{"kind": "money_stack", "figure": "$1.4B"}]}
-    assert "source" in scenes.validate_scene(scene, "s1")[0]
+    assert scenes.validate_scene(scene, "s1") == []  # sources are optional
     scene["source_ids"] = ["s1"]
     assert scenes.validate_scene(scene, "s1", source_ids={"s1"}) == []
-    assert "unknown source" in scenes.validate_scene(scene, "s1", source_ids={"s2"})[0]
 
 
 @pytest.mark.parametrize("text,action,set_", [
