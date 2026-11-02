@@ -73,25 +73,36 @@ def _critique_box(ctx, v) -> None:
                 st.rerun()
 
 
+def _indicator(step: int) -> None:
+    st.write("  →  ".join(f"{'✅' if i < step else '👉' if i == step else '⬜'} {i}. {n}"
+                          for i, n in enumerate(wiz.SCRIPT_STEPS, 1)))
+
+
 def step_script(ctx, v, show) -> None:
     st.subheader("Step 2 · Get the script written")
-    st.write("No AI key needed. The studio prepares a request; Claude writes the script; you bring the answer back.")
-    prompt = svc.read_prompt(ctx, v.id)
-    if st.button("1. Write the request for Claude", type="primary" if not prompt else "secondary", key="wz_sreq"):
-        show(svc.capture(script_stage.run, ctx, v.idea_id))
-        prompt = svc.read_prompt(ctx, v.id)
-    if prompt:
-        st.markdown("**2.** Copy this (copy icon, top right of the box) into Claude on claude.ai or Claude Code.")
-        st.code(prompt, language="markdown", wrap_lines=True)
-        st.markdown("**3.** Paste Claude's JSON answer here, or upload the file.")
-        pasted = handoff_ui.answer_box(f"wz_sans{v.id}")
-        if st.button("Save script and check it", type="primary", key="wz_ssave"):
-            if handoff_ui.apply_answer(ctx, v.id, "script", pasted, None, (), idea_id=v.idea_id):
+    st.caption("No AI key needed: the studio writes a request, Claude writes the script, you paste the reply back.")
+    use_engine = st.toggle("Use the 3-step story engine (plan, script, review)", key="wz_engine")
+    state = wiz.script_next_step(ctx, v, use_engine)
+    _indicator(state["step"])
+    (st.success if state["done"] else st.info)(state["headline"])
+    if state["done"]:
+        return
+    task = state["task"]
+    from studio.story import engine
+
+    def run(c):
+        return engine.auto(c, v) if use_engine else script_stage.run(c, v.idea_id)
+
+    if state["step"] == 1:
+        if st.button("Get the request for Claude", type="primary", key="wz_sreq"):
+            res = svc.capture(run, ctx)
+            if res.error and not res.pending:
+                st.error(svc.plain_pending(res.error))
+            else:
                 st.rerun()
-        kept = svc.rejected_answer(ctx, v.id)
-        if kept:
-            with st.expander("Your last answer is kept here (not lost)"):
-                st.code(kept, language="json", wrap_lines=True)
+        return
+    handoff_ui.task_panel(ctx, v, task, run, "wz_s", idea_id=v.idea_id, primary_label="Apply Claude's reply",
+                           plain_script=not use_engine)
 
 
 def _qa_panel(ctx, v) -> None:
