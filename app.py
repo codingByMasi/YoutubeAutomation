@@ -264,11 +264,10 @@ def _segment_style_inputs(ctx, video_id: int) -> dict[int, str]:
     except Exception:
         return {}
     cur, out = production.segment_styles(ctx.settings, video_id), {}
-    rows = [(i, g) for i, g in enumerate(segs, 1) if g.get("scene") or scenes.chart_items(g)]
+    rows = [(i, g, kind) for i, g in enumerate(segs, 1) if (ok := scenes.style_pickable(g))[0] for kind in [ok[1]]]
     if rows:
         st.caption("Per scene: 2D or 3D for just that part of the video (blank follows the video's setting).")
-    for pos, g in rows:
-        kind = (g.get("scene") or {}).get("kind", "chart3d")
+    for pos, g, kind in rows:
         out[pos] = st.selectbox(f"Segment {pos}: {kind} ({g.get('chapter') or 'no chapter'})", ["", "2d", "3d"],
                                 index=["", "2d", "3d"].index(cur.get(pos, "")), key=f"seg_style_{video_id}_{pos}",
                                 format_func=lambda x: x.upper() if x else "(follow video)")

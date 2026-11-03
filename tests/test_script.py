@@ -195,3 +195,17 @@ def test_facts_and_sources_never_block_a_script():
     for prof in ({"fact_ledger": True}, None):
         assert sc.validate_package(d, prof, []) == []
     assert "Sources" not in sc.render_markdown(d)
+
+
+def test_tolerant_package_tolerates_old_shapes():
+    from studio.stages.script import tolerant_package
+
+    pkg = tolerant_package({"segments": ["plain text", 7, {"narration": "n", "scene": "skit", "chart_data": "x",
+                                                            "visual": []},
+                                          {"narration": "m", "scene": {"kind": "map"}, "chart_data": {"type": "bar"}}]})
+    segs = pkg["segments"]
+    assert [g["narration"] for g in segs] == ["plain text", "n", "m"]
+    assert segs[1] == {"narration": "n", "scene": "skit"}
+    assert segs[2]["scene"] == {"kind": "map"} and segs[2]["chart_data"] == {"type": "bar"}
+    assert tolerant_package(None) == {"segments": []}
+    assert tolerant_package({"title": "t"})["segments"] == []
