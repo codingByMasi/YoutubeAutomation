@@ -35,8 +35,11 @@ def test_sample_package_is_valid():
 
 def test_title_count_and_single_pick():
     d = pkg()
-    d["titles"] = d["titles"][:9]
-    assert any("15 titles" in p for p in sc.validate_package(d))
+    d["titles"] = d["titles"][:3]
+    assert sc.validate_package(d) == []  # fewer than 15 titles is only a warning
+    assert any("only 3 titles" in w for w in sc.soft_warnings(d))
+    d["titles"] = []
+    assert any("no titles" in p for p in sc.validate_package(d))
     d = pkg()
     d["titles"][1]["is_pick"] = True
     assert sc.validate_package(d) == []  # two picks: the first is kept, the studio fixes it
@@ -175,3 +178,20 @@ def test_charts_do_not_draw_sources_and_do_not_need_them(tmp_path):
         charts.render_chart({"type": "number", "title": "T", "value": 5}, [], tmp_path, "b")
     finally:
         charts.RENDERERS["number"] = orig
+
+
+def test_facts_and_sources_never_block_a_script():
+    """The pasted script from the bug report: 3 titles, fact ids that exist nowhere, figures and chart values."""
+    d = pkg()
+    d["titles"] = d["titles"][:3]
+    d["sources"] = []
+    for seg, fid in zip(d["segments"], ["s4", "s6", "s8", "s1", "s10"]):
+        seg["fact_ids"] = [fid, "s2"]
+        seg["narration"] += " It took 450,000 people and 476 ships, about 98 percent of the 225 total."
+        seg["chart_data"] = {"type": "bar", "title": "Ships", "labels": ["a", "b"], "values": [225, 165500],
+                             "unit": "n", "fact_ids": [fid], "source_ids": ["nope"]}
+    from studio.story.profile import for_channel  # noqa: F401
+    assert sc.validate_package(d) == []
+    for prof in ({"fact_ledger": True}, None):
+        assert sc.validate_package(d, prof, []) == []
+    assert "Sources" not in sc.render_markdown(d)

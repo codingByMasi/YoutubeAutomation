@@ -10,7 +10,6 @@
   "thumbnail_texts": ["1-5 words", "1-5 words", "1-5 words"],
   "description_summary": "Two short lines summarising the video.",
   "tags": ["10-15 tags"],
-  "sources": [{{"id": "s1", "title": "string", "url_or_note": "https://..."}}],
   "segments": [
     {{
       "chapter": "short viewer-facing name",
@@ -22,12 +21,11 @@
       "beat": "question | reveal | example | pattern_break | null",
       "plants_loop": "loop id from the plan, or null",
       "pays_loop": "loop id from the plan, or null",
-      "fact_ids": ["f1"],
       "chart_data": null
     }}
   ],
   "cta": "The call-to-action sentence used in the last segment."
 }}
 `chart_data` (when used): {{"type": "bar | pie | line | flow | number", "title": "...", "labels": [], "values": [],
-"unit": "...", "source_ids": ["s1"], "fact_ids": ["f1"], "is_estimate": false}}. `bar`/`pie`/`line` need equal-length
+"unit": "...", "is_estimate": false}}. `bar`/`pie`/`line` need equal-length
 labels and values; `flow` needs 2+ labels; `number` needs one label and one value.

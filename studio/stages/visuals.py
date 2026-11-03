@@ -231,17 +231,17 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
                 new_assets.append(Asset(video_id=video_id, kind="card", path=str(card), source="generated card",
                             licence=OWN_LICENCE))
             if seg.get("chart_data"):
-                frames = render_chart(seg["chart_data"], pkg["sources"], charts_dir, f"seg_{pos:03d}")
+                frames = render_chart(seg["chart_data"], pkg.get("sources") or [], charts_dir, f"seg_{pos:03d}")
                 vis["chart_frames"] = [str(f) for f in frames]
                 if os.getenv("STUDIO_NO_CHART_ANIM", "") not in ("1", "true", "yes"):
                     anims = chart_anim.animate(seg["chart_data"], frames, "", charts_dir)
                     animated += len(anims)
                 for f in frames:
                     new_assets.append(Asset(video_id=video_id, kind="chart", path=str(f),
-                                source=source_line(seg["chart_data"], pkg["sources"]), licence=OWN_LICENCE))
+                                source=source_line(seg["chart_data"], pkg.get("sources") or []), licence=OWN_LICENCE))
             pl = planned[pos]
             if pl:
-                note = scene_note(seg, pl["scene"], pkg["sources"])
+                note = scene_note(seg, pl["scene"], pkg.get("sources") or [])
                 budget.remaining = sum(s for p, s in todo3d.items() if p > pos)
                 res = scene_stage.draw(pl, seg, pos, out / "scenes", charts_dir, blender, note, duration, budget,
                                        Path(rows[pos].audio_path) if pos in rows and rows[pos].audio_path else None)

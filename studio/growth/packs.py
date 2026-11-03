@@ -72,10 +72,10 @@ def parse(text: str) -> dict:
     data = store.extract_json(text)
     titles, thumbs = data.get("titles"), data.get("thumbnails")
     problems = []
-    if not isinstance(titles, list) or len(titles) != TITLE_COUNT:
-        problems.append(f"need exactly {TITLE_COUNT} titles")
-    if not isinstance(thumbs, list) or len(thumbs) != THUMB_COUNT:
-        problems.append(f"need exactly {THUMB_COUNT} thumbnail concepts")
+    if not isinstance(titles, list) or not titles:
+        problems.append(f"need at least 1 title ({TITLE_COUNT} recommended)")
+    if not isinstance(thumbs, list) or not thumbs:
+        problems.append(f"need at least 1 thumbnail concept ({THUMB_COUNT} recommended)")
     if problems:
         raise StudioError("The pack is incomplete: " + "; ".join(problems) + ".",
                           "The prompt asks for 5 titles and 3 thumbnails.", "Ask Claude to follow the JSON shape.")

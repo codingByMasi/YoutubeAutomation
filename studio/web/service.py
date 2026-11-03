@@ -377,9 +377,8 @@ def fix_request(problems: list[str], task: str = "script") -> str:
     bullets = "\n".join(f"- {p}" for p in problems)
     return (f"Your {task} JSON answer failed the studio's validation. Please send back the full corrected JSON "
             f"object (only the JSON, no other text), changing only what is needed to fix these errors:\n\n{bullets}\n\n"
-            "Allowed `beat` values: question, reveal, example, pattern_break, or null. Charts with real figures need "
-            "`source_ids` that exist in `sources`; a flow diagram with empty `values`, or a chart titled "
-            "'made-up example', needs no source.")
+            "Allowed `beat` values: question, reveal, example, pattern_break, or null. Sources and fact ids are not "
+            "used; leave them out.")
 
 
 _TERMINAL_HINT = re.compile(r"(In Claude Code|Prompt written to|re-run|Re-run|LLM_PROVIDER)[^\n]*", re.I)
