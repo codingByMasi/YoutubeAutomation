@@ -20,6 +20,7 @@ from studio.errors import LOCKED_HELP, InvalidAnswer, PendingLLMResponse, Studio
 from studio.llm import prompt_paths
 from studio.models import Idea, Title, Video
 from studio.stages.base import STAGES
+from studio.story import prompts
 from studio.util import progress
 from studio.util.answer_json import normalize_answer
 
@@ -324,10 +325,14 @@ def list_videos(ctx: Ctx) -> list[Video]:
 
 def read_prompt(ctx: Ctx, video_id: int, task: str = "script") -> str:
     """The prompt text to paste into Claude (the file-path footer meant for Claude Code is removed)."""
-    pf, _ = prompt_paths(ctx.settings.project_dir(video_id), task)
+    pf, rf = prompt_paths(ctx.settings.project_dir(video_id), task)
     if not pf.exists():
         return ""
     text = pf.read_text(encoding="utf-8")
+    if not rf.exists() and prompts.asks_for_sources(text.split(_ANSWER_MARK)[0]):
+        # Saved by an older version that asked for sources: drop it so the stage writes a fresh one.
+        pf.unlink(missing_ok=True)
+        return ""
     text = text.split(_ANSWER_MARK)[0].rstrip()
     return text + "\n\n---\nReply with ONLY the JSON object described above, no other text."
 

@@ -16,9 +16,8 @@ from studio.stages.base import get_video, run_stage
 from studio.stages.script import banned_in, load_package, timeline, validate_package, validate_title
 from studio.stages.thumbnail import validate_thumb
 
-DISCLAIMER = "Educational content only, not financial advice. Figures are from the sources listed; " \
-             "estimates are labelled."
-NEUTRAL_DISCLAIMER = "Sources are listed above. Disputed or estimated points are labelled in the video."
+DISCLAIMER = "Educational content only, not financial advice. Estimates are labelled in the video."
+NEUTRAL_DISCLAIMER = "Disputed or estimated points are labelled in the video."
 CATEGORY_EDUCATION = "27"
 TAGS_MAX_CHARS = 500
 DESC_MAX_CHARS = 5000

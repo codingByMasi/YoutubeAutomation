@@ -10,6 +10,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFilter
 
 from studio.history import render as R
+from studio.history import wardrobe
 
 TW, TH = 1280, 720
 YELLOW, WHITE, BLACK = (255, 214, 10), (255, 255, 255), (12, 10, 20)
@@ -36,13 +37,14 @@ def make(pkg: dict, texts: list[str], work: Path) -> list[Image.Image]:
     """Three 1280x720 thumbnails for a history video."""
     cst = R.Cast(work)
     who = _cast_of(pkg)
+    era = wardrobe.era_for({}, pkg)  # same characters, story-era costume
     texts = [*(texts or []), "", "", ""][:3]
 
     # A: two shocked characters in front of the mountains
     a = R.backdrop("mountains").copy()
     a = Image.blend(a, Image.new("RGB", a.size, (255, 190, 120)), 0.12)
     for i, w in enumerate(who):
-        spr = cst.sprite(w, 560, 0.4, i, talking=True)
+        spr = cst.sprite(w, 560, 0.4, i, talking=True, era=era)
         R.paste(a, spr, 900 + (i * 190 - 95) * (1 if len(who) > 1 else 0), 790)
     _text(a, texts[0] or "Rome laughed", (50, 220), 130)
 
@@ -50,12 +52,12 @@ def make(pkg: dict, texts: list[str], work: Path) -> list[Image.Image]:
     b = R._map_base().copy().filter(ImageFilter.GaussianBlur(2))  # noqa: SLF001
     d = ImageDraw.Draw(b)
     d.text((930, 330), "?", font=R.font(560), fill=R.RED, anchor="mm", stroke_width=18, stroke_fill=BLACK)
-    b.paste(cst.sprite("quill", 420, 0.4, 0, True), (20, 330), cst.sprite("quill", 420, 0.4, 0, True))
+    b.paste(cst.sprite("quill", 420, 0.4, 0, True, era=era), (20, 330), cst.sprite("quill", 420, 0.4, 0, True, era=era))
     _text(b, texts[2] or texts[1] or "Which pass?", (50, 150), 130)
 
     # C: silhouette against the night sky
     c = R.backdrop("night").copy()
-    spr = cst.sprite(who[0], 600, 0.4, 0, False, silhouette=True)
+    spr = cst.sprite(who[0], 600, 0.4, 0, False, silhouette=True, era=era)
     R.paste(c, spr, 940, 745)
     _text(c, texts[1] or "Impossible road", (50, 300), 130)
     return [a, b, c]

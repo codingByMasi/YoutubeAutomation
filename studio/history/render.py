@@ -20,9 +20,10 @@ import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
 from studio.errors import StudioError
-from studio.history import cast, speech_audio
+from studio.history import cast, speech_audio, wardrobe
 from studio.kids.sprites import SpriteBank, blink
 from studio.util import ffmpeg as ff
+from studio.util import fonts
 
 W, H, FPS = 1280, 720, 24
 INK = (43, 43, 61)
@@ -33,22 +34,6 @@ SEA = (176, 205, 210)
 LAND = (222, 204, 160)
 LAND_EDGE = (150, 122, 76)
 RED = (192, 57, 43)
-def _font_candidates(serif: bool) -> list[str]:
-    """Bold TrueType files to try, in order: matplotlib's bundled DejaVu (installed with the studio, so present on
-    Windows, macOS and Linux), then the usual system folders."""
-    name = "DejaVuSerif-Bold.ttf" if serif else "DejaVuSans-Bold.ttf"
-    out: list[str] = []
-    try:
-        import matplotlib
-
-        out.append(str(Path(matplotlib.get_data_path()) / "fonts" / "ttf" / name))
-    except Exception:  # noqa: BLE001 - matplotlib missing: the system paths below still work
-        pass
-    out += [f"/usr/share/fonts/truetype/dejavu/{name}", "C:/Windows/Fonts/georgiab.ttf" if serif else "C:/Windows/Fonts/arialbd.ttf",
-            "C:/Windows/Fonts/segoeuib.ttf", "/Library/Fonts/Arial Bold.ttf", "/System/Library/Fonts/Supplemental/Arial Bold.ttf"]
-    return out
-
-
 BACKDROPS = ("parchment", "mountains", "hall", "night", "snow", "field", "market", "plain", "sea")
 DEFAULT_BACKDROP = {"lectern": "parchment", "skit": "hall", "map": "parchment", "diagram": "parchment",
                     "easel": "parchment", "archive": "parchment", "calendar": "parchment", "silhouette": "night",
@@ -57,19 +42,10 @@ _fonts: dict[tuple[str, int], ImageFont.FreeTypeFont] = {}
 
 
 def font(size: int, serif: bool = True) -> ImageFont.FreeTypeFont:
-    """Cached bold font (serif for titles, sans for labels). Never Pillow's tiny bitmap default: fails loudly."""
+    """Cached bold font (serif for titles, sans for labels), the same size on every OS."""
     key = ("s" if serif else "n", size)
     if key not in _fonts:
-        for path in _font_candidates(serif):
-            try:
-                _fonts[key] = ImageFont.truetype(path, size)
-                break
-            except OSError:
-                continue
-        else:
-            raise StudioError("No TrueType font could be loaded for the cartoon scenes.",
-                              "matplotlib's bundled DejaVu font and the system fonts were all missing.",
-                              "Run `pip install -r requirements.txt` (installs matplotlib) and try again.")
+        _fonts[key] = fonts.load(size, serif)
     return _fonts[key]
 
 
@@ -271,15 +247,26 @@ class Cast:
         self.bank = SpriteBank(self.dir)
         self.ok = self.bank.enabled
 
-    def key(self, who: str) -> str:
-        """File stem for a roster id or a named historical figure (generated once, stable for the video)."""
+    def _outfit(self, cid: str, era: str) -> str:
+        """File stem of a roster character dressed for `era` (written once; the default outfit uses the plain file)."""
+        if not era or era == wardrobe.DEFAULT or era not in wardrobe.OUTFITS:
+            return cid
+        stem = f"{cid}__{era}"
+        if not (self.dir / f"{stem}.svg").exists():
+            (self.dir / f"{stem}.svg").write_text(cast.roster_svg(cid, era), encoding="utf-8")
+        return stem
+
+    def key(self, who: str, era: str = wardrobe.DEFAULT) -> str:
+        """File stem for a roster id or a named historical figure (generated once, stable for the video).
+
+        Roster characters wear `era`'s costume; named historical figures keep their own headwear and prop."""
         who = (who or "dusty").strip()
         low = who.lower()
         if low in cast.ROSTER:
-            return low
+            return self._outfit(low, era)
         for cid, c in cast.ROSTER.items():  # "Captain Blunder" -> blunder
             if low == c["name"].lower():
-                return cid
+                return self._outfit(cid, era)
         if who not in self.figs:
             h = int(hashlib.sha1(who.encode()).hexdigest(), 16)
             stem = f"fig_{len(self.figs) + 1}"
@@ -311,9 +298,10 @@ class Cast:
             img = pil_character(color, self.look[stem][1], "none", "", px, blink(t, i), talking)
         return img
 
-    def sprite(self, who: str, px: int, t: float, i: int, talking: bool, silhouette: bool = False) -> Image.Image:
+    def sprite(self, who: str, px: int, t: float, i: int, talking: bool, silhouette: bool = False,
+               era: str = wardrobe.DEFAULT) -> Image.Image:
         """The character as an RGBA picture `px` wide; eyes blink, the mouth follows `talking`."""
-        img = self.bank.get(self.key(who), px, eyes_closed=blink(t, i), mouth_open=talking) if self.ok else None
+        img = self.bank.get(self.key(who, era), px, eyes_closed=blink(t, i), mouth_open=talking) if self.ok else None
         if img is None:  # no cairosvg/cairo (common on Windows): draw the same character with Pillow instead
             stem = self.key(who)
             c = cast.ROSTER.get(stem)
@@ -534,6 +522,8 @@ class Scene:
         self.crowd = bool(self.data.get("crowd")) or (self.kind == "skit" and any(
             w in words for w in ("army", "armies", "soldiers", "crowd", "mercenar", "legion", "troops", "citizens",
                                  "revolt", "people", "mob", "rebels", "elephants", "tribes")))
+        e = str(seg.get("era") or "").lower()
+        self.era = e if e in wardrobe.OUTFITS else wardrobe.DEFAULT
 
     def camera(self, t: float) -> tuple[float, float, float]:
         """(zoom, focus x, focus y) at second t: a wide shot with a slow push, then hard cuts to a close-up of whoever
@@ -572,7 +562,7 @@ class Scene:
         bob = math.sin((t + i * 0.6) * 2.4) * 4 if t > enter + 0.5 else 0
         if talking and t > enter + 0.5:  # a little hop on every syllable-ish burst
             bob -= 5 * abs(math.sin(t * 11 + i))
-        spr = self.cast.sprite(who, px, t, i, talking, silhouette)
+        spr = self.cast.sprite(who, px, t, i, talking, silhouette, self.era)
         paste(img, spr, cx, bottom + rise + bob)
 
     def frame(self, t: float) -> Image.Image:
@@ -956,9 +946,10 @@ _CODE_STAMP = hashlib.sha1(Path(__file__).read_bytes()).hexdigest()[:8]  # drawi
 
 def fingerprint(seg: dict, dur: float, audio: Path | None) -> str:
     """Hash of everything that decides how a scene looks (re-render only when it changes)."""
-    keys = {k: seg.get(k) for k in ("scene", "scene_data", "cast", "speech", "chapter")}
+    keys = {k: seg.get(k) for k in ("scene", "scene_data", "cast", "speech", "chapter", "era")}
     pf = ff.profile()
-    keys.update(size=[pf.w, pf.h, pf.fps], dur=round(dur, 2), audio=audio.stat().st_size if audio and Path(audio).exists() else 0, code=_CODE_STAMP)
+    keys.update(size=[pf.w, pf.h, pf.fps], dur=round(dur, 2),
+                audio=audio.stat().st_size if audio and Path(audio).exists() else 0, code=_CODE_STAMP)
     return hashlib.sha1(json.dumps(keys, sort_keys=True, default=str).encode()).hexdigest()[:12]
 
 

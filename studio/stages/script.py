@@ -15,6 +15,9 @@ from studio.models import Idea, Script, Segment, Title, Video
 from studio.stages.base import run_stage
 from studio.story.banned import BANNED_PHRASES  # noqa: E402,F401  (re-exported: other modules import it here)
 from studio.story.banned import banned_in as _banned_in  # noqa: E402
+from studio.util.logging import get_logger
+
+log = get_logger("script")
 
 CHART_TYPES = {"bar", "pie", "line", "flow", "number"}
 BEATS = {"question", "reveal", "example", "pattern_break"}
@@ -427,23 +430,36 @@ def load_package(ctx: Ctx, video_id: int) -> dict:
 
 
 def tolerant_package(pkg: dict) -> dict:
-    """Make an old or hand-pasted script.json safe to read: segments are dicts, chart_data/visual are dicts or
-    absent, and scene is a dict or a cast-scene name (str); a bare-text segment becomes its narration."""
+    """Make an old or hand-pasted script.json safe to use without losing anything.
+
+    Segments become dicts (bare text becomes its narration); a segment missing `est_seconds` or `visual_keywords`
+    gets them from its words and chapter; chart_data/visual must be dicts and scene a dict or a cast-scene name.
+    A value of the wrong type is moved to the segment's `_unreadable` map (kept in the file, a warning is logged)
+    instead of being deleted, so saving the package back never destroys what the owner pasted."""
     if not isinstance(pkg, dict):
         return {"segments": []}
     segs = pkg.get("segments")
     out = []
-    for g in segs if isinstance(segs, list) else []:
+    for i, g in enumerate(segs if isinstance(segs, list) else [], 1):
         if isinstance(g, str):
             g = {"narration": g}
         if not isinstance(g, dict):
+            log.warning("script.json: segment %d is not text or an object; it was ignored", i)
             continue
         g = dict(g)
-        for k in ("chart_data", "visual"):
-            if k in g and not isinstance(g[k], dict):
+        for k in ("chart_data", "visual", "scene"):
+            ok = (dict, str) if k == "scene" else dict
+            if k in g and g[k] is not None and not isinstance(g[k], ok):
+                g.setdefault("_unreadable", {})[k] = g.pop(k)
+                log.warning("script.json: segment %d has an unreadable %s; kept aside under _unreadable", i, k)
+            elif k in g and g[k] is None and k != "scene":
                 g.pop(k)
-        if "scene" in g and not isinstance(g["scene"], (dict, str)):
-            g.pop("scene")
+        words = str(g.get("narration", "")).split()
+        if not isinstance(g.get("est_seconds"), (int, float)) or g["est_seconds"] <= 0:
+            if words:
+                g["est_seconds"] = round(max(len(words) / 2.5, 1.0), 1)
+        if not g.get("visual_keywords") and (g.get("chapter") or words):
+            g["visual_keywords"] = [str(g.get("chapter") or " ".join(words[:3]))]
         out.append(g)
     return {**pkg, "segments": out}
 

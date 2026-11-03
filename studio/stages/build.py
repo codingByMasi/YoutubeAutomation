@@ -381,14 +381,17 @@ def run(ctx: Ctx, video_id: int, force: bool = False) -> None:
         duration = ff.probe_duration(final)
         pkg["build"] = {"final": str(final), "clean": str(clean), "intro_seconds": round(intro_s, 3),
                         "duration": round(duration, 3), "music": str(music) if music else None,
-                        "captions": caption_source}
+                        "captions": caption_source, "video": ff.video_facts(final), "draft": ff.profile().draft}
         report = quality_report(pkg, _story_profile(ctx))
         write_report(out, report)
         for line in report["warnings"][:8]:
             typer.secho(f"quality: {line}", fg=typer.colors.YELLOW)
         write_package(ctx, video_id, pkg)
         p = ff.profile()
-        typer.echo(f"Built {final} ({duration / 60:.1f} min, {p.w}x{p.h}{', DRAFT quality' if p.draft else ''}).")
+        real = pkg["build"]["video"]
+        size = (f"{real['width']}x{real['height']} at {real['fps']:g} fps, {real['kbps']} kbps"
+                if real else f"{p.w}x{p.h}")
+        typer.echo(f"Built {final} ({duration / 60:.1f} min, {size}{', DRAFT quality' if p.draft else ''}).")
 
     r = run_stage(s, video, "built", work, force)
     typer.echo(r.message + (f" Next: thumbnail {video_id} (optional: shorts {video_id})" if r.ran else ""))

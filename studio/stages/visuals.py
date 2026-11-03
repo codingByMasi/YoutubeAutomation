@@ -138,6 +138,7 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
         scene_counts: dict[str, int] = {}
         from studio.history import cast as cast_mod
         from studio.history import render as cast_render
+        from studio.history import wardrobe as cast_wardrobe
         from studio.story import profile as _sp
         _cast = _sp.enabled(_sp.for_channel(ctx.settings.root), "cast_scenes")
         planned = {p: (None if _cast else scenes.plan_for(g, p, prod)) for p, g in enumerate(pkg["segments"], 1)}
@@ -204,6 +205,7 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
                 pass
             elif cast_on and isinstance(seg.get("scene"), str) and seg["scene"] in cast_mod.SCENE_TYPES:
                 audio = Path(rows[pos].audio_path) if pos in rows and rows[pos].audio_path else None
+                seg = {**seg, "era": cast_wardrobe.era_for(seg, pkg)}  # same face and voice, story-era costume
                 try:
                     drawn = cast_render.render_scene(seg, duration, out / "cast" / f"cast_{pos:03d}.mp4", out / "cast",
                                                      audio, faction0, cast_stage)
