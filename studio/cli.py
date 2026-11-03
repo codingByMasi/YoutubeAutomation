@@ -724,7 +724,31 @@ def kids_sing(topic: str, force: bool = FORCE,
             typer.echo("OpenUtau not found. Set OPENUTAU_PATH in .env or open song.ustx yourself (README).")
         else:
             openutau.open_project(exe, files["ustx"])
+    if ctx.settings.sing_voicebank:
+        from studio.kids import voicebanks
+        vb = voicebanks.get(ctx.settings.sing_voicebank)
+        typer.echo(f"Voicebank: {vb.name}. Licence note: {voicebanks.write_licence(vb, sung)}")
+        for w in vb.warnings:
+            typer.echo(f"  Check before monetising: {w}")
+    else:
+        typer.echo("No voicebank chosen. Set SING_VOICEBANK in .env (see `kids voicebanks`).")
     typer.echo(sing_step.status(ctx, slug))
+
+
+@kids_app.command("voicebanks")
+def kids_voicebanks() -> None:
+    """List the voicebanks approved for monetised use, with their licence summary and credit line."""
+    from studio.kids import voicebanks
+    chosen = _ctx().settings.sing_voicebank
+    for vb in voicebanks.VOICEBANKS.values():
+        mark = "  (selected)" if vb.key == chosen else ""
+        typer.echo(f"{vb.key}{mark}: {vb.name}")
+        typer.echo(f"  {vb.licence}")
+        typer.echo(f"  Terms: {vb.source}")
+        typer.echo(f"  Download: {vb.download}")
+        typer.echo(f"  Credit: {vb.credit}")
+        for w in vb.warnings:
+            typer.echo(f"  Check: {w}")
 
 
 @kids_app.command("checklist")
