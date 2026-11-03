@@ -117,14 +117,26 @@ def readability_problems(pkg: dict, profile: dict) -> list[str]:
 
 
 def profile_problems(pkg: dict, profile: dict) -> list[str]:
-    """All profile-driven script checks that are switched on for this channel type."""
+    """Hard profile-driven script rules (these block a script): banned phrases and cast/scene keys.
+
+    Taste rules (word counts, sentence length and rhythm, reading level) are `style_notes`: they are shown as
+    warnings and flagged by the quality gate, but never reject a script Claude took trouble to write."""
+    from studio.story.profile import enabled
+    out: list[str] = []
+    if enabled(profile, "sentence_rules"):
+        out += banned_problems(pkg, profile)
+    if enabled(profile, "cast_scenes"):
+        from studio.history import cast
+        out += cast.scene_problems(pkg, profile)
+    return out
+
+
+def style_notes(pkg: dict, profile: dict) -> list[str]:
+    """Soft script rules as plain warnings: total length, sentence length and rhythm, reading level."""
     from studio.story.profile import enabled
     out: list[str] = []
     if enabled(profile, "word_count_check"):
         out += wordcount_problems(pkg, profile)
     if enabled(profile, "sentence_rules"):
-        out += sentence_problems(pkg, profile) + banned_problems(pkg, profile) + readability_problems(pkg, profile)
-    if enabled(profile, "cast_scenes"):
-        from studio.history import cast
-        out += cast.scene_problems(pkg, profile)
+        out += sentence_problems(pkg, profile) + readability_problems(pkg, profile)
     return out

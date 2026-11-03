@@ -35,7 +35,7 @@ STYLES: dict[str, str] = {
 - **Visual rule:** animated scenes with the recurring cartoon cast, maps and timelines for place and time,
   a diagram for any mechanism; archive images only for things (places, documents, objects), at most one per chapter, and only
   on demand. Never a real likeness.
-- **Accuracy:** every date and number carries a fact id with a named source (primary source, museum or archive page,
+- **Accuracy:** every date and number carries a fact id; name a source when you have one (primary source, museum or archive page,
   reputable article). Label estimates as estimates; mark disputed points as disputed in the narration.
 - **Hook:** first 15 seconds drop the viewer into a moment, open a question and promise the payoff; no long intros and
   no "before we start, subscribe".
@@ -63,7 +63,7 @@ STYLES: dict[str, str] = {
 - **Titles:** under 70 characters; one clear promise; no all-caps shouting; no claim the video can't back up.
 - **Video structure:** hook, why it matters, how it works, a surprising detail, an example, a takeaway.
 - **Visual rule:** a diagram or chart for every major figure; footage only illustrates the setting.
-- **Accuracy:** every figure needs a named source in `script.json`; label estimates as estimates.
+- **Accuracy:** name a source in `script.json` when you have one (optional); label estimates as estimates.
 - **Hook:** first 15 seconds state the problem and the payoff.
 - **Pacing:** visual change every 4-6 seconds; a retention beat every 30-45 seconds.
 - **Thumbnails:** 3-5 words max; one focal element; high contrast.

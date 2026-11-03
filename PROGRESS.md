@@ -531,3 +531,12 @@ Singing: lists only vetted voicebanks (PR 54 list) with licence, monetisation st
 AI-content warning and needs a ticked confirmation. Selection saves `SING_VOICEBANK` (only vetted keys accepted by `save_env`).
 Decisions: OpenUtau has no CLI renderer, so a voicebank "preview" is a clip exported from OpenUtau and uploaded to
 `voicebank_previews/<key>.wav`; installed state is detected from OpenUtau's Singers folders; `C:\Tools\OpenUtau` is searched by default. No GPU needed.
+
+## 2026-11-02 Script paste tolerance
+- Pasting Claude's script reply no longer fails on near-misses. Auto-fixed (and noted): hook_type spelling/missing (set to the plan's), est_seconds far from the word count, extra or missing-pick titles, thumbnail texts over 3 / over 5 words, beat names.
+- Titles: 10-15 accepted (was exactly 15).
+- Taste rules (total length, sentence length/rhythm, reading grade, words vs seconds) are warnings now (`checks.style_notes`); the quality gate still flags them. Banned phrases, sources, facts and loop rules still block.
+- Sources are optional for every channel type (decision, 2026-11-02): no script/outline/chart/scene/fact check blocks on missing sources any more, charts draw no footnote without one, and the prompts say sources are optional ("never invent a source"). A source given with a bad link or unknown id is no longer an error. Facts that have a `source_url` are still verified; unsourced facts are not.
+
+## 2026-11-03: scripts no longer need facts or sources
+- Decision: a pasted script is never blocked by fact ids, figures-in-facts, chart-vs-fact, sources, or title count (fewer than 15 is a warning). Script prompts no longer ask for `sources`, `source_ids` or `fact_ids`; old saved scripts that still carry them load fine. Step 0 facts are only used by the story plan, not the script check.

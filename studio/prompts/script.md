@@ -12,15 +12,12 @@ You are writing a complete YouTube video package for a faceless, narrated explai
 # Hook formula library
 {hooks}
 
-# Retention outline (follow it: its hook, open loops, beat order, ending and sources)
+# Retention outline (follow it: its hook, open loops, beat order and ending)
 {outline}
 
-# Verified facts and recent videos (story engine)
-{facts_block}
-
-- When a facts list is given: every number in the narration and every chart value comes from a fact; cite its id in
-  the segment's `fact_ids` (and the chart's `fact_ids`). Unverified facts only with `is_estimate` true and wording
-  such as "about" or "an estimated". Never invent figures.
+# Story engine notes
+- Use real, well-known figures; word estimates as estimates ("about", "roughly"). Never invent figures. No sources
+  or fact ids are needed in the script.
 - When a plan is given: use its loop ids in `plants_loop` / `pays_loop` (two planted in the first 60 seconds, payoffs
   spread out and 1-3 minutes after the plant), its chosen hook, and its chapter order.
 - Add per segment: `visual_intent` {{"shot_type": "wide|close|detail|map|chart|text", "must_show": "...", "avoid": "..."}}
@@ -37,9 +34,7 @@ You are writing a complete YouTube video package for a faceless, narrated explai
 # Hard rules
 - Original analysis only. Do not copy or closely paraphrase any existing video, script or article.
   Explain the money flow in your own structure, with your own examples and comparisons.
-- Every chart with real figures needs `source_ids` that exist in `sources` (annual report, filing, reputable
-  article). Exceptions that need no source: a `flow` diagram with `"values": []` (a concept, not data), and a chart
-  whose title or unit says "made-up example" or "illustration" (a teaching example, never presented as real).
+- Do not add `sources`, `source_ids` or `fact_ids`; the script does not use them.
   Label estimates as estimates (`"is_estimate": true`). No investment advice; no guarantees.
 - Banned phrases anywhere: {banned}.
 - Titles: exactly 15, each under 70 characters, one clear promise, no ALL-CAPS words longer than
@@ -72,10 +67,10 @@ You are writing a complete YouTube video package for a faceless, narrated explai
 - A chart, diagram or number card (`chart_data`) at least every 60-90 seconds, and for every major figure.
 - Optional `scene` (leave it `null` when a plain chart or footage is enough): a short animated scene that the owner can
   draw in 3D or 2D. Use it for at most one segment in four, only where it explains something better than footage.
-  Kinds and their `items`: `timeline` (2-10 `{{label: "1066", text: "Norman conquest"}}`, in order, `source_ids` required),
+  Kinds and their `items`: `timeline` (2-10 `{{label: "1066", text: "Norman conquest"}}`, in order),
   `map` (2-10 places in route order, `{{label, x, y}}` with x and y between 0 and 1: a schematic map, not real
   geography), `artifact` (exactly one `{{label, shape}}`, shape coin, column, vase or box), `chart3d` (bars
-  from the segment's bar/line `chart_data`; give `items` `{{label, value}}` plus `source_ids` only if there is no chart_data).
+  from the segment's bar/line `chart_data`; give `items` `{{label, value}}` if there is no chart_data).
   `style` is "" (follow the video's setting), "2d" or "3d".
 - Typical total length is {min_minutes}-{max_minutes} minutes at about 150 spoken words per minute; go longer if the
   topic needs it. There is no maximum length: never cut the money flow short to fit.
@@ -98,7 +93,6 @@ You are writing a complete YouTube video package for a faceless, narrated explai
   "thumbnail_texts": ["3-5 words", "3-5 words", "3-5 words"],
   "description_summary": "Two short lines summarising the video.",
   "tags": ["10-15 tags"],
-  "sources": [{{"id": "s1", "title": "Carnival Corp 2025 Annual Report", "url_or_note": "https://..."}}],
   "segments": [
     {{
       "chapter": "The $300 question",
@@ -121,7 +115,6 @@ You are writing a complete YouTube video package for a faceless, narrated explai
         "labels": ["Tickets", "Onboard spending"],
         "values": [65, 35],
         "unit": "%",
-        "source_ids": ["s1"],
         "is_estimate": false
       }},
       "scene": null

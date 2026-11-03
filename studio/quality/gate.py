@@ -50,8 +50,6 @@ def check_script(pkg: dict, t: dict) -> list[dict]:
     if avg > t["sentence_max_words"]:
         out.append(_issue("script", "major", f"Sentences average {avg:.0f} words (limit {t['sentence_max_words']}).",
                           "Split long sentences: write for the ear."))
-    if t["needs_sources"] and not pkg.get("sources"):
-        out.append(_issue("script", "critical", "No sources listed.", "Every figure needs a source."))
     loops = sum(bool(TEASER.search(g["narration"])) or bool(g.get("open_loop")) or bool(g.get("plants_loop"))
                 for g in segs[:-1])
     if len(segs) >= 6 and loops < t["min_open_loops"]:

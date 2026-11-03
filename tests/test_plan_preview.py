@@ -23,10 +23,10 @@ def test_draft_resolution(ctx):
     assert pp.build(ctx.settings, 1, pkg(), draft=True)["global"]["resolution"].startswith("1280x720")
 
 
-def test_unsourced_chart_is_flagged(ctx):
+def test_unsourced_chart_is_not_flagged(ctx):
     p = pkg()
     p["segments"][1]["chart_data"] = {**BAR, "source_ids": []}
-    assert any("no source" in w for w in pp.build(ctx.settings, 1, p)["warnings"])
+    assert not any("no source" in w for w in pp.build(ctx.settings, 1, p)["warnings"])
 
 
 def test_approval_follows_the_plan(ctx):

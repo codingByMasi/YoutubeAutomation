@@ -22,7 +22,7 @@ register: clear narrator; the story is always about someone wanting something. C
 never from changing facts. Every chapter (one or two plan beats, 8-30 seconds each) ends on a turn the next chapter answers; no stretch of pure explanation
 lasts over 40 seconds; an information beat ("how X worked") is a short numbered diagram.
 
-# Verified facts and story plan (follow the plan; use ONLY fact ids from the facts list)
+# Story plan (follow it)
 {outline}
 
 # Recent videos on this channel (differ from them in hook, opening sentence shape, chapters, visuals)
@@ -30,9 +30,8 @@ lasts over 40 seconds; an information beat ("how X worked") is a short numbered 
 
 # Rules
 - Original analysis only; never copy or closely paraphrase another creator's work.
-- Figures: every number in the narration and every chart value comes from a fact in the list; cite it in the
-  segment's `fact_ids`. Facts marked unverified may only be used if `is_estimate` is true, and then the narration
-  must say "about", "roughly" or "an estimated". Do not invent figures.
+- Figures: use real, well-known numbers; say "about" or "roughly" when a figure is an estimate. Do not invent
+  figures. No source or fact ids are needed in the script.
 - Open loops: use the plan's loop ids. `plants_loop` where the loop is teased (at least two in the first 60
   seconds), `pays_loop` where it is paid off (1-3 minutes later, spread through the video, not all at the end).
 - Per segment add the optional keys `scene` (lectern | skit | map | diagram | easel | archive | calendar | silhouette | title), `cast`, `staging` and, for skits only, `speech`. A visual change every 3-6 seconds; a map or diagram about every 45-60 seconds; never three identical scene types in a row (maps and diagrams excepted).

@@ -27,11 +27,10 @@ source, and do not copy any other creator's work.
 - `safety`: nothing scary, violent or unsafe to imitate; no links, brands or personal-info asks; the resolution is happy.
 
 # Rules for the rewrite
-- Same JSON shape as the script package below (titles, thumbnail_texts, sources, segments, cta, and so on).
+- Same JSON shape as the script package below (titles, thumbnail_texts, segments, cta, and so on).
 - Segments 8-30 seconds each, hook at most 15, `est_seconds` = words / 2.5, `beat` (only `question`, `reveal`, `example`, `pattern_break` or `null`; never "explain") set at least every 20-40 s,
   `open_loop` filled where a teaser is planted, `hook_type` set.
 - Keep or improve the 15 titles (each under 70 characters, exactly one `is_pick`).
-- Every `chart_data` keeps `source_ids` that exist in `sources`.
 
 # Current script package
 ```json

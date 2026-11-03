@@ -35,22 +35,27 @@ def test_sample_package_is_valid():
 
 def test_title_count_and_single_pick():
     d = pkg()
-    d["titles"] = d["titles"][:14]
-    assert any("exactly 15" in p for p in sc.validate_package(d))
+    d["titles"] = d["titles"][:3]
+    assert sc.validate_package(d) == []  # fewer than 15 titles is only a warning
+    assert any("only 3 titles" in w for w in sc.soft_warnings(d))
+    d["titles"] = []
+    assert any("no titles" in p for p in sc.validate_package(d))
     d = pkg()
     d["titles"][1]["is_pick"] = True
-    assert any("exactly one title" in p for p in sc.validate_package(d))
+    assert sc.validate_package(d) == []  # two picks: the first is kept, the studio fixes it
+    assert sum(t["is_pick"] for t in d["titles"]) == 1
 
 
 def test_segment_structure_rules():
     d = pkg()
     d["segments"][0]["est_seconds"] = 30
+    d["segments"][0]["narration"] = "word " * 75
     d["segments"][1]["visual_keywords"] = []
     d["segments"][2]["chart_data"]["source_ids"] = []
     d["segments"][3]["chart_data"]["source_ids"] = ["nope"]
     d["segments"][4]["narration"] = "This is guaranteed to work."
     problems = "\n".join(sc.validate_package(d))
-    for expected in ("hook", "visual_keywords is empty", "chart has no source", "unknown source id", "banned phrase"):
+    for expected in ("hook", "visual_keywords is empty", "banned phrase"):
         assert expected in problems
 
 
@@ -147,23 +152,21 @@ def test_script_prompt_lists_allowed_beats_and_forbids_explain():
     assert "Never write \"explain\"" in text
 
 
-def test_concept_diagrams_and_made_up_examples_need_no_source():
+def test_charts_need_no_source():
     flow = {"type": "flow", "title": "Formula", "labels": ["a", "b"], "values": [], "source_ids": []}
     made_up = {"type": "bar", "title": "Made-up example, not real data", "labels": ["a", "b"], "values": [1, 2],
                "unit": "$", "source_ids": []}
     real = {"type": "bar", "title": "Revenue", "labels": ["a", "b"], "values": [1, 2], "source_ids": []}
     assert sc.validate_chart(flow, set(), "x") == []
     assert sc.validate_chart(made_up, set(), "x") == []
-    assert any("no source" in p for p in sc.validate_chart(real, set(), "x"))
+    assert sc.validate_chart(real, set(), "x") == []  # sources are optional
     from studio.providers.charts import source_line
     assert source_line(flow, []) == "Concept diagram"
     assert source_line(made_up, []).startswith("Illustration")
 
 
-def test_charts_do_not_draw_sources_but_still_require_them(tmp_path):
-    import pytest
+def test_charts_do_not_draw_sources_and_do_not_need_them(tmp_path):
 
-    from studio.errors import StudioError
     from studio.providers import charts
     seen = []
     orig = charts.RENDERERS["number"]
@@ -172,7 +175,23 @@ def test_charts_do_not_draw_sources_but_still_require_them(tmp_path):
         ok = {"type": "number", "title": "T", "value": 5, "source_ids": ["s1"]}
         charts.render_chart(ok, [{"id": "s1", "title": "Filing", "url_or_note": "x"}], tmp_path, "a")
         assert seen == [""]
-        with pytest.raises(StudioError):
-            charts.render_chart({"type": "number", "title": "T", "value": 5}, [], tmp_path, "b")
+        charts.render_chart({"type": "number", "title": "T", "value": 5}, [], tmp_path, "b")
     finally:
         charts.RENDERERS["number"] = orig
+
+
+def test_facts_and_sources_never_block_a_script():
+    """The pasted script from the bug report: 3 titles, fact ids that exist nowhere, figures and chart values."""
+    d = pkg()
+    d["titles"] = d["titles"][:3]
+    d["sources"] = []
+    for seg, fid in zip(d["segments"], ["s4", "s6", "s8", "s1", "s10"]):
+        seg["fact_ids"] = [fid, "s2"]
+        seg["narration"] += " It took 450,000 people and 476 ships, about 98 percent of the 225 total."
+        seg["chart_data"] = {"type": "bar", "title": "Ships", "labels": ["a", "b"], "values": [225, 165500],
+                             "unit": "n", "fact_ids": [fid], "source_ids": ["nope"]}
+    from studio.story.profile import for_channel  # noqa: F401
+    assert sc.validate_package(d) == []
+    for prof in ({"fact_ledger": True}, None):
+        assert sc.validate_package(d, prof, []) == []
+    assert "Sources" not in sc.render_markdown(d)
