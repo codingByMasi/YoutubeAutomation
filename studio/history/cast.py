@@ -200,7 +200,7 @@ def prompt_block(profile: dict) -> str:
                  "`cast` (list of roster ids or figure names), `staging` (one sentence), `speech` (at most "
                  f"{MAX_SPEECH_LINES} on-screen lines of at most {MAX_SPEECH_WORDS} words, each "
                  '{"who": "...", "text": "..."}). Speech is invented dialogue: use it only for tone, never for quotes '
-                 "you present as real; real quotes go in the narration with a source.")
+                 "you present as real; real quotes go in the narration.")
     return "\n".join(lines)
 
 

@@ -31,7 +31,7 @@ lasts over 40 seconds; an information beat ("how X worked") is a short numbered 
 # Rules
 - Original analysis only; never copy or closely paraphrase another creator's work.
 - Figures: use real, well-known numbers; say "about" or "roughly" when a figure is an estimate. Do not invent
-  figures. No source or fact ids are needed in the script.
+  figures. Keep the script plain narration: no references, footnotes or ids.
 - Open loops: use the plan's loop ids. `plants_loop` where the loop is teased (at least two in the first 60
   seconds), `pays_loop` where it is paid off (1-3 minutes later, spread through the video, not all at the end).
 - Per segment add the optional keys `scene` (lectern | skit | map | diagram | easel | archive | calendar | silhouette | title), `cast`, `staging` and, for skits only, `speech`. A visual change every 3-6 seconds; a map or diagram about every 45-60 seconds; never three identical scene types in a row (maps and diagrams excepted).

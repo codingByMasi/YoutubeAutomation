@@ -15,16 +15,15 @@ retention outline (story bible) and 8 scored hook variants. Code verifies every 
 
 # 1. Facts (use web search; this part cannot be skipped)
 Search the web for real figures: filings, annual reports, official statistics, museum or archive pages, reputable
-articles. Where you have a source, give `source_url` (a page you actually opened) and `quote_snippet` (the exact words on
-that page that contain the figure). Sources are optional: leave `source_url` empty rather than guess a URL. If you can only estimate, set `is_estimate` true and say how you estimated it in `claim`.
+articles. If you can only estimate, set `is_estimate` true and say how you estimated it in `claim`.
 Aim for {fact_count} facts. Ids are `f1`, `f2`, ... Do not copy another creator's script or video: use facts only.
 {facts_note}
 
 # 2. Outline (story bible)
 - `audience_question`, `big_idea`, `promise`, `title_promise`, `arc` (one line: the shape of the story).
 - `beats`: 10-18 beats in order. Each: `n`, `chapter` (short, viewer-facing), `purpose`, `seconds` (8-30; beat 1 is
-  the hook, 15 at most), `device` (question | reveal | example | pattern_break | explain), `key_fact`, `fact_ids`
-  (from your facts), `emotion` (neutral | hook | reveal | tense | warm | excited). Never two `explain` in a row;
+  the hook, 15 at most), `device` (question | reveal | example | pattern_break | explain), `key_fact`,
+  `emotion` (neutral | hook | reveal | tense | warm | excited). Never two `explain` in a row;
   something other than `explain` at least every 40 seconds.
 - `loops`: 3-5 open loops, each `{{"id": "L1", "question": "...", "plant": <beat n>, "payoff": <later beat n>}}`.
   At least two planted in the first 60 seconds; payoffs spread out (not all at the end); 1-3 minutes between plant
@@ -49,13 +48,12 @@ Code rotates hook types: it will not use one of the channel's last three. Formul
 
 # Output: one JSON object with exactly these keys
 {{
-  "facts": [{{"id": "f1", "claim": "string", "figure": 1.2, "unit": "billion USD", "year": 2024,
-             "source_url": "https://...", "quote_snippet": "exact words from the page", "is_estimate": false}}],
+  "facts": [{{"id": "f1", "claim": "string", "figure": 1.2, "unit": "billion USD", "year": 2024, "is_estimate": false}}],
   "outline": {{
     "audience_question": "string", "big_idea": "string", "promise": "string", "title_promise": "string",
     "arc": "string",
     "beats": [{{"n": 1, "chapter": "string", "purpose": "string", "seconds": 12, "device": "question",
-               "key_fact": "string", "fact_ids": ["f1"], "emotion": "hook"}}],
+               "key_fact": "string", "emotion": "hook"}}],
     "loops": [{{"id": "L1", "question": "string", "plant": 1, "payoff": 7}}],
     "ending": {{"callback": "string", "takeaway": "string", "cta_question": "string", "next_video": "string"}},
     "thumbnail_ideas": ["string", "string", "string"], "risks": ["string"]

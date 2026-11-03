@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from studio.errors import StudioError
@@ -71,6 +72,15 @@ def compose(name: str, prof: dict, **values) -> str:
         style.check_no_placeholders(str(vals.get(key, "")), f"channel {key}")
     from studio.story.profile import short_form_note
     return read(name, prof["pack"]).format_map(vals) + short_form_note(prof)
+
+
+SOURCE_ASK = re.compile(
+    r"\bsources?\b|\bcit(?:e|es|ed|ation|ations)\b|fact[_ ]?ids?\b|source_(?:ids?|url)|quote_snippet|url_or_note", re.I)
+
+
+def asks_for_sources(text: str) -> bool:
+    """True if a prompt still asks for sources, citations or fact ids (owner decision: scripts carry none)."""
+    return bool(SOURCE_ASK.search(text or ""))
 
 
 def j(obj: object) -> str:

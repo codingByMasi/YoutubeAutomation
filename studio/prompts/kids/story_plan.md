@@ -15,15 +15,15 @@ retention outline (story bible) and 8 scored hook variants. Code verifies every 
 
 # 1. Facts (optional for this channel)
 Kids stories need few facts. Use only counting numbers (1 to 10), animal sounds or simple true things a parent would
-recognise. Give 2-4 facts at most, ids `f1`, `f2`, ... Leave `source_url` and `quote_snippet` empty and set
+recognise. Give 2-4 facts at most, ids `f1`, `f2`, ... Set
 `is_estimate` true. Do not copy another creator's story or song: invent your own characters and words.
 {facts_note}
 
 # 2. Outline (story bible)
 - `audience_question`, `big_idea`, `promise`, `title_promise`, `arc` (one line: the shape of the story).
 - `beats`: 10-18 beats in order. Each: `n`, `chapter` (short, viewer-facing), `purpose`, `seconds` (8-30; beat 1 is
-  the hook, 8 at most), `device` (question | reveal | example | pattern_break | explain), `key_fact`, `fact_ids`
-  (from your facts), `emotion` (neutral | hook | reveal | tense | warm | excited). Never two `explain` in a row;
+  the hook, 8 at most), `device` (question | reveal | example | pattern_break | explain), `key_fact`,
+  `emotion` (neutral | hook | reveal | tense | warm | excited). Never two `explain` in a row;
   something other than `explain` at least every 40 seconds.
 - `loops`: 0-2 tiny open loops (optional, for example "where is the ball?"), each `{{"id": "L1", "question": "...", "plant": <beat n>, "payoff": <later beat n>}}`.
   Pay each off within 20-60 seconds.
@@ -47,13 +47,12 @@ Code rotates hook types: it will not use one of the channel's last three. Formul
 
 # Output: one JSON object with exactly these keys
 {{
-  "facts": [{{"id": "f1", "claim": "string", "figure": 1.2, "unit": "ducks", "year": 2024,
-             "source_url": "https://...", "quote_snippet": "exact words from the page", "is_estimate": false}}],
+  "facts": [{{"id": "f1", "claim": "string", "figure": 1.2, "unit": "ducks", "year": 2024, "is_estimate": false}}],
   "outline": {{
     "audience_question": "string", "big_idea": "string", "promise": "string", "title_promise": "string",
     "arc": "string",
     "beats": [{{"n": 1, "chapter": "string", "purpose": "string", "seconds": 12, "device": "question",
-               "key_fact": "string", "fact_ids": ["f1"], "emotion": "hook"}}],
+               "key_fact": "string", "emotion": "hook"}}],
     "loops": [{{"id": "L1", "question": "string", "plant": 1, "payoff": 7}}],
     "ending": {{"callback": "string", "takeaway": "string", "cta_question": "string", "next_video": "string"}},
     "thumbnail_ideas": ["string", "string", "string"], "risks": ["string"]

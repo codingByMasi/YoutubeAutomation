@@ -21,7 +21,7 @@ the script: simple character, goal, small obstacle, happy resolution.
   pattern_break | explain), `key_fact` (the counting or colour idea), `emotion` (happy, curious, wobbly, proud).
   Include one counting or quiz moment and one repeated line the child can join.
 - `arc`, `ending` (callback, takeaway, cta_question = a question to ask the child, next_video), `title_promise`,
-  3 `thumbnail_ideas`, `sources` (may be empty for original stories), `risks` (anything that could scare).
+  3 `thumbnail_ideas`, `risks` (anything that could scare).
 Safety: nothing scary, violent or unsafe to imitate; no brands, links or personal-info asks.
 
 # Output: one JSON object with exactly these keys
@@ -34,5 +34,5 @@ Safety: nothing scary, violent or unsafe to imitate; no brands, links or persona
   "arc": {{"setup": "string", "escalation": "string", "twist": "string", "payoff": "string"}},
   "ending": {{"callback": "string", "takeaway": "string", "cta_question": "string", "next_video": "string"}},
   "title_promise": "string", "thumbnail_ideas": ["string", "string", "string"],
-  "sources": [], "risks": ["string"]
+  "risks": ["string"]
 }}
