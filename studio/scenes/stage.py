@@ -8,7 +8,7 @@ import typer
 
 from studio.blender.provider import SceneStopped, SceneTooSlow
 from studio.errors import StudioError
-from studio.scenes import render2d, render3d
+from studio.scenes import host, render2d, render3d
 from studio.scenes.budget import SceneBudget
 from studio.stages.timing import split_segment
 
@@ -22,6 +22,8 @@ def draw(pl: dict, seg: dict, pos: int, out: Path, charts: Path, blender: render
     `budget` shortens scenes that would take too long and carries progress and the cancel flag.
     """
     scene, mode, fell_back = pl["scene"], pl["mode"], False
+    if scene["kind"] == "host" and mode == "3d":
+        scene = host.with_model(scene, blender.assets_dir)  # the mascot's optional .glb model, else built-in shapes
     stem = f"scene_{pos:03d}"
     if mode == "3d":
         exe = blender.exe

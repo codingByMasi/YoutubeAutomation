@@ -484,7 +484,12 @@ edges; it is optional and the default stays light for any PC. Add one yourself i
 (actions: present, point, celebrate, shock, think, shrug, walk_in, fall, wave; sets: studio, vault, street,
 boardroom, stage). The character is the mascot `kind`: `coin`, `owl`, `robot`, `piggy`, `bull` or `analyst`
 (a stylised person with glasses, rolled sleeves and a tablet; mascot fields `color` = shirt, `skin`, `hair`,
-`hair_style` short or curly). Without Blender the scene is drawn in 2D with the mascot picture. Rendering stays
+`hair_style` short or curly). Without Blender the scene is drawn in 2D with the mascot picture.
+For a real character, put a free CC0 `.glb` model (for example from Kenney's animated characters) in
+`assets/characters/` and set the mascot's `model` to its file name (optional `model_scale`, and `clips` to choose a clip
+per action, e.g. `{"point": "Interact"}`). The model is sized to the set, stands on the floor, and plays the clip whose
+name matches the action (idle, walk, jump, die ...); with no match it plays its first clip. If the file is missing or
+cannot load, the built-in shapes are used. A model needs no GPU: it renders with the same light settings. Rendering stays
 local: Eevee, 720p, 15 fps, about the same cost as the other 3D scenes. Real logos are never drawn; a prop that
 shows a figure needs `source_ids`.
 

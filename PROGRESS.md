@@ -540,3 +540,11 @@ Decisions: OpenUtau has no CLI renderer, so a voicebank "preview" is a clip expo
 
 ## 2026-11-03: scripts no longer need facts or sources
 - Decision: a pasted script is never blocked by fact ids, figures-in-facts, chart-vs-fact, sources, or title count (fewer than 15 is a warning). Script prompts no longer ask for `sources`, `source_ids` or `fact_ids`; old saved scripts that still carry them load fine. Step 0 facts are only used by the story plan, not the script check.
+
+## Optional real character models (2026-11-03)
+- Mascot fields `model` (.glb/.gltf in `assets/characters/`), `model_scale`, `clips`. `scene_script._build_model` imports
+  it, sizes it to 2 units, loops the clip chosen by `host.CLIP_WORDS` (or the channel's `clips` override) with an NLA
+  strip. Missing or unreadable model: one note and the built-in shapes. No GPU needed.
+- Decision: no mouth flaps for imported models (they have no mouth shapes); gestures come from the clip.
+- Not verified: a real Kenney pack (kenney.nl is blocked from the build sandbox). Tested with a generated .glb.
+  Owner: download the Kenney "Animated Characters" CC0 pack, copy a .glb into `assets/characters/`, set `model`.

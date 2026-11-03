@@ -152,3 +152,65 @@ def test_gpu_quality_is_opt_in(monkeypatch):
     assert render3d.scene_config({"kind": "timeline", "items": []}, 5.0, (1920, 1080))["samples"] == 64
     monkeypatch.setenv("STUDIO_3D_QUALITY", "turbo")  # unknown values fall back to the light default
     assert render3d.quality() == "light"
+
+
+def test_model_field_is_validated_and_resolved(tmp_path, capsys):
+    ok = identity.clean_mascot({"name": "Kay", "kind": "coin", "model": "kay.glb", "clips": {"point": "Interact"}})
+    assert ok["model"] == "kay.glb" and ok["clips"] == {"point": "Interact"} and ok["model_scale"] == 1.0
+    assert identity.clean_mascot({"name": "Kay", "model_scale": "1.3"})["model_scale"] == 1.3
+    with pytest.raises(StudioError):
+        identity.clean_mascot({"name": "Kay", "model": "kay.obj"})
+    assert identity.clean_mascot({"name": "Kay"})["model"] == ""
+    (tmp_path / "characters").mkdir()
+    (tmp_path / "characters" / "kay.glb").write_bytes(b"glTF")
+    scene = {"kind": "host", "mascot": {"kind": "coin", "model": "kay.glb"}}
+    got = host.with_model(scene, tmp_path)["mascot"]["model"]
+    assert got.endswith("kay.glb") and Path(got).is_absolute()
+    missing = host.with_model({"kind": "host", "mascot": {"model": "nope.glb"}}, tmp_path)
+    assert missing["mascot"]["model"] == "" and "built-in" in capsys.readouterr().err  # shapes are the fallback
+    assert host.with_model({"kind": "host", "mascot": {"kind": "coin"}}, tmp_path)["mascot"].get("model") is None
+
+
+def test_config_carries_clip_choice():
+    scene = {"kind": "host", "action": "point", "mascot": {"kind": "coin", "model": "/x/k.glb",
+                                                            "clips": {"point": "Interact"}}}
+    cfg = render3d.scene_config(scene, 5.0, (640, 360))
+    assert cfg["clip"] == "Interact" and cfg["clip_words"][0] == "point" and cfg["mascot"]["model"] == "/x/k.glb"
+
+
+@pytest.mark.skipif(importlib.util.find_spec("bpy") is None, reason="bpy (Blender as a module) not installed")
+def test_blender_loads_a_glb_and_plays_the_matching_clip(tmp_path):
+    import bpy
+
+    sys.path.insert(0, str(Path(render3d.__file__).parents[1] / "blender"))
+    import scene_script as ss
+
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    body = bpy.data.objects.new("Body", bpy.data.meshes.new("Body"))
+    bpy.context.collection.objects.link(body)
+    body.data.from_pydata([(-.5, -.5, 0), (.5, -.5, 0), (0, .5, 1)], [], [(0, 1, 2)])
+    body.animation_data_create()
+    for name in ("Idle", "Jump"):  # one NLA track per clip, which is how glTF animations round-trip
+        act = body.animation_data.action = bpy.data.actions.new(name)
+        for f, z in ((1, 0), (12, 0.5)):
+            body.location = (0, 0, z)
+            body.keyframe_insert("location", frame=f)
+        track = body.animation_data.nla_tracks.new()
+        track.name = name  # the exporter names the glTF animation after the track
+        track.strips.new(name, 1, act)
+        body.animation_data.action = None
+    glb = tmp_path / "m.glb"
+    bpy.ops.export_scene.gltf(filepath=str(glb), export_animation_mode="NLA_TRACKS")
+    base = {"kind": "scene", "scene": "host", "title": "", "items": [], "footnote": "", "bg": "#0B1F3A",
+            "fg": "#F8FAFC", "muted": "#94A3B8", "accent": "#F5B700", "panel": "#12294A",
+            "series": ["#38BDF8", "#F5B700", "#22C55E", "#EF4444", "#A78BFA", "#FB923C"], "duration": 2.0, "fps": 6,
+            "width": 64, "height": 36, "engine": "CYCLES", "samples": 1, "still": 3, "action": "celebrate",
+            "clip_words": ["jump"], "mascot": {"kind": "coin", "model": str(glb)}}
+    ss.main({**base, "out_dir": str(tmp_path / "ok")})
+    strips = [s for o in bpy.data.objects if o.animation_data for t in o.animation_data.nla_tracks for s in t.strips]
+    assert [s.action.name for s in strips] == ["Jump"]  # the clip named for the action, looped by the strip
+    assert (tmp_path / "ok" / "still.png").exists()
+    bad = {**base, "mascot": {"kind": "coin", "model": str(tmp_path / "broken.glb")}}
+    (tmp_path / "broken.glb").write_bytes(b"not a glb")
+    ss.main({**bad, "out_dir": str(tmp_path / "bad")})  # unreadable model: built-in shapes, still renders
+    assert (tmp_path / "bad" / "still.png").exists()
