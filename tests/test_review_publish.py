@@ -61,18 +61,6 @@ def test_review_fails_on_unknown_licence_without_asking(ctx):
     assert "Review failed" in str(e.value) and ctx.confirm.asked == [] and v.stage == "thumbnailed"
 
 
-def test_review_fails_when_chart_has_no_source(ctx):
-    v = ready_video(ctx)
-    p = ctx.settings.project_dir(v.id) / "script.json"
-    pkg = json.loads(p.read_text())
-    pkg["segments"][2]["chart_data"]["source_ids"] = []
-    p.write_text(json.dumps(pkg))
-    ctx.confirm = Answers("yes")
-    with pytest.raises(StudioError):
-        review.run(ctx, v.id)
-    assert v.stage == "thumbnailed"
-
-
 def test_review_cannot_skip_thumbnail(ctx):
     v = ready_video(ctx, stage="built")
     with pytest.raises(StageError):

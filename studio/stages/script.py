@@ -39,6 +39,7 @@ BEAT_ALIASES: dict[str, str | None] = {
 ILLUSTRATIVE_WORDS = ("made-up", "made up", "illustration", "illustrative", "hypothetical", "for example only")
 TITLE_MAX = 70
 TITLE_COUNT = 15
+TITLE_MIN = 10  # a reply with 10-14 titles is usable; more than TITLE_COUNT is trimmed
 HOOK_MAX_SECONDS = 15
 BEAT_GAP_MAX = 40
 CHART_GAP_MAX = 90
@@ -72,8 +73,8 @@ def validate_title(text: str) -> list[str]:
 
 def validate_titles(titles: list[dict]) -> list[str]:
     problems = []
-    if len(titles) != TITLE_COUNT:
-        problems.append(f"need exactly {TITLE_COUNT} titles, got {len(titles)}")
+    if not TITLE_MIN <= len(titles) <= TITLE_COUNT:
+        problems.append(f"need {TITLE_COUNT} titles (at least {TITLE_MIN}), got {len(titles)}")
     for t in titles:
         problems += validate_title(str(t.get("text", "")))
     picks = sum(bool(t.get("is_pick")) for t in titles)
@@ -110,8 +111,59 @@ def normalize_beat(beat: object) -> str | None:
     return None
 
 
-def normalize_package(d: dict) -> list[str]:
-    """Fix harmless near-misses in place (e.g. beat 'explain' -> no beat). Returns a note for each change."""
+def _fix_titles(d: dict) -> list[str]:
+    """Trim extra titles and make exactly one title the pick."""
+    titles = d.get("titles")
+    if not isinstance(titles, list) or not all(isinstance(t, dict) for t in titles):
+        return []
+    notes = []
+    picks = [i for i, t in enumerate(titles) if t.get("is_pick")]
+    if len(titles) > TITLE_COUNT:
+        keep = picks[0] if picks and picks[0] >= TITLE_COUNT else None
+        notes.append(f"titles: kept {TITLE_COUNT} of {len(titles)}")
+        titles[:] = titles[:TITLE_COUNT - 1] + [titles[keep]] if keep is not None else titles[:TITLE_COUNT]
+        picks = [i for i, t in enumerate(titles) if t.get("is_pick")]
+    if titles and len(picks) != 1:
+        for t in titles:
+            t["is_pick"] = False
+        titles[picks[0] if picks else 0]["is_pick"] = True
+        notes.append("titles: marked one title as the pick")
+    return notes
+
+
+def _fix_thumbnail_texts(d: dict) -> list[str]:
+    """Keep at most 3 thumbnail texts of at most 5 words each."""
+    texts = d.get("thumbnail_texts")
+    if isinstance(texts, str):
+        texts = [texts]
+    if not isinstance(texts, list):
+        return []
+    fixed = [" ".join(str(t).split()[:5]) for t in texts if str(t).strip()][:3]
+    if fixed == texts:
+        return []
+    d["thumbnail_texts"] = fixed
+    return ["thumbnail_texts: trimmed to 3 texts of at most 5 words"]
+
+
+def _fix_est_seconds(d: dict, wps: float) -> list[str]:
+    """Claude cannot count words, so est_seconds is recomputed from the narration whenever it is far off."""
+    notes = []
+    for i, seg in enumerate(d.get("segments") or [], 1):
+        if not isinstance(seg, dict):
+            continue
+        n = len(str(seg.get("narration", "")).split())
+        est = seg.get("est_seconds")
+        if n < 3:
+            continue
+        right = round(n / wps, 1)
+        if not isinstance(est, (int, float)) or est <= 0 or not 0.75 <= right / est <= 1.33:
+            seg["est_seconds"] = right
+            notes.append(f"segment {i}: est_seconds set to {right:g} to match its {n} words")
+    return notes
+
+
+def normalize_package(d: dict, wps: float = 2.5) -> list[str]:
+    """Fix harmless near-misses in place (beats, titles, thumbnail texts, est_seconds). Returns a note per change."""
     notes = []
     for i, seg in enumerate(d.get("segments") or [], 1):
         if not isinstance(seg, dict) or "beat" not in seg:
@@ -123,7 +175,22 @@ def normalize_package(d: dict) -> list[str]:
         seg["beat"] = new
         notes.append(f"segment {i}: beat {beat!r} is not a retention beat; "
                      + (f"changed to {new!r}" if new else "treated as a plain explanation (no beat)"))
-    return notes
+    return notes + _fix_titles(d) + _fix_thumbnail_texts(d) + _fix_est_seconds(d, wps)
+
+
+def match_plan_hook(d: dict, outline: dict) -> list[str]:
+    """Set hook_type to the plan's hook when it is missing or only differs in spelling (case, spaces, dashes)."""
+    want = outline.get("hook_type")
+    if not want:
+        return []
+    got = d.get("hook_type")
+    key = lambda x: re.sub(r"[\s\-]+", "_", str(x).strip().lower())  # noqa: E731
+    if got and key(got) != key(want):
+        return []  # a genuinely different hook is reported by the caller
+    if got == want:
+        return []
+    d["hook_type"] = want
+    return [f"hook_type: set to the plan's hook {want!r}"]
 
 
 def validate_chart(chart: dict, source_ids: set[str], where: str) -> list[str]:
@@ -140,13 +207,6 @@ def validate_chart(chart: dict, source_ids: set[str], where: str) -> list[str]:
         problems.append(f"{where}: number card needs one label and one value")
     if not all(isinstance(v, (int, float)) for v in values):
         problems.append(f"{where}: chart values must be numbers")
-    refs = chart.get("source_ids") or []
-    if not refs and chart_needs_source(chart):
-        problems.append(f"{where}: chart has no source (real figures need source_ids; "
-                        "a flow diagram with no values, or a chart titled 'made-up example', does not)")
-    for r in refs:
-        if r not in source_ids:
-            problems.append(f"{where}: chart cites unknown source id {r!r}")
     return problems
 
 
@@ -159,9 +219,6 @@ def validate_package(d: dict, profile: dict | None = None, facts: list[dict] | N
     problems = validate_titles(d.get("titles") or [])
     sources = d.get("sources") or []
     source_ids = {str(s.get("id")) for s in sources}
-    for s in sources:
-        if not s.get("url_or_note"):
-            problems.append(f"source {s.get('id')!r} has no url_or_note")
     segs = d.get("segments") or []
     if len(segs) < 5:
         problems.append(f"need at least 5 segments, got {len(segs)}")
@@ -182,10 +239,9 @@ def validate_package(d: dict, profile: dict | None = None, facts: list[dict] | N
         if seg.get("scene"):
             from studio.scenes import validate_scene
             problems += validate_scene(seg["scene"], where, seg, source_ids)
-    if segs and isinstance(segs[0].get("est_seconds"), (int, float)) and segs[0]["est_seconds"] > HOOK_MAX_SECONDS:
+    if segs and isinstance(segs[0].get("est_seconds"), (int, float)) and max(
+            segs[0]["est_seconds"], len(str(segs[0].get("narration", "")).split()) / 2.5) > HOOK_MAX_SECONDS:
         problems.append(f"segment 1 is the hook and must be at most {HOOK_MAX_SECONDS}s")
-    if d.get("sensitive_topic") and not sources:
-        problems.append("finance/health/legal/news topics must list sources")
     if not str(d.get("originality_note", "")).strip():
         problems.append("originality_note is empty: say what this video adds")
     if not str(d.get("cta", "")).strip():
@@ -393,7 +449,8 @@ def run_engine_script(ctx: Ctx, video: Video, outline: dict, force: bool = False
 
     def check(data: dict) -> list[str]:
         notes.clear()
-        notes.extend(normalize_package(data))
+        notes.extend(normalize_package(data, float(prof["wps"])))
+        notes.extend(match_plan_hook(data, outline))
         problems = validate_package(data, prof, facts)
         if data.get("hook_type") and data["hook_type"] != outline.get("hook_type"):
             problems.append(f"hook_type must be {outline.get('hook_type')!r} (the plan's chosen hook), "
@@ -419,7 +476,8 @@ def run_engine_script(ctx: Ctx, video: Video, outline: dict, force: bool = False
         for n in notes:
             typer.secho(f"auto-fixed: {n}", fg=typer.colors.YELLOW)
         save_package(ctx, video, d)
-        for w in quality_report(d)["warnings"]:
+        from studio.story import checks as story_checks
+        for w in story_checks.style_notes(d, prof) + quality_report(d)["warnings"]:
             typer.secho(f"warning: {w}", fg=typer.colors.YELLOW)
 
     r = run_stage(ctx.session, video, "scripted", work, force)

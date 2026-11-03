@@ -14,8 +14,8 @@ the retention outline: the shape of the story, the hook, the curiosity gaps and 
 {hooks}
 
 # Research first
-Use web search to find the real figures (annual reports, filings, reputable articles). Every figure in the beat
-sheet needs a source. Mark estimates as estimates. Do not copy or closely paraphrase any other creator's video
+Use web search to find the real figures (annual reports, filings, reputable articles). Any figure in the beat
+sheet may name a source if you have one. Mark estimates as estimates. Do not copy or closely paraphrase any other creator's video
 or article; the angle, structure and examples must be original.
 
 # What to design

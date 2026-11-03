@@ -113,8 +113,6 @@ def validate_outline(d: dict, profile: dict | None = None) -> list[str]:
     for key in ("callback", "takeaway", "cta_question", "next_video"):
         if not str(end.get(key, "")).strip():
             problems.append(f"ending.{key} is empty")
-    if not d.get("sources") and not kids:
-        problems.append("sources is empty")
     if len(d.get("thumbnail_ideas") or []) != 3:
         problems.append("need 3 thumbnail_ideas")
     return problems

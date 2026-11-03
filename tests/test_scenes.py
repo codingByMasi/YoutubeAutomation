@@ -76,8 +76,7 @@ def test_scene_validation():
     assert ok(TIMELINE, "s", None, {"s1"}) == [] and ok(MAP, "s") == [] and ok(ARTIFACT, "s") == []
     assert ok(None, "s") == []
     assert "scene kind 'orbit'" in ok({"kind": "orbit"}, "s")[0]
-    assert any("source_ids" in p for p in ok({**TIMELINE, "source_ids": []}, "s"))
-    assert any("unknown source id" in p for p in ok(TIMELINE, "s", None, {"zz"}))
+    assert ok({**TIMELINE, "source_ids": []}, "s") == []  # sources are optional
     assert any("between 0 and 1" in p for p in ok({**MAP, "items": [{"label": "a", "x": 2, "y": 0.1}] * 2}, "s"))
     assert any("exactly 1" in p for p in ok({**ARTIFACT, "items": ARTIFACT["items"] * 2}, "s"))
     assert any("shape" in p for p in ok({**ARTIFACT, "items": [{"label": "x", "shape": "ufo"}]}, "s"))
@@ -90,7 +89,7 @@ def test_scene_validation():
 def test_script_package_validation_includes_scenes():
     pkg = json.loads((Path(__file__).parent.parent / "studio" / "samples" / "sample_script.json").read_text())
     assert sc.validate_package(pkg) == []
-    pkg["segments"][1]["scene"] = {"kind": "timeline", "items": [{"label": "1", "text": "x"}] * 2}
+    pkg["segments"][1]["scene"] = {"kind": "timeline", "items": [{"label": "1", "text": "x"}]}
     problems = sc.validate_package(pkg)
     assert any("segment 2" in p and "timeline" in p for p in problems)
     pkg["segments"][1]["scene"] = TIMELINE

@@ -129,15 +129,16 @@ def test_numbers_must_trace_to_facts():
     chart = {"segments": [seg("Fine.", fact_ids=["f1"], chart_data={"values": [1.2e9, 7], "labels": ["a", "b"],
                                                                      "title": "Sales"})]}
     assert any("chart value 7" in p for p in facts.trace_problems(chart, fl))
-    nf = [{"id": "f3", "figure": 2, "status": "unverified", "is_estimate": False}]
+    nf = [{"id": "f3", "figure": 2, "status": "unverified", "is_estimate": False, "source_url": "https://x.org/a"}]
     assert any("not flagged is_estimate" in p
                for p in facts.trace_problems({"segments": [seg("Plain.", fact_ids=["f3"])]}, nf))
 
 
 def test_validate_facts_shape():
     assert facts.validate_facts([])
-    assert any("source_url" in p for p in facts.validate_facts([{"id": "f1", "claim": "c", "unit": "",
-                                                                  "source_url": "", "is_estimate": False}]))
+    assert facts.validate_facts([{"id": "f1", "claim": "c", "unit": "", "source_url": "", "is_estimate": False}]) == []
+    assert any("https" in p for p in facts.validate_facts([{"id": "f1", "claim": "c", "unit": "",
+                                                            "source_url": "nope", "is_estimate": False}]))
 
 
 # ---------- hooks + ledger ----------

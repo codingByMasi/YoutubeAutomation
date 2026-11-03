@@ -128,7 +128,7 @@ def test_critique_applies_rewrite_and_keeps_original(ctx):
 def test_critique_rejects_invalid_scores_and_invalid_rewrite(ctx):
     idea, v = scripted(ctx)
     bad = copy.deepcopy(SAMPLE)
-    bad["segments"][0]["est_seconds"] = 40  # hook too long: the rewrite must obey the script rules
+    bad["segments"][0]["narration"] = "word " * 60  # hook too long: the rewrite must obey the script rules
     ans = critique_answer(bad)
     ans["scores"]["hook"] = 9
     problems = "\n".join(story.validate_critique(ans))
