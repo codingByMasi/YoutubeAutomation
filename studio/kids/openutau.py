@@ -24,6 +24,9 @@ def find_openutau(configured: str = "") -> Path | None:
     found = shutil.which("OpenUtau") or shutil.which("OpenUtau.exe")
     if found:
         return Path(found)
+    for fixed in (r"C:\Tools\OpenUtau\OpenUtau.exe", "C:/Tools/OpenUtau/OpenUtau.exe"):
+        if Path(fixed).is_file():
+            return Path(fixed)
     roots = [os.environ.get("LOCALAPPDATA", ""), os.environ.get("PROGRAMFILES", ""), str(Path.home()),
              str(Path.home() / "Downloads")]
     for root in filter(None, roots):

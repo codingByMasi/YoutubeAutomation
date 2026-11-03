@@ -10,13 +10,14 @@ import streamlit as st
 from studio.errors import LOCKED_HELP, StudioError, is_locked_error
 from studio.stages import research
 from studio.stages.base import STAGES
-from studio.web import handoff_ui, publish_ui, remedy_ui, setup_ui, wizard_ui
+from studio.web import handoff_ui, publish_ui, remedy_ui, setup_ui, voices_ui, wizard_ui
 from studio.web import service as svc
 from studio.web.growth_ui import page_grow_factory
 
 ROOT = Path(os.getenv("STUDIO_HOME") or Path(__file__).parent).resolve()
-PAGES = ["🎬 Make a video", "Setup", "Home", "1. Topics", "2. Script", "3. Make the video", "4. Review and download",
-         "5. Grow the channel", "📊 Analytics", "Channels", "Settings", "Data", "🧸 Kids mode"]
+PAGES = ["🎬 Make a video", "Setup", "🎙️ Voices", "Home", "1. Topics", "2. Script", "3. Make the video",
+         "4. Review and download", "5. Grow the channel", "📊 Analytics", "Channels", "Settings", "Data",
+         "🧸 Kids mode"]
 
 st.set_page_config(page_title="YouTube Channel Studio", page_icon="🎬", layout="wide")
 
@@ -617,6 +618,10 @@ def page_setup() -> None:
     setup_ui.render(ctx_for, show)
 
 
+def page_voices() -> None:
+    voices_ui.render(ctx_for, show)
+
+
 def page_kids() -> None:
     from studio.kids import page
 
@@ -657,7 +662,7 @@ def main() -> None:
             _fix_buttons()
     handoff_ui.show_flash()
     try:
-        {"🎬 Make a video": page_wizard, "Setup": page_setup,
+        {"🎬 Make a video": page_wizard, "Setup": page_setup, "🎙️ Voices": page_voices,
          "Home": page_home, "1. Topics": page_topics, "2. Script": page_script, "3. Make the video": page_make,
          "4. Review and download": page_review, "5. Grow the channel": page_grow,
          "📊 Analytics": page_analytics,

@@ -112,6 +112,11 @@ Kids scenes can be rendered as soft 3D instead of the flat 2D drawings. It is op
 hosted app (no GPU there). Without Blender everything keeps working with the 2D renderer; if you ask for Blender and
 it is missing or too old, the build prints a note and uses 2D.
 
+**Voices page (in the app):** the sidebar's **🎙️ Voices** page lets you hear each narration voice and pick one (saved to
+`.env` and the active channel), and lists the approved voicebanks with licence, monetisation status and warnings. AyaLuna
+bans AI-generated content, so it needs a ticked confirmation before it can be selected. Voicebank previews are clips you
+export from OpenUtau (CPU only, no GPU) and upload on that page; OpenUtau is found at `C:\Tools\OpenUtau` automatically.
+
 Windows setup (one time):
 1. Install Blender 4.2 LTS or newer from blender.org (free, GPL; videos you render are yours). The default folder
    `C:\Program Files\Blender Foundation\Blender <version>\` is found automatically. Otherwise set
@@ -164,9 +169,10 @@ Windows setup (one time):
 1. Download OpenUtau from github.com/stakira/OpenUtau/releases (the Windows x64 zip; unzip it anywhere, for example
    `C:\Tools\OpenUtau`, and run `OpenUtau.exe`). Put the path in `.env` as `OPENUTAU_PATH=C:\Tools\OpenUtau\OpenUtau.exe`
    if you want `--open` to launch it.
-2. Install a free English singing voicebank: in OpenUtau use Singers > Install Singer (or Singers > Get more) and pick a
-   DiffSinger or classic English voicebank. **Read that voicebank's licence yourself before monetising**; each one has
-   its own terms (commercial use, credit line, no use for kids content, and so on). Save the licence text beside the video.
+2. Pick a voicebank from the approved list (only banks whose licence allows monetised videos): run
+   `python -m studio.cli kids voicebanks`, download the one you want, install it in OpenUtau (Singers > Install Singer),
+   and set `SING_VOICEBANK=<key>` in `.env`. `kids sing` then saves `sung/VOICEBANK_LICENCE.txt` with the licence,
+   the credit line for your video description and any warnings. Re-read the creator's page before publishing.
 3. Run `python -m studio.cli kids sing "counting five little ducks" --open` (or open `sung\song.ustx` in OpenUtau).
 4. In OpenUtau choose your singer for the track. If the words sound wrong, change the track's Phonemizer (the file
    asks for "English Arpasing+"; a DiffSinger voicebank may need its own phonemizer). Press play to check it.

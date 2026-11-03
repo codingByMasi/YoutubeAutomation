@@ -21,7 +21,8 @@ from studio.web.service import Outcome, capture
 
 # Only these names may be written to .env from the browser.
 ENV_KEYS = ("PEXELS_API_KEY", "PIXABAY_API_KEY", "ELEVENLABS_API_KEY", "CHANNEL_ID", "TTS_PROVIDER", "TTS_VOICE",
-            "FOOTAGE_PROVIDER", "RENDERER", "BLENDER_PATH", "LLM_PROVIDER", "LLM_API_KEY", "LLM_MODEL")
+            "FOOTAGE_PROVIDER", "RENDERER", "BLENDER_PATH", "LLM_PROVIDER", "LLM_API_KEY", "LLM_MODEL",
+            "SING_VOICEBANK")
 
 # Free Microsoft Edge voices that read well for explainers (edge-tts names).
 VOICES = {
@@ -98,6 +99,9 @@ def save_env(root: Path, updates: dict[str, str]) -> list[str]:
     if "FOOTAGE_PROVIDER" in clean and clean["FOOTAGE_PROVIDER"] not in FOOTAGE_PROVIDERS:
         raise StudioError("Unknown footage provider.", f"Got {clean['FOOTAGE_PROVIDER']!r}.",
                           f"Choose one of: {', '.join(sorted(FOOTAGE_PROVIDERS))}.")
+    if clean.get("SING_VOICEBANK"):
+        from studio.kids import voicebanks
+        clean["SING_VOICEBANK"] = voicebanks.get(clean["SING_VOICEBANK"]).key  # refuses anything not vetted
     if "RENDERER" in clean and clean["RENDERER"] not in RENDERERS:
         raise StudioError("Unknown picture renderer.", f"Got {clean['RENDERER']!r}.", "Choose 2d or blender.")
     if any("\n" in v or "\r" in v for v in clean.values()):
