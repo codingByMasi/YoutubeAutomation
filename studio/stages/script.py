@@ -423,7 +423,29 @@ def load_package(ctx: Ctx, video_id: int) -> dict:
     p = ctx.settings.project_dir(video_id) / "script.json"
     if not p.exists():
         raise StudioError(f"{p} not found.", "The script stage has not produced it.", "Run `script <idea_id>` first.")
-    return json.loads(p.read_text(encoding="utf-8"))
+    return tolerant_package(json.loads(p.read_text(encoding="utf-8")))
+
+
+def tolerant_package(pkg: dict) -> dict:
+    """Make an old or hand-pasted script.json safe to read: segments are dicts, chart_data/visual are dicts or
+    absent, and scene is a dict or a cast-scene name (str); a bare-text segment becomes its narration."""
+    if not isinstance(pkg, dict):
+        return {"segments": []}
+    segs = pkg.get("segments")
+    out = []
+    for g in segs if isinstance(segs, list) else []:
+        if isinstance(g, str):
+            g = {"narration": g}
+        if not isinstance(g, dict):
+            continue
+        g = dict(g)
+        for k in ("chart_data", "visual"):
+            if k in g and not isinstance(g[k], dict):
+                g.pop(k)
+        if "scene" in g and not isinstance(g["scene"], (dict, str)):
+            g.pop("scene")
+        out.append(g)
+    return {**pkg, "segments": out}
 
 
 def write_package(ctx: Ctx, video_id: int, d: dict) -> None:
