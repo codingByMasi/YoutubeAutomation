@@ -16,8 +16,8 @@ from studio.history import wardrobe
 from studio.providers import voices
 
 SCENE_TYPES = ("lectern", "skit", "map", "diagram", "easel", "archive", "calendar", "silhouette", "title")
-MAX_SPEECH_LINES = 4
-MAX_SPEECH_WORDS = 10
+MAX_SPEECH_LINES = 6
+MAX_SPEECH_WORDS = 12
 HEADWEAR = ("none", "fur_hat", "helmet", "crown", "turban", "cap", "hood", "laurel")
 PROPS = ("none", "sword", "scroll", "shield", "staff", "coin", "banner")
 

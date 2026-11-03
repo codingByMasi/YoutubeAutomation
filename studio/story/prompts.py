@@ -57,6 +57,11 @@ def _cast_block(prof: dict) -> str:
     return cast.prompt_block(prof)
 
 
+def _narration_block(prof: dict) -> str:
+    from studio.story import narration_styles as narration
+    return narration.prompt_block(prof["narration"]) if prof.get("narration") in narration.STYLES else ""
+
+
 def compose(name: str, prof: dict, **values) -> str:
     """Fill a pack prompt. Unknown placeholders become empty; profile-derived blocks are added automatically."""
     vals = _Safe(
@@ -64,7 +69,7 @@ def compose(name: str, prof: dict, **values) -> str:
         max_minutes=prof["max_minutes"], compliance=" ".join(prof["compliance"]), ending_style=prof["ending_style"],
         writing_rules=writing_rules(prof), exemplar=exemplar(prof["pack"]), shape=shape(prof),
         hooks=read("hooks", prof["pack"]), photo_rule=photo.prompt_rule(prof["pack"]),
-        cast_block=_cast_block(prof), tone=prof.get("tone", ""),
+        cast_block=_cast_block(prof), narration_block=_narration_block(prof), tone=prof.get("tone", ""),
         recent="(no earlier videos on this channel yet)", facts_block="(none)")
     vals.update(values)
     from studio.story import style

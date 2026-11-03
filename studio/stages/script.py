@@ -243,7 +243,7 @@ def validate_package(d: dict, profile: dict | None = None, facts: list[dict] | N
             from studio.scenes import validate_scene
             problems += validate_scene(seg["scene"], where, seg, source_ids)
     if segs and isinstance(segs[0].get("est_seconds"), (int, float)) and max(
-            segs[0]["est_seconds"], len(str(segs[0].get("narration", "")).split()) / 2.5) > HOOK_MAX_SECONDS:
+            segs[0]["est_seconds"], len(str(segs[0].get("narration", "")).split()) / max(2.5, float((profile or {}).get("wps", 2.5)))) > HOOK_MAX_SECONDS:
         problems.append(f"segment 1 is the hook and must be at most {HOOK_MAX_SECONDS}s")
     if not str(d.get("originality_note", "")).strip():
         problems.append("originality_note is empty: say what this video adds")

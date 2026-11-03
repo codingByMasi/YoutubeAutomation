@@ -74,8 +74,8 @@ PACKS: dict[str, dict] = {
         "label": "History / animated storytelling", "gate_type": "story", "pack": "history",
         "audience": "Curious learners 16-55 who like clear, funny or gripping animated stories about the past",
         "region": "global",
-        # tone: "blend" = dramatic story with light comic asides; "comedic" or "dramatic" push one way.
-        "tone": "blend",
+        # tone (default comedic = the comic storyteller style): "blend" = dramatic story with light comic asides; "comedic" or "dramatic" push one way.
+        "tone": "comedic",
         "beat_sheet": ["cold open: one scene that states the problem or promise (15 seconds at most)",
                        "title card, then rewind to the person or cause that explains it",
                        "chapter 1: who wants what, and the first decision with a cost",
@@ -187,13 +187,20 @@ def pack_name(channel_type: str | None) -> str:
     return PACK_FOR_TYPE.get((channel_type or "business").strip().lower(), "general")
 
 
-def get(pack: str, overrides: dict | None = None) -> dict:
-    """Full profile for a pack: shared defaults < pack values < owner overrides. Includes merged `flags`."""
+def get(pack: str, overrides: dict | None = None, narration: str = "") -> dict:
+    """Full profile for a pack: shared defaults < pack values < narration style < owner overrides. Includes merged `flags`.
+
+    `narration` is a narration-style id from `studio.story.narration_styles` (blank = the pack's default style)."""
     base = copy.deepcopy(_SHARED)
     pk = copy.deepcopy(PACKS.get(pack, PACKS["general"]))
     base.update({k: v for k, v in pk.items() if k != "voice"})
     if "voice" in pk:
         base["voice"] = pk["voice"]
+    from studio.story import narration_styles as nar
+    nid = nar.resolve(pk.get("pack", pack), narration)
+    style = nar.STYLES[nid]
+    base["voice"], base["wps"], base["narration"] = copy.deepcopy(style["voice"]), style["wps"], nid
+    base["narration_voice"] = {"kokoro": style["kokoro"], "speed": style["speed"]}
     flags = dict(DEFAULT_FLAGS)
     flags.update(pk.get("flag_overrides") or {})
     ov = copy.deepcopy(overrides or {})
@@ -219,7 +226,8 @@ def for_channel(root: Path) -> dict:
     """Profile of the active channel (its type's pack plus the channel's `story` overrides)."""
     from studio.growth import channels
     p = channels.get(root)
-    return get(pack_name(p.get("type")), p.get("story") if isinstance(p.get("story"), dict) else None)
+    return get(pack_name(p.get("type")), p.get("story") if isinstance(p.get("story"), dict) else None,
+               p.get("narration", ""))
 
 
 def enabled(profile: dict, flag: str) -> bool:

@@ -252,6 +252,18 @@ class FallbackTTS:
             return None
 
 
+def _narration_voice(settings: Settings) -> dict:
+    """The active channel's narration-style Kokoro voice and speed; empty if KOKORO_VOICE is set in .env or on error."""
+    import os
+    if os.getenv("KOKORO_VOICE"):
+        return {}
+    try:
+        from studio.story import profile
+        return profile.for_channel(settings.root).get("narration_voice", {})
+    except Exception:  # noqa: BLE001 - a missing channel file must never stop the voice
+        return {}
+
+
 def get_tts(settings: Settings) -> TTS:
     """The voice engine. `silent` and explicit `eleven` are respected; the default (`edge`) builds a fallback chain
     in TTS_ORDER (default kokoro,onnx,edge,piper): engines that are not installed are skipped."""
@@ -261,14 +273,15 @@ def get_tts(settings: Settings) -> TTS:
     if settings.tts_provider == "eleven":
         settings.require("voice (TTS_PROVIDER=eleven)", "ELEVENLABS_API_KEY")
         chain.append(ElevenLabsTTS(settings.elevenlabs_api_key, settings.tts_voice))
+    nv = _narration_voice(settings)
     raw_order = getattr(settings, "tts_order", "") or "kokoro,onnx,edge,piper"
     order = [x.strip() for x in raw_order.split(",") if x.strip()]
     piper_model = getattr(settings, "piper_model", "")
     for name in order:
         if name == "kokoro" and KokoroTTS.available() and settings.tts_provider != "eleven":
-            chain.append(KokoroTTS())
+            chain.append(KokoroTTS(nv.get("kokoro", "af_heart")))
         elif name in ("onnx", "kokoro_onnx") and KokoroOnnxTTS.available() and settings.tts_provider != "eleven":
-            chain.append(KokoroOnnxTTS())
+            chain.append(KokoroOnnxTTS(nv.get("kokoro", ""), nv.get("speed", 0.0)))
         elif name == "edge":
             chain.append(EdgeTTS(settings.tts_voice or "en-US-AndrewNeural"))
         elif name == "piper" and PiperTTS.available(piper_model):
