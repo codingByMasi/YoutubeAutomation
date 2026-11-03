@@ -132,7 +132,7 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
         rejected: list[str] = []
         fallbacks = 0
         animated = 0
-        blender = render3d.Blender3D(ctx.settings.blender_path)
+        blender = render3d.Blender3D(ctx.settings.blender_path, ctx.settings.assets_dir)
         scene_counts: dict[str, int] = {}
         from studio.history import cast as cast_mod
         from studio.history import render as cast_render

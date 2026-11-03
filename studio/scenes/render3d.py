@@ -22,8 +22,8 @@ QUALITIES = ("light", "gpu")  # STUDIO_3D_QUALITY: "light" (default, any PC) or 
 class Blender3D:
     """Finds a usable Blender once per run; `.exe` is None (with one printed note) when 3D is not possible."""
 
-    def __init__(self, configured: str = "") -> None:
-        self.configured, self._done, self._exe = configured, False, None
+    def __init__(self, configured: str = "", assets_dir: Path | None = None) -> None:
+        self.configured, self._done, self._exe, self.assets_dir = configured, False, None, assets_dir
 
     @property
     def exe(self) -> Path | None:
@@ -50,8 +50,12 @@ def size_for(profile) -> tuple[int, int]:
 def scene_config(scene: dict, seconds: float, size: tuple[int, int], footnote: str = "",
                  mouth: list | None = None) -> dict:
     """The JSON handed to Blender (see scene_script.build_scene) with the current channel colours."""
-    host = {"action": scene.get("action", "present"), "set": scene.get("set", "studio"),
-            "props": scene.get("props", []), "mascot": scene.get("mascot") or {}, "mouth": mouth or []}
+    from studio.scenes import host as hostmod
+
+    action, mascot = scene.get("action", "present"), scene.get("mascot") or {}
+    host = {"action": action, "set": scene.get("set", "studio"), "props": scene.get("props", []), "mascot": mascot,
+            "mouth": mouth or [], "clip_words": list(hostmod.CLIP_WORDS.get(action, ("idle",))),
+            "clip": (mascot.get("clips") or {}).get(action, "")}
     return {**(host if scene["kind"] == "host" else {}),
             "kind": "scene", "scene": scene["kind"], "title": scene.get("title", ""), "items": scene.get("items", []),
             "footnote": footnote, "bg": brand.BG, "fg": brand.FG, "muted": brand.MUTED, "accent": brand.ACCENT,

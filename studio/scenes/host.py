@@ -9,6 +9,8 @@ from __future__ import annotations
 import array
 import re
 import subprocess
+import sys
+from pathlib import Path
 
 ACTIONS = ("present", "point", "celebrate", "shock", "think", "shrug", "walk_in", "fall", "wave")
 SETS = ("studio", "vault", "street", "boardroom", "stage")
@@ -99,3 +101,43 @@ def envelope(audio, seconds: float, fps: int, ffmpeg: str = "ffmpeg") -> list[fl
         rms.append((sum(x * x for x in chunk) / len(chunk)) ** 0.5 if chunk else 0.0)
     top = sorted(rms)[int(len(rms) * 0.9)] or max(rms) or 1.0
     return [round(min(1.0, r / top), 3) if r > top * 0.08 else 0.0 for r in rms]
+
+
+MODEL_EXTS = (".glb", ".gltf")  # glTF is what Kenney, Quaternius and KayKit ship; Blender imports it natively
+# Which clip names suit each action (lower-case substrings, tried in order). The channel can override per action
+# with mascot["clips"] = {"point": "Interact"}. A model with none of these falls back to its first clip.
+CLIP_WORDS = {
+    "present": ("idle", "interact", "talk"), "point": ("point", "interact", "idle"),
+    "celebrate": ("cheer", "victory", "dance", "jump", "wave"), "shock": ("hit", "scare", "jump", "idle"),
+    "think": ("think", "idle"), "shrug": ("shrug", "idle"), "walk_in": ("walk", "run", "sprint"),
+    "fall": ("die", "fall", "death", "knock"), "wave": ("wave", "interact", "idle"),
+}
+_noted: set[str] = set()
+
+
+def resolve_model(mascot: dict | None, assets_dir: Path | None) -> str:
+    """Absolute path of the mascot's glTF model, or "" (shapes are used) when none is set or the file is missing.
+
+    A relative `model` is looked up in `<assets>/characters/` then `<assets>/`. Missing files print one note.
+    """
+    name = str((mascot or {}).get("model") or "").strip()
+    if not name:
+        return ""
+    cands = [Path(name)] if Path(name).is_absolute() else (
+        [assets_dir / "characters" / name, assets_dir / name] if assets_dir else [])
+    for c in cands:
+        if c.suffix.lower() in MODEL_EXTS and c.is_file():
+            return str(c.resolve())
+    if name not in _noted:
+        _noted.add(name)
+        print(f"Note: character model {name!r} was not found (looked in assets/characters); using the built-in "
+              "shapes instead. Put a .glb file there or clear the mascot 'model' field.", file=sys.stderr)
+    return ""
+
+
+def with_model(scene: dict, assets_dir: Path | None) -> dict:
+    """The scene with its mascot's `model` resolved to a real path (or removed) so Blender can load it."""
+    mascot = scene.get("mascot") or {}
+    if not mascot.get("model"):
+        return scene
+    return {**scene, "mascot": {**mascot, "model": resolve_model(mascot, assets_dir)}}
