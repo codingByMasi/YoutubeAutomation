@@ -84,6 +84,7 @@ Status values: `todo`, `in progress`, `blocked`, `done`
 ---
 
 ## Decisions
+- 2026-11-03: every prompt template (all packs, outline, plan, review, critique), the style/compliance text and channel guidance no longer ask for sources, citations or fact ids; a test guards it. The app drops a saved prompt file that still asks for them so it is rewritten.
 Record any choice made without asking the owner, with date and reason.
 
 | Date | Decision | Reason |

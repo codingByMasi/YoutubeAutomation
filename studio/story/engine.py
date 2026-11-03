@@ -71,19 +71,19 @@ def hook_coverage_problems(outline: dict, facts: list[dict], hook: dict) -> list
     beats = outline.get("beats") or []
     first = beats[0] if beats else {}
     covered = _digits(first.get("key_fact", ""))
-    for fid in first.get("fact_ids") or []:
+    for fid in first.get("fact_ids") or []:  # old plans only; new ones carry no ids
         f = by_id.get(fid) or {}
         covered |= _digits(str(f.get("claim", ""))) | _digits(str(f.get("figure", "")))
     line = str(hook.get("line", ""))
     missing = sorted(n for n in _digits(line) if n not in covered)
     if missing:
-        problems.append(f"the hook says {', '.join(missing)} but beat 1 does not cite a fact with that number: "
-                        f"add its fact id to beat 1's fact_ids (and key_fact), or drop the number from the hook")
+        problems.append(f"the hook says {', '.join(missing)} but beat 1 does not mention that number: "
+                        f"put it in beat 1's key_fact, or drop the number from the hook")
     claim_text = " ".join(f"{f.get('claim', '')} {f.get('quote_snippet', '')}" for f in facts).lower()
     for label, text in (("audience_question", outline.get("audience_question", "")), ("hook", line)):
         for m in _SUPERLATIVE.finditer(text or ""):
             if m.group(0).lower() not in claim_text:
-                problems.append(f"{label} claims '{m.group(0)}' but no fact says it: add a sourced fact or reword")
+                problems.append(f"{label} claims '{m.group(0)}' but no fact says it: add a fact that says it or reword")
     return problems
 
 
@@ -95,7 +95,7 @@ def validate_plan(d: dict, prof: dict, root: Path | None = None, video_id: int |
     if needs_facts:
         problems += facts_mod.validate_facts(d.get("facts"))
         if len(d.get("facts") or []) < 4:
-            problems.append("give at least 4 facts, each with source_url and quote_snippet (use web search)")
+            problems.append("give at least 4 facts with real figures (use web search)")
         ids = {str(f.get("id")) for f in d.get("facts") or []}
         for b in (d.get("outline") or {}).get("beats", []):
             for fid in b.get("fact_ids") or []:
@@ -130,7 +130,7 @@ def run_plan(ctx: Ctx, video: Video, force: bool = False, fetch=None) -> dict:
         audience=prof["audience"], language=prof["language"], region=prof["region"],
         beat_sheet=" > ".join(prof["beat_sheet"]), hook_formulas=", ".join(prof["hook_formulas"]),
         hook_words=8 if prof.get("kids") else 12, fact_count="2-4 counting facts at most" if prof.get("kids") else prof.get("fact_count", "8-14"),  # noqa: E501
-        facts_note=("Kids: facts are optional; use counting numbers only and leave `source_url` empty with "
+        facts_note=("Kids: facts are optional; use counting numbers only, with "
                     "`is_estimate` true." if not sp.enabled(prof, "fact_ledger") else ""),
         recent=ledger.prompt_text(root, exclude_video=video.id) if sp.enabled(prof, "repetition_ledger")
         else "(not tracked)", learned=_learned(ctx), competitors=_competitors(ctx))

@@ -16,8 +16,8 @@ You are writing a complete YouTube video package for a faceless, narrated explai
 {outline}
 
 # Story engine notes
-- Use real, well-known figures; word estimates as estimates ("about", "roughly"). Never invent figures. No sources
-  or fact ids are needed in the script.
+- Use real, well-known figures; word estimates as estimates ("about", "roughly"). Never invent figures. Keep the
+  script plain narration: no references, footnotes or ids.
 - When a plan is given: use its loop ids in `plants_loop` / `pays_loop` (two planted in the first 60 seconds, payoffs
   spread out and 1-3 minutes after the plant), its chosen hook, and its chapter order.
 - Add per segment: `visual_intent` {{"shot_type": "wide|close|detail|map|chart|text", "must_show": "...", "avoid": "..."}}
@@ -34,8 +34,7 @@ You are writing a complete YouTube video package for a faceless, narrated explai
 # Hard rules
 - Original analysis only. Do not copy or closely paraphrase any existing video, script or article.
   Explain the money flow in your own structure, with your own examples and comparisons.
-- Do not add `sources`, `source_ids` or `fact_ids`; the script does not use them.
-  Label estimates as estimates (`"is_estimate": true`). No investment advice; no guarantees.
+- Label estimates as estimates (`"is_estimate": true`). No investment advice; no guarantees.
 - Banned phrases anywhere: {banned}.
 - Titles: exactly 15, each under 70 characters, one clear promise, no ALL-CAPS words longer than
   3 letters, no claims the video cannot back up. Mark exactly one `"is_pick": true`.
@@ -49,7 +48,7 @@ You are writing a complete YouTube video package for a faceless, narrated explai
 - Storytelling arc, in order: hook; the familiar situation and what is at stake; the money flow in 2-4 steps,
   each with a surprising figure; the complication or weak point; the payoff that answers the hook; a one-sentence
   takeaway; the call to action. Use the `chapter` field to name each part (short, viewer-facing).
-- Open loops: in the first 60 seconds plant at least two teasers that are paid off later ("The third source is
+- Open loops: in the first 60 seconds plant at least two teasers that are paid off later ("The third profit stream is
   the one nobody notices", "And that is not even where the real profit hides"). Each payoff should plant the
   next teaser. Describe each teaser in the segment's `open_loop` field (empty string if none).
 - `beat` must be exactly one of: `question`, `reveal`, `example`, `pattern_break`, or `null` for a plain explanatory

@@ -211,7 +211,7 @@ def brief(profile: dict) -> str:
         lines.append(
             f"Mascot/host persona: {m['name']} ({m['look'] or 'a friendly character'}). Personality: "
             f"{m['personality'] or 'friendly'}. {m['name']} is a recurring character who reacts and asks the "
-            f"viewer's questions; they never state facts or figures (the narration and sources do)."
+            f"viewer's questions; they never state facts or figures (the narration does)."
             + (f" Signature line, used at most once per video, usually at the end: \"{m['catchphrase']}\"."
                if m["catchphrase"] else ""))
     if profile.get("playlists"):
