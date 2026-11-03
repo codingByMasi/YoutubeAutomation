@@ -74,7 +74,7 @@ PACKS: dict[str, dict] = {
         "label": "History / animated storytelling", "gate_type": "story", "pack": "history",
         "audience": "Curious learners 16-55 who like clear, funny or gripping animated stories about the past",
         "region": "global",
-        # tone (default comedic = the comic storyteller style): "blend" = dramatic story with light comic asides; "comedic" or "dramatic" push one way.
+        # tone (default comedic = comic storyteller): "blend" = dramatic with light comic asides; "dramatic" = earnest.
         "tone": "comedic",
         "beat_sheet": ["cold open: one scene that states the problem or promise (15 seconds at most)",
                        "title card, then rewind to the person or cause that explains it",
@@ -188,7 +188,7 @@ def pack_name(channel_type: str | None) -> str:
 
 
 def get(pack: str, overrides: dict | None = None, narration: str = "") -> dict:
-    """Full profile for a pack: shared defaults < pack values < narration style < owner overrides. Includes merged `flags`.
+    """Full profile: shared defaults < pack < narration style < owner overrides. Includes merged `flags`.
 
     `narration` is a narration-style id from `studio.story.narration_styles` (blank = the pack's default style)."""
     base = copy.deepcopy(_SHARED)

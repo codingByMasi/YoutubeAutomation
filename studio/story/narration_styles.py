@@ -32,12 +32,12 @@ STYLES: dict[str, dict] = {
             "('pretty mad', 'a terrible idea', 'gets stuck'); never textbook phrasing.",
             "Deadpan understatement and a punchline every 10-15 seconds: state something absurd flatly, then one short "
             "sentence of reaction. Comedy comes from the situation and the stakes, never from changing a fact.",
-            "Short sentences, 6-14 words, with the occasional two-word zinger ('Big mistake.'). Pace is brisk, about 2.8 "
+            "Short sentences, 6-14 words, with the occasional two-word zinger ('Big mistake.'). Brisk pace, about 2.8 "
             "words per second.",
             "Talk to the viewer now and then ('Remember him?', 'Spoiler: it goes badly'). Use 'so', 'and then', "
             "'except', 'but of course' to chain events.",
-            "Characters talk. Most skit segments carry 3-6 short spoken lines in `speech` (each 3-12 words) that argue, "
-            "boast or misunderstand each other, in the same casual modern voice; the narrator sets the scene in one "
+            "Characters talk. Most skit segments carry 3-6 short spoken lines in `speech` (3-12 words each) that argue,"
+            " boast or misunderstand each other, in the same casual modern voice; the narrator sets the scene in one "
             "sentence and then steps back. Aim for a spoken exchange at least every 20 seconds.",
             "Sound-effect words and one-word reactions are allowed in `speech` ('Gasp!', 'Oops.') but keep each under "
             "four words.",
@@ -116,7 +116,7 @@ STYLES: dict[str, dict] = {
                   "warm": {"rate": 3, "pitch": 2, "volume": 1}, "excited": {"rate": 12, "pitch": 5, "volume": 5},
                   "pauses": {"before_reveal": 0.25, "after_plant": 0.1, "chapter": 0.3}},
         "rules": [
-            "Voice: an excited friend. Very short sentences, a change of picture every 2-4 seconds, a hook in the first "
+            "Voice: an excited friend. Very short sentences, a new picture every 2-4 seconds, a hook in the first "
             "3 seconds. Slang is fine; keep claims honest.",
             "Count things ('Number three is wild.') and promise a payoff you deliver.",
         ],
@@ -130,7 +130,7 @@ STYLES: dict[str, dict] = {
                   "warm": {"rate": -2, "pitch": 1, "volume": 1}, "excited": {"rate": 6, "pitch": 2, "volume": 3},
                   "pauses": {"before_reveal": 0.5, "after_plant": 0.3, "chapter": 0.6}},
         "rules": [
-            "Voice: a direct, warm coach. Second person ('you'), one story or study per point, one action to try today.",
+            "Voice: a direct, warm coach. Second person ('you'), one story or study per point, one action for today.",
             "Repeat the core line twice, differently. No medical or income promises.",
         ],
     },

@@ -400,7 +400,7 @@ def channels_add(name: str = typer.Argument(..., help="Channel name."),
                  music: str = typer.Option(None, help="generated or none."),
                  music_mood: str = typer.Option(None, "--music-mood", help="minor or major."),
                  tts_provider: str = typer.Option(None, "--tts-provider", help="edge, eleven or silent."),
-                  narration: str = typer.Option(None, "--narration", help="Narration style id, e.g. comic_storyteller; blank = type default."),
+                  narration: str = typer.Option(None, "--narration", help="Narration style id; blank = type default."),
                  publish_days: str = typer.Option(None, "--publish-days", help="Weekdays 0=Mon..6=Sun, e.g. 1,4."),
                  publish_time: str = typer.Option(None, "--publish-time", help="HH:MM local time, e.g. 16:00."),
                  activate: bool = typer.Option(True, help="Switch to the new channel.")) -> None:
@@ -408,7 +408,8 @@ def channels_add(name: str = typer.Argument(..., help="Channel name."),
     from studio.growth import channels
     fields = _fields(None, niche, description, posts_per_week, voice, language, audience, youtube_channel_id,
                      type_, renderer=renderer, scene_style=scene_style, music=music, music_mood=music_mood,
-                     tts_provider=tts_provider, narration=narration, publish_days=publish_days, publish_time=publish_time)
+                     tts_provider=tts_provider, narration=narration,
+                     publish_days=publish_days, publish_time=publish_time)
     cid = channels.add(_channels_root(), name, activate=activate, **fields)
     typer.echo(f"Added channel '{cid}'" + (" and made it active." if activate else "."))
 
@@ -426,7 +427,7 @@ def channels_edit(channel_id: str = typer.Argument(None, help="Channel id (defau
                   music: str = typer.Option(None, help="generated or none."),
                   music_mood: str = typer.Option(None, "--music-mood", help="minor or major."),
                   tts_provider: str = typer.Option(None, "--tts-provider", help="edge, eleven or silent."),
-                  narration: str = typer.Option(None, "--narration", help="Narration style id, e.g. comic_storyteller; blank = type default."),
+                  narration: str = typer.Option(None, "--narration", help="Narration style id; blank = type default."),
                   publish_days: str = typer.Option(None, "--publish-days", help="Weekdays 0=Mon..6=Sun, e.g. 1,4."),
                   publish_time: str = typer.Option(None, "--publish-time", help="HH:MM local time, e.g. 16:00."),
                   story: str = typer.Option(None, "--story", help='Story-profile overrides as JSON, e.g. '
@@ -437,7 +438,8 @@ def channels_edit(channel_id: str = typer.Argument(None, help="Channel id (defau
     from studio.growth import channels
     fields = _fields(name, niche, description, posts_per_week, voice, language, audience, youtube_channel_id,
                      type_, renderer=renderer, scene_style=scene_style, music=music, music_mood=music_mood,
-                     tts_provider=tts_provider, narration=narration, publish_days=publish_days, publish_time=publish_time)
+                     tts_provider=tts_provider, narration=narration,
+                     publish_days=publish_days, publish_time=publish_time)
     if story is not None:
         try:
             fields["story"] = _json.loads(story)
