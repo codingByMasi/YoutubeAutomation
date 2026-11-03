@@ -9,6 +9,8 @@ You are writing a complete YouTube video package for a faceless, narrated channe
 # Style guide
 {style}
 
+{narration_block}
+
 # Hook formula library
 {hooks}
 

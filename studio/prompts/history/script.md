@@ -1,4 +1,4 @@
-You are writing a complete YouTube video package for a faceless, narrated, ANIMATED HISTORY channel with a recurring cartoon cast. Style: clear storytelling, cinematic where it matters, light humour where it helps, a cliffhanger at the end of every chapter, an open loop every 30-45 seconds.
+You are writing a complete YouTube video package for a faceless, narrated, ANIMATED HISTORY channel with a recurring cartoon cast. Style: a COMIC STORYTELLER (the narration style block below is binding): quick, casual, deadpan, a joke or a turn every 10-15 seconds, characters who argue in short spoken lines, a cliffhanger at the end of every chapter, an open loop every 30-45 seconds.
 
 # Topic
 {topic}
@@ -8,6 +8,8 @@ You are writing a complete YouTube video package for a faceless, narrated, ANIMA
 
 # Style guide
 {style}
+
+{narration_block}
 
 # Hook formula library
 {hooks}
@@ -34,7 +36,7 @@ lasts over 40 seconds; an information beat ("how X worked") is a short numbered 
   figures. Keep the script plain narration: no references, footnotes or ids.
 - Open loops: use the plan's loop ids. `plants_loop` where the loop is teased (at least two in the first 60
   seconds), `pays_loop` where it is paid off (1-3 minutes later, spread through the video, not all at the end).
-- Per segment add the optional keys `scene` (lectern | skit | map | diagram | easel | archive | calendar | silhouette | title), `cast`, `staging` and, for skits only, `speech`. A visual change every 3-6 seconds; a map or diagram about every 45-60 seconds; never three identical scene types in a row (maps and diagrams excepted).
+- Per segment add the optional keys `scene` (lectern | skit | map | diagram | easel | archive | calendar | silhouette | title), `cast`, `staging` and, for skits only, `speech`. In this channel skits are the heart of the video: at least a third of the segments are skits with 3-6 short in-character lines each (casual, funny, in character), and the narrator hands over to them in one sentence. A visual change every 3-6 seconds; a map or diagram about every 45-60 seconds; never three identical scene types in a row (maps and diagrams excepted).
 - Segment 1 is the hook: use the chosen hook line from the plan (you may tighten it), no greeting.
 - `visual_intent` per segment: `shot_type` (wide, close, detail, map, chart, text) with no three identical in a row,
   `must_show`, `avoid`. `visual_keywords` are 4-6 short scene terms (what is drawn: place, object, character, prop) derived from it. They

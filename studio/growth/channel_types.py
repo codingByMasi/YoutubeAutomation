@@ -6,6 +6,7 @@ A type only changes defaults and guidance; the owner can still edit every profil
 from __future__ import annotations
 
 from studio.errors import StudioError
+from studio.story.narration_styles import IDS as NARRATION_IDS
 
 DEFAULT_TYPE = "business"
 
@@ -15,6 +16,7 @@ CHOICES: dict[str, tuple[str, ...]] = {
     "music": ("", "generated", "none"),  # generated royalty-free bed (or your own track in assets/music), or none
     "music_mood": ("", "minor", "major"),
     "tts_provider": ("", "edge", "eleven", "silent"),
+    "narration": ("", *NARRATION_IDS),  # script voice and narrator delivery (studio/story/narration_styles.py)
     # narrated scenes: 2d motion graphics, 3d (Blender) or mixed (3d for timelines/maps/artifacts, 2d charts)
     "scene_style": ("", "2d", "3d", "mixed"),
 }

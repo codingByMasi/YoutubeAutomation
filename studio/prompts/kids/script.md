@@ -9,6 +9,8 @@ You are writing a complete YouTube video package for a children's story channel 
 # Style guide
 {style}
 
+{narration_block}
+
 # Hook formula library
 {hooks}
 

@@ -556,3 +556,9 @@ Decisions: OpenUtau has no CLI renderer, so a voicebank "preview" is a clip expo
 - Planner/script prompt lists the eras; `scene_problems` rejects unknown eras. Thumbnails use the same era.
 - Preview: `python -m studio.cli wardrobe <character> --out sheet.png`.
 - Decision: kids cast not included in this change (separate 2D/3D sprite pipeline); named historical figures keep their own headwear/prop.
+
+## 2026-11-03 Narration styles (comic storyteller for history)
+- Compared the new history sample with transcripts of the three references (first 3 min each): the references run 2.5-3.2 words/s with jokes and character lines every 5-15 s; our sample ran 2.1 words/s with 4 lines in 58 s and one flat narrator.
+- New `studio/story/narration_styles.py`: 7 selectable styles (comic_storyteller, calm_explainer, warm_singsong, dramatic_documentary, hushed_suspense, high_energy_hype, motivational_coach). Each has script rules, Kokoro narrator voice and speed, per-emotion prosody and pace. Channel field `narration` (Channels page picker, `channels add/edit --narration`); blank = history comic, business/general calm, kids sing-song. `{narration_block}` is in every script prompt; the history prompt now asks for skits with 3-6 in-character lines. `get_tts` uses the style's Kokoro voice unless `KOKORO_VOICE` is set.
+- Decisions: history `tone` default is `comedic`; cast speech limit raised to 6 lines of 12 words so skits can carry banter; history pace 2.8 words/s. Per-character voices stay in `providers/voices.py` (renderer thread).
+- Guide per niche: `docs/narration-and-presentation-guide.md`. Audio comparison: project files `youtube-studio/narration/`.

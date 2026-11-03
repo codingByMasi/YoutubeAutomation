@@ -506,6 +506,7 @@ def page_analytics() -> None:
 
 def page_channels() -> None:
     from studio.growth import channel_types, channels
+    from studio.story import narration_styles
 
     st.header("Channels")
     st.write("Add as many channels as you like and switch any time. Everything (prompts, voice, posting plan) "
@@ -529,6 +530,14 @@ def page_channels() -> None:
                     "posts_per_week": b.number_input("Posting frequency (long videos per week)", 1, 14,
                                                      int(c["posts_per_week"])),
                     "voice": b.text_input("Voice (blank = default from settings)", c["voice"]),
+                    "narration": b.selectbox(
+                        "Narration style", channel_types.CHOICES["narration"],
+                        index=channel_types.CHOICES["narration"].index(c.get("narration", "")),
+                        format_func=lambda x: narration_styles.STYLES[x]["label"] if x else "(type default)",
+                        key=f"nar_{c['id']}",
+                        help="How scripts are written and how the narrator sounds. History defaults to Comic "
+                             "storyteller, business to Calm explainer, kids to Warm sing-song.\n\n"
+                             + narration_styles.guide_table()),
                     "youtube_channel_id": b.text_input("YouTube channel ID (optional)", c["youtube_channel_id"]),
                     "renderer": b.selectbox("Picture renderer", channel_types.CHOICES["renderer"],
                                             index=channel_types.CHOICES["renderer"].index(c["renderer"]),

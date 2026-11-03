@@ -39,11 +39,11 @@ def test_scene_problems():
     ok = {"segments": [seg("skit", cast=["quill"], speech=[{"who": "quill", "text": "Where is the pay?"}]),
                        seg("map"), seg("map"), seg("map"), seg()]}
     assert cast.scene_problems(ok) == []
-    bad = {"segments": [seg("dance"), seg("skit", speech=[{"who": "a", "text": "word " * 12}] * 5),
+    bad = {"segments": [seg("dance"), seg("skit", speech=[{"who": "a", "text": "word " * 13}] * 7),
                         seg("map", speech=[{"who": "a", "text": "hi"}])]}
     text = " | ".join(cast.scene_problems(bad))
-    assert "not one of" in text and "needs `cast`" in text and "5 speech lines" in text
-    assert "12 words" in text and "only belong to a 'skit'" in text
+    assert "not one of" in text and "needs `cast`" in text and "7 speech lines" in text
+    assert "13 words" in text and "only belong to a 'skit'" in text
     three = {"segments": [seg("easel"), seg("easel"), seg("easel")]}
     assert any("three 'easel'" in p for p in cast.scene_problems(three))
 
