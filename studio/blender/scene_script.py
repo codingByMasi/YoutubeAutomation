@@ -814,9 +814,9 @@ def main(cfg):
     wanted = os.environ.get("STUDIO_BLENDER_ENGINE") or cfg.get("engine", "BLENDER_EEVEE_NEXT")
     sc.render.engine = pick_engine(sc, wanted)
     if sc.render.engine == "CYCLES":  # only used for headless tests without a GPU
-        sc.cycles.samples, sc.cycles.device = cfg.get("samples", 8), "CPU"
+        sc.cycles.samples, sc.cycles.device = min(cfg.get("samples", 8), 32), "CPU"
     elif hasattr(sc, "eevee") and hasattr(sc.eevee, "taa_render_samples"):
-        sc.eevee.taa_render_samples = 16
+        sc.eevee.taa_render_samples = cfg.get("samples", 16)
     sc.view_settings.view_transform = "Standard"  # flat bright colours, not the filmic look
     if cfg.get("kind") == "scene":
         build_scene(cfg, n_frames, fps)
