@@ -73,8 +73,8 @@ def validate_title(text: str) -> list[str]:
 
 def validate_titles(titles: list[dict]) -> list[str]:
     problems = []
-    if not TITLE_MIN <= len(titles) <= TITLE_COUNT:
-        problems.append(f"need {TITLE_COUNT} titles (at least {TITLE_MIN}), got {len(titles)}")
+    if not titles:
+        problems.append("the reply has no titles; add at least one")
     for t in titles:
         problems += validate_title(str(t.get("text", "")))
     picks = sum(bool(t.get("is_pick")) for t in titles)
@@ -251,7 +251,6 @@ def validate_package(d: dict, profile: dict | None = None, facts: list[dict] | N
         problems.append("thumbnail_texts must be 3 strings of 1-5 words")
     if profile is not None and segs:
         from studio.story import checks, loops
-        from studio.story import facts as facts_mod
         from studio.story.profile import enabled
         problems += checks.profile_problems(d, profile)
         from studio.story import photo as story_photo
@@ -261,9 +260,18 @@ def validate_package(d: dict, profile: dict | None = None, facts: list[dict] | N
             problems += story_visuals.shot_problems(segs)
         if enabled(profile, "loop_ids"):
             problems += loops.loop_problems(d, profile)
-        if facts is not None and enabled(profile, "fact_ledger"):
-            problems += facts_mod.trace_problems(d, facts)
     return problems
+
+
+def soft_warnings(d: dict, facts: list[dict] | None = None) -> list[str]:
+    """Advice that never blocks a script (today: fewer than 15 titles).
+
+    Scripts carry no sources or fact ids, so nothing is traced to facts.json; old fields are simply ignored."""
+    out = []
+    n = len(d.get("titles") or [])
+    if 0 < n < TITLE_COUNT:
+        out.append(f"only {n} titles (15 are recommended); the best one is used")
+    return out
 
 
 def timeline(segs: list[dict], key: str = "est_seconds") -> list[tuple[float, float]]:
@@ -330,15 +338,13 @@ def prompt_text(name: str, pack: str = "explainer") -> str:
 
 def build_prompt(root: Path, topic: str, outline: dict | None = None, facts: list[dict] | None = None) -> str:
     """Script prompt for the active channel's pack. `outline` is the plan (outline + chosen hook) when given."""
-    from studio.story import facts as facts_mod
     from studio.story import ledger, prompts
     from studio.story import profile as sp
     prof = sp.for_channel(root)
     return prompts.compose(
         "script", prof, topic=topic, brief=_brief(root), style=_style(root, prof),
         outline=prompts.j(outline) if outline else NO_OUTLINE,
-        facts_block=prompts.j(facts_mod.prompt_view(facts)) if facts else "(no facts list for this video)",
-        facts=prompts.j(facts_mod.prompt_view(facts)) if facts else "(no facts list for this video)",
+        facts_block="(not used)", facts="(not used)",
         recent=ledger.prompt_text(root) if sp.enabled(prof, "repetition_ledger") else "(not tracked)",
         plan=prompts.j(outline) if outline else NO_OUTLINE)
 
@@ -358,9 +364,11 @@ def render_markdown(d: dict) -> str:
         lines += ["", seg["narration"], "", f"Visuals: {', '.join(seg['visual_keywords'])}"]
         if seg.get("chart_data"):
             c = seg["chart_data"]
-            lines.append(f"Chart ({c['type']}): {c.get('title', '')} [{', '.join(c.get('source_ids') or [])}]")
+            lines.append(f"Chart ({c['type']}): {c.get('title', '')}")
         lines.append("")
-    lines += ["## Sources", ""] + [f"- [{s['id']}] {s.get('title', '')}: {s['url_or_note']}" for s in d["sources"]]
+    if d.get("sources"):  # old scripts only; new ones carry no sources
+        lines += ["## Sources", ""] + [f"- [{s.get('id', '')}] {s.get('title', '')}: {s.get('url_or_note', '')}"
+                                      for s in d["sources"]]
     return "\n".join(lines) + "\n"
 
 
@@ -477,7 +485,7 @@ def run_engine_script(ctx: Ctx, video: Video, outline: dict, force: bool = False
             typer.secho(f"auto-fixed: {n}", fg=typer.colors.YELLOW)
         save_package(ctx, video, d)
         from studio.story import checks as story_checks
-        for w in story_checks.style_notes(d, prof) + quality_report(d)["warnings"]:
+        for w in soft_warnings(d, facts) + story_checks.style_notes(d, prof) + quality_report(d)["warnings"]:
             typer.secho(f"warning: {w}", fg=typer.colors.YELLOW)
 
     r = run_stage(ctx.session, video, "scripted", work, force)

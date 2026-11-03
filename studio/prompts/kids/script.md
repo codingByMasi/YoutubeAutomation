@@ -12,7 +12,7 @@ You are writing a complete YouTube video package for a children's story channel 
 # Hook formula library
 {hooks}
 
-# Verified facts and story plan (follow the plan; use ONLY fact ids from the facts list)
+# Story plan (follow it)
 {outline}
 
 # Recent videos on this channel (differ from them in hook, opening sentence shape, chapters, visuals)

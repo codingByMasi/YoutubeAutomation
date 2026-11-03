@@ -65,7 +65,7 @@ def test_title_checklist_and_pack_parse():
     assert pack["pick_title"] == pack["titles"][0]["text"]
     assert pack["thumbnails"][0]["score"] >= pack["thumbnails"][-1]["score"]
     with pytest.raises(StudioError):
-        packs.parse(json.dumps({"titles": titles[:2], "thumbnails": thumbs}))
+        packs.parse(json.dumps({"titles": [], "thumbnails": thumbs}))
 
 
 def test_seo_has_sources_chapters_credits_and_series(make_ctx):

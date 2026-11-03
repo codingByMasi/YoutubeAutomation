@@ -77,8 +77,6 @@ def build(settings: Settings, video_id: int, pkg: dict, draft: bool = False) -> 
         rows.append({"n": pos, "chapter": seg.get("chapter") or "", "seconds": round(dur, 1),
                      "keywords": list(seg.get("visual_keywords") or []), "shots": shots, "picture": picture,
                      "chart": _chart_row(seg), "scene": scene, "narration": (seg.get("narration") or "")[:110]})
-        if seg.get("chart_data") and not (seg["chart_data"].get("source_ids")):
-            warnings.append(f"Segment {pos}: the chart has no source (every figure needs one).")
         if not seg.get("visual_keywords"):
             warnings.append(f"Segment {pos}: no stock search words; it will use a generated card.")
         if scene and scene["fallback"]:
