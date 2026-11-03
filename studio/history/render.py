@@ -33,8 +33,22 @@ SEA = (176, 205, 210)
 LAND = (222, 204, 160)
 LAND_EDGE = (150, 122, 76)
 RED = (192, 57, 43)
-BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf"
-SANS = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+def _font_candidates(serif: bool) -> list[str]:
+    """Bold TrueType files to try, in order: matplotlib's bundled DejaVu (installed with the studio, so present on
+    Windows, macOS and Linux), then the usual system folders."""
+    name = "DejaVuSerif-Bold.ttf" if serif else "DejaVuSans-Bold.ttf"
+    out: list[str] = []
+    try:
+        import matplotlib
+
+        out.append(str(Path(matplotlib.get_data_path()) / "fonts" / "ttf" / name))
+    except Exception:  # noqa: BLE001 - matplotlib missing: the system paths below still work
+        pass
+    out += [f"/usr/share/fonts/truetype/dejavu/{name}", "C:/Windows/Fonts/georgiab.ttf" if serif else "C:/Windows/Fonts/arialbd.ttf",
+            "C:/Windows/Fonts/segoeuib.ttf", "/Library/Fonts/Arial Bold.ttf", "/System/Library/Fonts/Supplemental/Arial Bold.ttf"]
+    return out
+
+
 BACKDROPS = ("parchment", "mountains", "hall", "night")
 DEFAULT_BACKDROP = {"lectern": "parchment", "skit": "hall", "map": "parchment", "diagram": "parchment",
                     "easel": "parchment", "archive": "parchment", "calendar": "parchment", "silhouette": "night",
@@ -43,13 +57,19 @@ _fonts: dict[tuple[str, int], ImageFont.FreeTypeFont] = {}
 
 
 def font(size: int, serif: bool = True) -> ImageFont.FreeTypeFont:
-    """Cached bold font (serif for titles, sans for labels); falls back to Pillow's default."""
+    """Cached bold font (serif for titles, sans for labels). Never Pillow's tiny bitmap default: fails loudly."""
     key = ("s" if serif else "n", size)
     if key not in _fonts:
-        try:
-            _fonts[key] = ImageFont.truetype(BOLD if serif else SANS, size)
-        except OSError:
-            _fonts[key] = ImageFont.load_default()
+        for path in _font_candidates(serif):
+            try:
+                _fonts[key] = ImageFont.truetype(path, size)
+                break
+            except OSError:
+                continue
+        else:
+            raise StudioError("No TrueType font could be loaded for the cartoon scenes.",
+                              "matplotlib's bundled DejaVu font and the system fonts were all missing.",
+                              "Run `pip install -r requirements.txt` (installs matplotlib) and try again.")
     return _fonts[key]
 
 
@@ -172,6 +192,7 @@ class Cast:
         self.dir.mkdir(parents=True, exist_ok=True)
         cast.export_roster(self.dir)
         self.figs: dict[str, str] = {}  # figure name -> file stem
+        self.look: dict[str, tuple[str, str, str, str]] = {}  # stem -> (body colour, headwear, prop, badge)
         self.bank = SpriteBank(self.dir)
         self.ok = self.bank.enabled
 
@@ -193,21 +214,102 @@ class Cast:
                                  props[(h >> 8) % len(props)], who[:1])
             (self.dir / f"{stem}.svg").write_text(svg, encoding="utf-8")
             self.bank._svg.pop(stem, None)  # noqa: SLF001
+            self.look[stem] = (cast.faction_color(len(self.figs)), heads[h % len(heads)], props[(h >> 8) % len(props)], who[:1])
             self.figs[who] = stem
         return self.figs[who]
 
     def sprite(self, who: str, px: int, t: float, i: int, talking: bool, silhouette: bool = False) -> Image.Image:
         """The character as an RGBA picture `px` wide; eyes blink, the mouth follows `talking`."""
         img = self.bank.get(self.key(who), px, eyes_closed=blink(t, i), mouth_open=talking) if self.ok else None
-        if img is None:  # no cairosvg: a simple round fallback so the scene still reads
-            img = Image.new("RGBA", (px, px), (0, 0, 0, 0))
-            d = ImageDraw.Draw(img)
-            d.ellipse([px * 0.2, px * 0.1, px * 0.8, px * 0.7], fill=(242, 210, 177, 255))
-            d.rounded_rectangle([px * 0.3, px * 0.55, px * 0.7, px * 0.95], 20, fill=(46, 125, 135, 255))
+        if img is None:  # no cairosvg/cairo (common on Windows): draw the same character with Pillow instead
+            stem = self.key(who)
+            c = cast.ROSTER.get(stem)
+            body, head, prop, badge = (c["body"], c["headwear"], c["prop"], c["badge"]) if c else self.look.get(
+                stem, ("#2E7D87", "none", "none", who[:1]))
+            img = pil_character(body, head, prop, badge, px, blink(t, i), talking)
         if silhouette:
             solid = Image.new("RGBA", img.size, (18, 14, 28, 255))
             img = Image.composite(solid, Image.new("RGBA", img.size, (0, 0, 0, 0)), img.getchannel("A"))
         return img
+
+
+_HAT = {"fur_hat": (122, 82, 51), "helmet": (140, 150, 163), "crown": (224, 180, 58), "turban": (241, 236, 224),
+        "cap": (74, 85, 104), "hood": (61, 42, 82), "laurel": (79, 138, 60), "bicorn": (31, 45, 77),
+        "deerstalker": (138, 122, 90), "pointed": (224, 123, 57), "goggles": (89, 97, 107)}
+_PROPC = {"sword": (184, 192, 204), "scroll": (241, 228, 196), "shield": (140, 59, 59), "staff": (122, 82, 51),
+          "coin": (224, 180, 58), "banner": (192, 57, 43), "telescope": (184, 137, 43), "magnifier": (207, 233, 242),
+          "hammer": (89, 97, 107), "hourglass": (241, 228, 196)}
+
+
+def pil_character(body: str, headwear: str, prop: str, badge: str, px: int, eyes_closed: bool = False,
+                  mouth_open: bool = False) -> Image.Image:
+    """A flat cartoon figure drawn with Pillow (same canvas as the SVG sprites: px wide and high, feet at 84%).
+
+    Used when cairosvg or the cairo library is missing, so the cast never turns into blank circles."""
+    k = 4
+    s = px * k / 400.0
+    im = Image.new("RGBA", (px * k, px * k), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    col, ink, skin = hex_rgb(body), INK, (242, 210, 177)
+
+    def box(x0, y0, x1, y1):
+        return [x0 * s, y0 * s, x1 * s, y1 * s]
+
+    d.line([(180 * s, 300 * s), (176 * s, 336 * s)], fill=ink, width=int(9 * s))  # legs
+    d.line([(220 * s, 300 * s), (224 * s, 336 * s)], fill=ink, width=int(9 * s))
+    d.rounded_rectangle(box(138, 322, 190, 340), int(8 * s), fill=ink)  # shoes
+    d.rounded_rectangle(box(210, 322, 262, 340), int(8 * s), fill=ink)
+    d.line([(150 * s, 225 * s), (118 * s, 285 * s)], fill=col, width=int(20 * s))  # arms
+    d.line([(250 * s, 225 * s), (292 * s, 262 * s)], fill=col, width=int(20 * s))
+    d.ellipse(box(104, 276, 130, 300), fill=skin, outline=ink, width=int(3 * s))
+    d.ellipse(box(282, 252, 308, 276), fill=skin, outline=ink, width=int(3 * s))
+    if prop != "none":  # one prop in the right hand
+        pc = _PROPC.get(prop, (224, 180, 58))
+        if prop in ("sword", "staff", "banner", "hammer"):
+            d.rectangle(box(304, 150, 314, 300), fill=pc, outline=ink, width=int(2 * s))
+            if prop == "banner":
+                d.rectangle(box(314, 156, 366, 206), fill=hex_rgb(cast.faction_color(0)), outline=ink, width=int(2 * s))
+            if prop == "hammer":
+                d.rectangle(box(290, 140, 330, 166), fill=(89, 97, 107), outline=ink, width=int(2 * s))
+        else:
+            d.ellipse(box(296, 232, 344, 280), fill=pc, outline=ink, width=int(3 * s))
+    d.polygon([(138 * s, 214 * s), (262 * s, 214 * s), (276 * s, 320 * s), (124 * s, 320 * s)], fill=col, outline=ink)
+    d.line([(138 * s, 214 * s), (124 * s, 320 * s), (276 * s, 320 * s), (262 * s, 214 * s)], fill=ink, width=int(4 * s))
+    d.ellipse(box(176, 244, 224, 292), fill=(252, 244, 222), outline=ink, width=int(3 * s))  # badge
+    d.text((200 * s, 268 * s), (badge or "?")[:1], font=font(int(36 * s), False), fill=ink, anchor="mm")
+    d.ellipse(box(132, 84, 268, 222), fill=skin, outline=ink, width=int(5 * s))  # head
+    if headwear in _HAT:
+        hc = _HAT[headwear]
+        if headwear == "laurel":
+            d.arc(box(136, 88, 264, 160), 190, 350, fill=hc, width=int(14 * s))
+        elif headwear in ("turban", "fur_hat"):
+            d.ellipse(box(124, 66, 276, 138), fill=hc, outline=ink, width=int(4 * s))
+        elif headwear == "hood":
+            d.pieslice(box(118, 56, 282, 236), 180, 360, fill=hc, outline=ink, width=int(4 * s))
+            d.ellipse(box(146, 104, 254, 222), fill=skin)
+        elif headwear == "pointed":
+            d.polygon([(140 * s, 112 * s), (204 * s, 18 * s), (262 * s, 112 * s)], fill=hc, outline=ink)
+        elif headwear == "goggles":
+            d.rectangle(box(134, 98, 266, 116), fill=hc)
+            d.ellipse(box(152, 86, 190, 124), fill=(159, 211, 230), outline=ink, width=int(4 * s))
+            d.ellipse(box(210, 86, 248, 124), fill=(159, 211, 230), outline=ink, width=int(4 * s))
+        elif headwear == "crown":
+            d.polygon([(140 * s, 118 * s), (150 * s, 62 * s), (176 * s, 100 * s), (200 * s, 52 * s), (224 * s, 100 * s),
+                       (250 * s, 62 * s), (260 * s, 118 * s)], fill=hc, outline=ink)
+        else:
+            d.pieslice(box(128, 52, 272, 190), 180, 360, fill=hc, outline=ink, width=int(4 * s))
+    ey = 152 * s
+    for cx in (176, 224):  # eyes
+        if eyes_closed:
+            d.line([((cx - 9) * s, ey), ((cx + 9) * s, ey)], fill=ink, width=int(4 * s))
+        else:
+            d.ellipse(box(cx - 9, 142, cx + 9, 166), fill=(255, 255, 255), outline=ink, width=int(3 * s))
+            d.ellipse(box(cx - 4, 148, cx + 4, 162), fill=ink)
+    if mouth_open:
+        d.ellipse(box(184, 182, 216, 208), fill=(120, 30, 40), outline=ink, width=int(3 * s))
+    else:
+        d.arc(box(180, 176, 220, 200), 20, 160, fill=ink, width=int(4 * s))
+    return im.resize((px, px), Image.LANCZOS)
 
 
 def paste(img: Image.Image, sprite: Image.Image, cx: float, bottom: float) -> None:

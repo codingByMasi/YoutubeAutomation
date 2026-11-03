@@ -9,6 +9,8 @@ import typer
 
 from studio import scenes
 from studio.context import Ctx
+from studio.errors import StudioError
+from studio.history import autoscene
 from studio.models import Asset, Segment
 from studio.providers import brand, chart_anim
 from studio.providers.charts import render_chart, source_line, text_card
@@ -136,7 +138,9 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
         scene_counts: dict[str, int] = {}
         from studio.history import cast as cast_mod
         from studio.history import render as cast_render
-        planned = {p: scenes.plan_for(g, p, prod) for p, g in enumerate(pkg["segments"], 1)}
+        from studio.story import profile as _sp
+        _cast = _sp.enabled(_sp.for_channel(ctx.settings.root), "cast_scenes")
+        planned = {p: (None if _cast else scenes.plan_for(g, p, prod)) for p, g in enumerate(pkg["segments"], 1)}
         todo3d = {p: min(float(g.get("real_seconds") or g["est_seconds"]), render3d.MAX_SECONDS)
                   for p, g in enumerate(pkg["segments"], 1) if (planned[p] or {}).get("mode") == "3d"}
         budget = SceneBudget(count=len(todo3d), folder=out)
@@ -157,6 +161,12 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
         cast_on = sprofile.enabled(sprof, "cast_scenes")
         cast_stage = cast_render.Cast(out / "cast") if cast_on else None
         faction0 = 0
+        if cast_on:  # a pasted or old-shaped script has no scene keys: pick them from the narration, never from stock
+            filled = autoscene.assign(pkg["segments"])
+            if filled:
+                autoscene.persist(out / "script.json", pkg["segments"])
+                typer.echo(f"Chose a cartoon scene for {filled} segment(s) from what the narration says "
+                           f"(stock footage, photos and charts are used only where the script asks for them).")
         for pos, seg in enumerate(pkg["segments"], 1):
             left3d = None
             if budget.sec_per_frame and todo3d:
@@ -191,12 +201,19 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
                 pass
             elif cast_on and isinstance(seg.get("scene"), str) and seg["scene"] in cast_mod.SCENE_TYPES:
                 audio = Path(rows[pos].audio_path) if pos in rows and rows[pos].audio_path else None
-                drawn = cast_render.render_scene(seg, duration, out / "cast" / f"cast_{pos:03d}.mp4", out / "cast",
-                                                 audio, faction0, cast_stage)
+                try:
+                    drawn = cast_render.render_scene(seg, duration, out / "cast" / f"cast_{pos:03d}.mp4", out / "cast",
+                                                     audio, faction0, cast_stage)
+                except StudioError:
+                    raise
+                except Exception as exc:  # noqa: BLE001 - never fall back to stock silently on a cast channel
+                    raise StudioError(f"Could not draw the {seg['scene']} scene for segment {pos}.", str(exc),
+                                      "Fix the segment's scene/cast/speech keys, or re-run `visuals --force`.") from exc
                 scene_counts["cast"] = scene_counts.get("cast", 0) + 1
             query = " ".join([str((seg.get("visual_intent") or {}).get("must_show") or ""), seg.get("narration", "")]) \
                 if scorer else ""
-            for k in range(0 if drawn else max(1, shots_needed(bg_seconds, shot_max=shot_max_for(pos, limits)))):
+            n_shots = 0 if (drawn or cast_on) else max(1, shots_needed(bg_seconds, shot_max=shot_max_for(pos, limits)))
+            for k in range(n_shots):
                 # alternate video and photo so the picture type changes with every shot; fall back to the other
                 order = [("clip", stock, used), ("image", images, used_img)]
                 got = False
@@ -230,7 +247,7 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
                 vis.update(kind="card", path=str(card), paths=[str(card)])
                 new_assets.append(Asset(video_id=video_id, kind="card", path=str(card), source="generated card",
                             licence=OWN_LICENCE))
-            if seg.get("chart_data"):
+            if seg.get("chart_data") and (not cast_on or seg.get("scene") == "easel"):
                 frames = render_chart(seg["chart_data"], pkg.get("sources") or [], charts_dir, f"seg_{pos:03d}")
                 vis["chart_frames"] = [str(f) for f in frames]
                 if os.getenv("STUDIO_NO_CHART_ANIM", "") not in ("1", "true", "yes"):
@@ -239,7 +256,7 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
                 for f in frames:
                     new_assets.append(Asset(video_id=video_id, kind="chart", path=str(f),
                                 source=source_line(seg["chart_data"], pkg.get("sources") or []), licence=OWN_LICENCE))
-            pl = planned[pos]
+            pl = None if cast_on else planned[pos]  # cast channels: the cast renderer draws every segment
             if pl:
                 note = scene_note(seg, pl["scene"], pkg.get("sources") or [])
                 budget.remaining = sum(s for p, s in todo3d.items() if p > pos)
