@@ -17,10 +17,10 @@ import subprocess
 from pathlib import Path
 
 import numpy as np
-from PIL import Image, ImageChops, ImageDraw, ImageFont
+from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
 from studio.errors import StudioError
-from studio.history import cast
+from studio.history import cast, speech_audio
 from studio.kids.sprites import SpriteBank, blink
 from studio.util import ffmpeg as ff
 
@@ -524,6 +524,12 @@ class Scene:
         guess = guess_backdrop(kw) if self.kind == "skit" else None
         self.back = self.data.get("backdrop") or guess or DEFAULT_BACKDROP.get(self.kind, "parchment")
         self.faction0 = faction0
+        self.starts = speech_audio.line_times(self.speech, dur)
+        self.line_env: list[list[float] | None] = []
+        for sp in self.speech:  # a voiced line moves its speaker's mouth with its own audio
+            a = sp.get("audio")
+            self.line_env.append(envelope(Path(a), max(1, round(float(sp.get("seconds") or 1) * FPS)))
+                                 if a and Path(a).exists() else None)
         words = " ".join([str(seg.get("narration", "")), kw]).lower()
         self.crowd = bool(self.data.get("crowd")) or (self.kind == "skit" and any(
             w in words for w in ("army", "armies", "soldiers", "crowd", "mercenar", "legion", "troops", "citizens",
@@ -618,7 +624,7 @@ class Scene:
             lines = [k for k, s in enumerate(self.speech) if str(s.get("who", "")).lower() == w.lower()
                      or cast.ROSTER.get(w, {}).get("name", "").lower() == str(s.get("who", "")).lower()]
             active = self._active_line(t)
-            talk = active is not None and active in lines and int(t * 7 + i) % 2 == 0
+            talk = active is not None and active in lines and self._line_mouth(active, t)
             self.actor(img, w, cx, 640, 430 if n <= 2 else 340, t, i, talk or (not self.speech and self.mouth(t)),
                        enter=0.1 * i)
         act = self._active_line(t)
@@ -637,20 +643,31 @@ class Scene:
         _ = act
 
     def _line_start(self, k: int) -> float:
-        n = max(1, len(self.speech))
-        return 0.5 + k * (self.dur - 1.2) / n
+        if k < len(self.starts):
+            return self.starts[k]
+        return self.dur + 1
+
+    def _line_end(self, k: int) -> float:
+        sec = float(self.speech[k].get("seconds") or 0)
+        return self._line_start(k) + (sec if sec else 2.4)
 
     def _active_line(self, t: float) -> int | None:
         for k in range(len(self.speech)):
-            end = self._line_start(k + 1) if k + 1 < len(self.speech) else self.dur
-            if self._line_start(k) <= t < min(end, self._line_start(k) + 2.4):
+            if self._line_start(k) <= t < self._line_end(k):
                 return k
         return None
 
+    def _line_mouth(self, k: int, t: float) -> bool:
+        """Is the speaker of line k mid-syllable at second t (audio loudness when the line is voiced)?"""
+        env = self.line_env[k] if k < len(self.line_env) else None
+        if env is None:
+            return int(t * 7 + k) % 2 == 0
+        i = int((t - self._line_start(k)) * FPS)
+        return 0 <= i < len(env) and env[i] > 0.28
+
     # -- map: a schematic western-Mediterranean map with a growing route
     def _map(self, img: Image.Image, t: float) -> None:
-        base = _map_base()
-        img.paste(base)
+        img.paste(_territories(self.faction0))
         d = ImageDraw.Draw(img)
         pts = self.data.get("points") or []
         n = len(pts)
@@ -678,6 +695,22 @@ class Scene:
                              outline=WOOD, radius=14, width=4)
                 d = ImageDraw.Draw(img)
                 centered(d, (x, y - 66), label, f)
+            if n > 1:  # an army marches at the head of the route, with a troop counter that counts up
+                k0 = min(n - 2, int(prog))
+                fr = min(1.0, prog - k0)
+                hx = xy[k0][0] + (xy[k0 + 1][0] - xy[k0][0]) * fr
+                hy = xy[k0][1] + (xy[k0 + 1][1] - xy[k0][1]) * fr
+                col = cast.faction_color(self.faction0)
+                for j in range(4):
+                    bob = abs(math.sin(t * 7 + j)) * 6
+                    paste(img, self.cast.extra(0, j, col, 96, t), hx + (j - 1.5) * 26, hy + 34 + (j % 2) * 10 - bob)
+                troops = int(self.data.get("troops") or 0)
+                if troops:
+                    label = f"{int(troops * ease(min(1.0, prog / max(1, n - 1)))):,}"
+                    shadowed_box(img, (int(hx - 86), int(hy + 46), int(hx + 86), int(hy + 92)), (252, 244, 222),
+                                 outline=WOOD, radius=12, width=4)
+                    centered(ImageDraw.Draw(img), (hx, hy + 69), label, font(30, False))
+                d = ImageDraw.Draw(img)
             ff_, ft = self.data.get("flag_from"), self.data.get("flag_to")
             if ff_ and prog >= 0:
                 _flag(d, xy[0][0] - 70, xy[0][1] + 40, cast.faction_color(self.faction0), str(ff_))
@@ -806,32 +839,89 @@ def _smooth(pts: list[tuple[float, float]], k: int = 3) -> list[tuple[float, flo
     return pts
 
 
+_REGIONS: dict[str, list[tuple[float, float]]] = {
+    "iberia": [(0.03, 0.55), (0.06, 0.44), (0.16, 0.42), (0.26, 0.45), (0.27, 0.56), (0.22, 0.72), (0.12, 0.78), (0.05, 0.72)],
+    "gaul": [(0.20, 0.44), (0.24, 0.20), (0.40, 0.08), (0.62, 0.10), (0.70, 0.30), (0.52, 0.36), (0.36, 0.50), (0.27, 0.54)],
+    "italy": [(0.56, 0.34), (0.74, 0.28), (0.86, 0.42), (0.88, 0.58), (0.96, 0.70), (0.90, 0.80), (0.82, 0.66), (0.70, 0.54), (0.60, 0.42)],
+    "africa": [(0.04, 0.92), (0.22, 0.84), (0.50, 0.86), (0.70, 0.88), (0.90, 0.90), (0.96, 1.02), (0.02, 1.02)],
+    "sardinia": [(0.42, 0.62), (0.47, 0.60), (0.48, 0.68), (0.44, 0.72)],
+}
+_TERRITORY_SIDE = {"italy": 0, "iberia": 1, "africa": 1}  # which faction holds a region (others stay neutral)
+_noise_cache: dict[int, np.ndarray] = {}
+
+
+def _fractal(seed: int, w: int, h: int) -> np.ndarray:
+    """Soft 0..1 noise (three octaves of smoothed random grids) for terrain texture."""
+    rng = np.random.default_rng(seed)
+    total = np.zeros((h, w), dtype=np.float32)
+    amp, norm = 1.0, 0.0
+    for cells in (6, 14, 34):
+        g = (rng.random((cells, max(2, cells * w // h))) * 255).astype("uint8")
+        total += amp * np.asarray(Image.fromarray(g).resize((w, h), Image.BICUBIC), dtype=np.float32) / 255.0
+        norm += amp
+        amp *= 0.5
+    return total / norm
+
+
+def _region_mask(names: list[str], S: int) -> Image.Image:
+    m = Image.new("L", (W * S, H * S), 0)
+    d = ImageDraw.Draw(m)
+    for n in names:
+        d.polygon(_smooth([(x * W * S, y * H * S) for x, y in _REGIONS[n]]), fill=255)
+    return m
+
+
 def _map_base() -> Image.Image:
-    """Western Mediterranean as a hand-drawn schematic (Iberia, Gaul, Italy, North Africa, an Alps range)."""
+    """Western Mediterranean drawn like a satellite map: textured sea and land, coast lines, snow-capped Alps."""
     global _MAP
     if _MAP is not None:
         return _MAP
     S = 2
-    img = _gradient(SEA, (156, 188, 196), W * S, H * S)
+    w, h = W * S, H * S
+    land = _region_mask(list(_REGIONS), S)
+    n1, n2 = _fractal(5, w, h), _fractal(9, w, h)
+    sea = np.stack([18 + 26 * n1, 52 + 40 * n1, 96 + 52 * n1], axis=-1)
+    t = n2[..., None]
+    low, mid, high = np.array([86, 124, 66]), np.array([150, 138, 88]), np.array([118, 96, 72])
+    ground = np.where(t < 0.5, low + (mid - low) * (t / 0.5), mid + (high - mid) * ((t - 0.5) / 0.5))
+    ground = ground * (0.86 + 0.28 * n1[..., None])
+    mask = np.asarray(land, dtype=np.float32)[..., None] / 255.0
+    img = Image.fromarray(np.clip(sea * (1 - mask) + ground * mask, 0, 255).astype("uint8"), "RGB")
     d = ImageDraw.Draw(img)
-
-    def land(norm: list[tuple[float, float]]) -> None:
-        pts = _smooth([(x * W * S, y * H * S) for x, y in norm])
-        d.polygon(pts, fill=LAND, outline=LAND_EDGE)
-        d.line([*pts, pts[0]], fill=LAND_EDGE, width=5 * S // 2)
-
-    land([(0.03, 0.55), (0.06, 0.44), (0.16, 0.42), (0.26, 0.45), (0.27, 0.56), (0.22, 0.72), (0.12, 0.78), (0.05, 0.72)])
-    land([(0.20, 0.44), (0.24, 0.20), (0.40, 0.08), (0.62, 0.10), (0.70, 0.30), (0.52, 0.36), (0.36, 0.50), (0.27, 0.54)])
-    land([(0.56, 0.34), (0.74, 0.28), (0.86, 0.42), (0.88, 0.58), (0.96, 0.70), (0.90, 0.80), (0.82, 0.66), (0.70, 0.54), (0.60, 0.42)])
-    land([(0.04, 0.92), (0.22, 0.84), (0.50, 0.86), (0.70, 0.88), (0.90, 0.90), (0.96, 1.02), (0.02, 1.02)])
-    land([(0.42, 0.62), (0.47, 0.60), (0.48, 0.68), (0.44, 0.72)])  # Sardinia
-    for k in range(7):  # the Alps: a row of little snow-capped peaks
-        x, y = (0.5 + k * 0.022) * W * S, (0.285 + math.sin(k * 0.9) * 0.012 + k * 0.008) * H * S
+    for name in _REGIONS:  # a pale shoreline
+        pts = _smooth([(x * w, y * h) for x, y in _REGIONS[name]])
+        d.line([*pts, pts[0]], fill=(196, 214, 204), width=4 * S)
+    for k in range(7):  # the Alps: a row of snow-capped peaks
+        x, y = (0.5 + k * 0.022) * w, (0.285 + math.sin(k * 0.9) * 0.012 + k * 0.008) * h
         s = 46 * S // 2 + (k % 3) * 6
-        d.polygon([(x - s, y + s), (x, y - s), (x + s, y + s)], fill=(150, 130, 108), outline=LAND_EDGE)
+        d.polygon([(x - s, y + s), (x, y - s), (x + s, y + s)], fill=(132, 118, 104), outline=(70, 60, 50))
         d.polygon([(x - s * 0.36, y - s * 0.28), (x, y - s), (x + s * 0.36, y - s * 0.28)], fill=(248, 250, 255))
-    _MAP = _vignette(img.resize((W, H), Image.LANCZOS), 0.35)
+    _MAP = _vignette(img.resize((W, H), Image.LANCZOS), 0.3)
     return _MAP
+
+
+_terr_cache: dict[int, Image.Image] = {}
+
+
+def _territories(faction0: int) -> Image.Image:
+    """Base map with each side's territory tinted in its faction colour and outlined in white (like the references)."""
+    if faction0 in _terr_cache:
+        return _terr_cache[faction0]
+    S = 2
+    base = _map_base().resize((W * S, H * S), Image.LANCZOS).convert("RGBA")
+    for name, side in _TERRITORY_SIDE.items():
+        col = hex_rgb(cast.faction_color(faction0 + side))
+        m = _region_mask([name], S)
+        tint = Image.new("RGBA", base.size, (*col, 0))
+        tint.putalpha(m.point(lambda v: 118 if v else 0))
+        base = Image.alpha_composite(base, tint)
+        edge = ImageChops.subtract(m.filter(ImageFilter.MaxFilter(5)), m.filter(ImageFilter.MinFilter(5)))
+        white = Image.new("RGBA", base.size, (255, 255, 255, 0))
+        white.putalpha(edge)
+        base = Image.alpha_composite(base, white)
+    out = base.convert("RGB").resize((W, H), Image.LANCZOS)
+    _terr_cache[faction0] = out
+    return out
 
 
 def _dashed(d: ImageDraw.ImageDraw, a: tuple, b: tuple, col: tuple, width: int) -> None:
@@ -867,34 +957,37 @@ _CODE_STAMP = hashlib.sha1(Path(__file__).read_bytes()).hexdigest()[:8]  # drawi
 def fingerprint(seg: dict, dur: float, audio: Path | None) -> str:
     """Hash of everything that decides how a scene looks (re-render only when it changes)."""
     keys = {k: seg.get(k) for k in ("scene", "scene_data", "cast", "speech", "chapter")}
-    keys.update(dur=round(dur, 2), audio=audio.stat().st_size if audio and Path(audio).exists() else 0, code=_CODE_STAMP)
+    pf = ff.profile()
+    keys.update(size=[pf.w, pf.h, pf.fps], dur=round(dur, 2), audio=audio.stat().st_size if audio and Path(audio).exists() else 0, code=_CODE_STAMP)
     return hashlib.sha1(json.dumps(keys, sort_keys=True, default=str).encode()).hexdigest()[:12]
 
 
 def render_scene(seg: dict, dur: float, out: Path, work: Path, audio: Path | None = None, faction0: int = 0,
                  cst: Cast | None = None) -> Path:
-    """Render one cast scene to `out` (silent H.264, 1280x720, 24 fps, `dur` seconds). Reuses an identical earlier clip."""
+    """Render one cast scene to `out` (silent H.264 at the video profile size and frame rate, `dur` seconds). Reuses an identical earlier clip."""
     ff.ensure_ffmpeg()
     stamp = out.with_suffix(".stamp")
     fp = fingerprint(seg, dur, audio)
     if out.exists() and stamp.exists() and stamp.read_text() == fp:
         return out
-    n = max(1, round(dur * FPS))
+    pf = ff.profile()
+    ow, oh, fps = pf.w, pf.h, pf.fps  # drawn once, then resampled once straight to the video size and frame rate
+    n = max(1, round(dur * fps))
     cst = cst or Cast(work)
-    scene = Scene(seg, dur, cst, envelope(audio, n), faction0)
-    cmd = ["ffmpeg", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-", "-an",
-           "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(out)]
+    scene = Scene(seg, dur, cst, envelope(audio, round(dur * FPS) + 1), faction0)
+    cmd = ["ffmpeg", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{ow}x{oh}", "-r", str(fps), "-i", "-", "-an",
+           "-c:v", "libx264", "-preset", "veryfast", "-crf", "16", "-pix_fmt", "yuv420p", "-movflags", "+faststart",
+           str(out)]
     proc = subprocess.Popen(ff.low_memory_cmd(cmd), stdin=subprocess.PIPE, stderr=subprocess.PIPE)
     try:
         for f in range(n):
-            t = f / FPS
+            t = f / fps
             img = scene.frame(t)
             z, fx, fy = scene.camera(t) if scene.kind != "map" else (1.0, 0.5, 0.5)
-            if z > 1.0005:
-                cw, ch = W / z, H / z
-                x0 = min(max(fx * W - cw / 2, 0), W - cw)
-                y0 = min(max(fy * H - ch / 2, 0), H - ch)
-                img = img.resize((W, H), Image.BICUBIC, box=(x0, y0, x0 + cw, y0 + ch))
+            cw, ch = W / max(z, 1.0), H / max(z, 1.0)
+            x0 = min(max(fx * W - cw / 2, 0), W - cw)
+            y0 = min(max(fy * H - ch / 2, 0), H - ch)
+            img = img.resize((ow, oh), Image.LANCZOS, box=(x0, y0, x0 + cw, y0 + ch))
             proc.stdin.write(img.tobytes())
         proc.stdin.close()
         err = proc.stderr.read().decode(errors="replace")

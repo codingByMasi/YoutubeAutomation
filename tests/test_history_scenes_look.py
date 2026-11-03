@@ -42,3 +42,12 @@ def test_camera_cuts_between_wide_and_close_up(tmp_path):
 def test_cast_channels_do_not_burn_captions():
     assert sprofile.PACKS["history"]["flag_overrides"]["burn_captions"] is False
     assert sprofile.DEFAULT_FLAGS["burn_captions"] is True  # every other channel type keeps burned captions
+
+
+def test_map_scene_draws_territories_and_a_marching_army(tmp_path):
+    seg = {"scene": "map", "narration": "x", "cast": ["quill"], "scene_data": {"title": "218 BC", "troops": 38000, "points": [
+        {"x": 0.14, "y": 0.58, "label": "Spain"}, {"x": 0.58, "y": 0.30, "label": "Alps"}]}}
+    sc = _scene(tmp_path, seg, 10.0)
+    early, late = sc.frame(1.0), sc.frame(9.0)
+    assert early.size == (r.W, r.H) and early.tobytes() != late.tobytes()
+    assert r._territories(0).tobytes() != r._map_base().tobytes()  # the sides are tinted

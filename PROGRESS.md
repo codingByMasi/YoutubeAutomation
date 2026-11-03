@@ -565,5 +565,10 @@ Decisions: OpenUtau has no CLI renderer, so a voicebank "preview" is a clip expo
 - Look (same branch): five new backdrops (snow, field, market, plain, sea) picked from the skit's words; crowds of
   extras on army/crowd scenes; wide <-> close-up cuts every 4.5 s on skits; history no longer burns word captions
   (`burn_captions` flag, `captions.srt` still written). Sample: `youtube-studio/e2e-test/history-v2-sample-hannibal.mp4`.
-- Still open: terrain-style maps, per-character voices, true 1080p scene drawing (scenes are drawn at 720p and
-  upscaled once), long lectern shots are static, end card.
+- Character voices: skit speech lines are spoken in each character's own voice (`history/speech_audio.py`, synthesised
+  in `visuals`, mixed into the narration in `build` with the narrator ducked); mouths follow that audio.
+- Cast scenes are resampled once to the video size and frame rate (1080p/30 by default; draft 720p/24).
+- Maps: textured satellite-style terrain, tinted territories with white borders, a marching army and a troop
+  counter (`scene_data.troops`). Still a western-Mediterranean schematic only.
+- Still open: a title card at ~40 s, a Part 2 end card scene, maps outside the western Mediterranean, static long
+  lectern shots, richer art/props/gags, Whisper-synced captions for non-cast channels.

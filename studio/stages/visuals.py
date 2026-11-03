@@ -10,7 +10,7 @@ import typer
 from studio import scenes
 from studio.context import Ctx
 from studio.errors import StudioError
-from studio.history import autoscene, scene_plan
+from studio.history import autoscene, scene_plan, speech_audio
 from studio.models import Asset, Segment
 from studio.providers import brand, chart_anim
 from studio.providers.charts import render_chart, source_line, text_card
@@ -168,6 +168,8 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
             autoscene.persist(out / "script.json", pkg["segments"])
             who = "Claude" if how == "claude" else "the built-in rules"
             typer.echo(f"Scenes assigned by {who} and saved in the script.")
+        if cast_on and speech_audio.synth_lines(ctx.settings, out, pkg["segments"], typer.echo):
+            autoscene.persist(out / "script.json", pkg["segments"])  # keeps each line's audio file and length
         for pos, seg in enumerate(pkg["segments"], 1):
             left3d = None
             if budget.sec_per_frame and todo3d:

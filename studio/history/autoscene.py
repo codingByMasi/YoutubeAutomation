@@ -244,6 +244,6 @@ def persist(script_json, segments: list[dict]) -> None:
     for row, seg in zip(rows, segments, strict=True):
         if isinstance(row, dict):
             for k in ("scene", "cast", "speech", "scene_data"):
-                if k in seg and k not in row:
+                if k in seg and (k not in row or k == "speech"):  # speech also carries each line's audio and length
                     row[k] = seg[k]
     p.write_text(json.dumps(raw, indent=2, ensure_ascii=False), encoding="utf-8")

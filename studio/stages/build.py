@@ -260,6 +260,9 @@ def run(ctx: Ctx, video_id: int, force: bool = False) -> None:
         voices = [out / "voice" / f"seg_{i:03d}.mp3" for i in range(1, len(segs) + 1)]
         ff.run(ff.audio_concat_cmd(ff.concat_list(voices, tmp / "voice.txt"), tmp / "narration.wav"),
                "joining narration")
+        from studio.history import speech_audio  # characters' own voices over the narrator (cast channels only)
+        narr_track = speech_audio.mix_into_narration(tmp / "narration.wav", segs, timeline(segs),
+                                                     tmp / "narration_mix.wav")  # captions still use the pure narration
 
         # 3. captions: word-timed (whisper if installed, else estimated from segment timings)
         spans = timeline(segs)
@@ -322,7 +325,7 @@ def run(ctx: Ctx, video_id: int, force: bool = False) -> None:
         clean = out / "clean.mp4"  # no burned captions; Shorts are cut from this
         from studio.story import profile as story_profile
         sprof = story_profile.for_channel(ctx.settings.root)
-        ff.run(ff.mix_cmd(tmp / "picture.mp4", tmp / "narration.wav", clean, music, MUSIC_DB,
+        ff.run(ff.mix_cmd(tmp / "picture.mp4", narr_track, clean, music, MUSIC_DB,
                           sfx={k: snd[k] for k in sound.SFX}, sfx_events=events, total=total,
                           lufs=sprof["lufs_target"], true_peak=sprof["true_peak"]), "mixing audio")
         main = tmp / "main.mp4"
