@@ -160,17 +160,20 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
             if sprofile.enabled(sprof, "footage_reuse_ledger") else set()
         scorer = story_visuals.make_scorer() if sprofile.enabled(sprof, "semantic_visuals") else None
         cast_on = sprofile.enabled(sprof, "cast_scenes")
-        cast_stage = cast_render.Cast(out / "cast") if cast_on else None
         faction0 = 0
         if cast_on and scene_plan.missing(pkg["segments"]):
             # No scene types on a pasted script: say so in one line and have Claude assign them once (saved in the
             # script). Never a silent fall back to stock, photos or charts.
-            how = scene_plan.assign(ctx.settings, out, pkg["segments"], typer.echo)
-            autoscene.persist(out / "script.json", pkg["segments"])
+            got: dict = {}
+            how = scene_plan.assign(ctx.settings, out, pkg["segments"], typer.echo, got)
+            pkg["characters"] = got.get("characters") or pkg.get("characters") or []
+            autoscene.persist(out / "script.json", pkg["segments"], {"characters": pkg["characters"]})
             who = "Claude" if how == "claude" else "the built-in rules"
             typer.echo(f"Scenes assigned by {who} and saved in the script.")
-        if cast_on and speech_audio.synth_lines(ctx.settings, out, pkg["segments"], typer.echo):
+        if cast_on and speech_audio.synth_lines(ctx.settings, out, pkg["segments"], typer.echo,
+                                                        pkg.get("characters")):
             autoscene.persist(out / "script.json", pkg["segments"])  # keeps each line's audio file and length
+        cast_stage = cast_render.Cast(out / "cast", pkg.get("characters")) if cast_on else None
         for pos, seg in enumerate(pkg["segments"], 1):
             left3d = None
             if budget.sec_per_frame and todo3d:
@@ -208,7 +211,7 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
                 seg = {**seg, "era": cast_wardrobe.era_for(seg, pkg)}  # same face and voice, story-era costume
                 try:
                     drawn = cast_render.render_scene(seg, duration, out / "cast" / f"cast_{pos:03d}.mp4", out / "cast",
-                                                     audio, faction0, cast_stage)
+                                                     audio, faction0, cast_stage, pkg.get("characters"))
                 except StudioError:
                     raise
                 except Exception as exc:  # noqa: BLE001 - never fall back to stock silently on a cast channel

@@ -121,6 +121,30 @@ def figures(segments: list[dict], limit: int = 3) -> list[str]:
     return [n for n, c in count.most_common(limit) if c >= 3 or (c >= 2 and n in mid)]
 
 
+_TITLES = {"king": ("male", "crown"), "queen": ("female", "crown"), "emperor": ("male", "crown"),
+           "empress": ("female", "crown"), "general": (None, "helmet"), "consul": ("male", None), "senator": (None, None),
+           "captain": (None, "helmet"), "admiral": (None, "hat"), "priest": (None, "hood"), "priestess": ("female", "veil"),
+           "pharaoh": (None, "crown"), "sultan": ("male", "turban"), "caliph": ("male", "turban"), "pope": ("male", "hat"),
+           "prince": ("male", "circlet"), "princess": ("female", "circlet"), "lord": ("male", None), "lady": ("female", None)}
+
+
+def characters_for(segments: list[dict]) -> list[dict]:
+    """Rule-based descriptions for the named people of a script (used only when Claude's list is unavailable).
+
+    Gender is never guessed from a name: it comes only from a title the script uses (King, Queen, Lady ...), else
+    neutral. A title also suggests headwear. Everyone else gets the era's plain clothes from the renderer."""
+    text = " ".join(str(s.get("narration", "")) for s in segments)
+    out = []
+    for name in figures(segments, limit=6):
+        m = re.search(rf"\b({'|'.join(_TITLES)})\s+(?:of\s+)?{re.escape(name)}\b", text, re.I)
+        gender, head = _TITLES.get(m.group(1).lower(), (None, None)) if m else (None, None)
+        spec = {"name": name, "role": m.group(1).lower() if m else "figure", "gender": gender or "neutral"}
+        if head:
+            spec["headwear"] = head
+        out.append(spec)
+    return out
+
+
 def _pick_cast(text: str, figs: list[str], k: int) -> list[str]:
     """Primary character from the words, a counterpart, and a recurring historical figure if the text names one."""
     primary = next((cid for cid, rx in _WHO if rx.search(text)), None)
@@ -229,8 +253,10 @@ def assign(segments: list[dict], force: bool = False) -> int:
     return changed
 
 
-def persist(script_json, segments: list[dict]) -> None:
-    """Write the filled scene keys into script.json without touching any other field of the file."""
+def persist(script_json, segments: list[dict], extra: dict | None = None) -> None:
+    """Write the filled scene keys into script.json without touching any other field of the file.
+
+    `extra` adds top-level keys (for example `characters`) that the file does not already have."""
     from pathlib import Path
 
     p = Path(script_json)
@@ -246,4 +272,7 @@ def persist(script_json, segments: list[dict]) -> None:
             for k in ("scene", "cast", "speech", "scene_data"):
                 if k in seg and (k not in row or k == "speech"):  # speech also carries each line's audio and length
                     row[k] = seg[k]
+    for k, v in (extra or {}).items():
+        if v:
+            raw[k] = v
     p.write_text(json.dumps(raw, indent=2, ensure_ascii=False), encoding="utf-8")
