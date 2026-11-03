@@ -24,14 +24,48 @@ LEAD = 0.5  # seconds before the first line
 DUCK = 0.3  # narrator volume while a character speaks
 
 
-def voice_for(who: str) -> dict:
-    """The voice dict for a roster id, a roster name, or (stable by name) a historical figure."""
+# Voices by what the script says about a character (all ids are used by the recurring cast, so they exist).
+_MALE = [("bm_george", "en-GB-RyanNeural"), ("am_adam", "en-US-GuyNeural"), ("bm_lewis", "en-GB-ThomasNeural"),
+         ("am_fenrir", "en-US-ChristopherNeural"), ("bm_daniel", "en-IE-ConnorNeural"), ("am_onyx", "en-US-EricNeural")]
+_FEMALE = [("bf_emma", "en-GB-SoniaNeural"), ("bf_isabella", "en-GB-LibbyNeural"), ("af_heart", "en-CA-ClaraNeural")]
+_YOUNG = {"male": ("am_puck", "en-AU-WilliamNeural"), "female": ("af_heart", "en-CA-ClaraNeural"),
+          "neutral": ("af_heart", "en-CA-ClaraNeural")}
+
+
+def voice_from_spec(spec: dict) -> dict:
+    """A voice that fits a described character: gender, age and (optionally) a pitch hint (low/mid/high) or an
+    explicit `voice` dict from the script. Stable for the same character name."""
+    if isinstance(spec.get("voice"), dict) and spec["voice"]:
+        return voices.check(spec["voice"], str(spec.get("name", "character")))
+    g = str(spec.get("gender") or "neutral").lower()
+    g = g if g in ("male", "female") else "neutral"
+    age = str(spec.get("age") or "adult").lower()
+    h = int(hashlib.sha1(str(spec.get("name", "")).lower().encode()).hexdigest(), 16)
+    if age == "child":
+        kok, edge = _YOUNG[g]
+        speed, pitch = 1.18, 6
+    else:
+        pool = _MALE if g == "male" else _FEMALE if g == "female" else _MALE + _FEMALE
+        kok, edge = pool[h % len(pool)]
+        speed, pitch = (0.9, -4) if age == "elder" else (1.0, 0)
+    hint = str(spec.get("pitch") or spec.get("voice_hint") or "").lower()
+    pitch += {"low": -8, "high": 8}.get(hint, 0)
+    speed += {"low": -0.04, "high": 0.04}.get(hint, 0)
+    return voices.check({"edge": edge, "kokoro": kok, "speed": round(speed, 2), "pitch": pitch, "rate": 0},
+                        str(spec.get("name", "character")))
+
+
+def voice_for(who: str, characters: list[dict] | None = None) -> dict:
+    """The voice dict for a roster id or name, a character the script describes, or (stable by name) anyone else."""
     low = (who or "").strip().lower()
     if low in cast.ROSTER:
         return cast.voice_for(low)
     for cid, c in cast.ROSTER.items():
         if low == c["name"].lower():
             return cast.voice_for(cid)
+    for c in characters or []:
+        if isinstance(c, dict) and str(c.get("name", "")).strip().lower() == low:
+            return voice_from_spec(c)
     h = int(hashlib.sha1(low.encode()).hexdigest(), 16)
     pool = [c["voice"] for c in cast.ROSTER.values()]
     base = dict(pool[h % len(pool)])
@@ -66,7 +100,8 @@ def _engines(settings, voice: dict) -> list:
     return out
 
 
-def synth_lines(settings, project_dir: Path, segments: list[dict], say=print) -> int:
+def synth_lines(settings, project_dir: Path, segments: list[dict], say=print,
+                characters: list[dict] | None = None) -> int:
     """Voice every speech line of every skit. Returns how many lines have audio. Never raises for a failed line:
     that line simply stays text-only (the scene then times it evenly)."""
     if getattr(settings, "tts_provider", "") == "silent":
@@ -81,7 +116,7 @@ def synth_lines(settings, project_dir: Path, segments: list[dict], say=print) ->
             text = str(line.get("text", "")).strip()
             if not text:
                 continue
-            voice = voice_for(str(line.get("who", "")))
+            voice = voice_for(str(line.get("who", "")), characters)
             key = hashlib.sha1(f"{text}|{voice['kokoro']}|{voice['edge']}|{voice['speed']}|{voice['rate']}".encode()
                                ).hexdigest()[:10]
             path = folder / f"seg_{i:03d}_{k}_{key}.mp3"

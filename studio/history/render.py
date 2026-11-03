@@ -20,7 +20,7 @@ import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
 from studio.errors import StudioError
-from studio.history import cast, speech_audio, wardrobe
+from studio.history import cast, figures, speech_audio, wardrobe
 from studio.kids.sprites import SpriteBank, blink
 from studio.util import ffmpeg as ff
 from studio.util import fonts
@@ -238,7 +238,11 @@ def backdrop(kind: str) -> Image.Image:
 class Cast:
     """Sprites for the recurring roster plus the video's own historical figures (same faction colour all video)."""
 
-    def __init__(self, work: Path) -> None:
+    def __init__(self, work: Path, characters: list[dict] | None = None) -> None:
+        # characters the script describes (name, gender, age, clothing, props ...): drawn from those attributes
+        self.chars = {str(c.get("name", "")).strip().lower(): c for c in characters or []
+                      if isinstance(c, dict) and str(c.get("name", "")).strip()}
+        self._cs: dict[tuple, Image.Image] = {}
         self.dir = work / "figures"
         self.dir.mkdir(parents=True, exist_ok=True)
         cast.export_roster(self.dir)
@@ -298,9 +302,29 @@ class Cast:
             img = pil_character(color, self.look[stem][1], "none", "", px, blink(t, i), talking)
         return img
 
+    def described(self, who: str) -> dict | None:
+        """The script's own description of this character, unless the name is one of the recurring cast."""
+        low = (who or "").strip().lower()
+        if low in cast.ROSTER or any(low == c["name"].lower() for c in cast.ROSTER.values()):
+            return None
+        return self.chars.get(low)
+
+    def _from_spec(self, spec: dict, px: int, closed: bool, talking: bool, era: str) -> Image.Image:
+        key = (str(spec.get("name", "")).lower(), px, closed, talking, era)
+        if key not in self._cs:
+            self._cs[key] = figures.draw(spec, px, closed, talking, figures.ERA_STYLE.get(era))
+        return self._cs[key]
+
     def sprite(self, who: str, px: int, t: float, i: int, talking: bool, silhouette: bool = False,
                era: str = wardrobe.DEFAULT) -> Image.Image:
         """The character as an RGBA picture `px` wide; eyes blink, the mouth follows `talking`."""
+        spec = self.described(who)
+        if spec is not None:
+            img = self._from_spec(spec, px, blink(t, i), talking, era)
+            if silhouette:
+                solid = Image.new("RGBA", img.size, (18, 14, 28, 255))
+                img = Image.composite(solid, Image.new("RGBA", img.size, (0, 0, 0, 0)), img.getchannel("A"))
+            return img
         img = self.bank.get(self.key(who, era), px, eyes_closed=blink(t, i), mouth_open=talking) if self.ok else None
         if img is None:  # no cairosvg/cairo (common on Windows): draw the same character with Pillow instead
             stem = self.key(who)
@@ -944,9 +968,12 @@ def _flag(d: ImageDraw.ImageDraw, x: float, y: float, color: str, text: str) -> 
 _CODE_STAMP = hashlib.sha1(Path(__file__).read_bytes()).hexdigest()[:8]  # drawing code changed -> redraw
 
 
-def fingerprint(seg: dict, dur: float, audio: Path | None) -> str:
+def fingerprint(seg: dict, dur: float, audio: Path | None, characters: list[dict] | None = None) -> str:
     """Hash of everything that decides how a scene looks (re-render only when it changes)."""
     keys = {k: seg.get(k) for k in ("scene", "scene_data", "cast", "speech", "chapter", "era")}
+    names = {str(n).lower() for n in seg.get("cast") or []} | {str(x.get("who", "")).lower()
+                                                               for x in seg.get("speech") or [] if isinstance(x, dict)}
+    keys["characters"] = [c for c in characters or [] if str(c.get("name", "")).lower() in names]
     pf = ff.profile()
     keys.update(size=[pf.w, pf.h, pf.fps], dur=round(dur, 2),
                 audio=audio.stat().st_size if audio and Path(audio).exists() else 0, code=_CODE_STAMP)
@@ -954,17 +981,17 @@ def fingerprint(seg: dict, dur: float, audio: Path | None) -> str:
 
 
 def render_scene(seg: dict, dur: float, out: Path, work: Path, audio: Path | None = None, faction0: int = 0,
-                 cst: Cast | None = None) -> Path:
+                 cst: Cast | None = None, characters: list[dict] | None = None) -> Path:
     """Render one cast scene to `out` (silent H.264 at the video profile size and frame rate, `dur` seconds). Reuses an identical earlier clip."""
     ff.ensure_ffmpeg()
     stamp = out.with_suffix(".stamp")
-    fp = fingerprint(seg, dur, audio)
+    fp = fingerprint(seg, dur, audio, characters)
     if out.exists() and stamp.exists() and stamp.read_text() == fp:
         return out
     pf = ff.profile()
     ow, oh, fps = pf.w, pf.h, pf.fps  # drawn once, then resampled once straight to the video size and frame rate
     n = max(1, round(dur * fps))
-    cst = cst or Cast(work)
+    cst = cst or Cast(work, characters)
     scene = Scene(seg, dur, cst, envelope(audio, round(dur * FPS) + 1), faction0)
     cmd = ["ffmpeg", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{ow}x{oh}", "-r", str(fps), "-i", "-", "-an",
            "-c:v", "libx264", "-preset", "veryfast", "-crf", "16", "-pix_fmt", "yuv420p", "-movflags", "+faststart",
