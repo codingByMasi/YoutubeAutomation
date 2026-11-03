@@ -550,6 +550,30 @@ Decisions: OpenUtau has no CLI renderer, so a voicebank "preview" is a clip expo
 - Not verified: a real Kenney pack (kenney.nl is blocked from the build sandbox). Tested with a generated .glb.
   Owner: download the Kenney "Animated Characters" CC0 pack, copy a .glb into `assets/characters/`, set `model`.
 
+## 2026-11-03: history videos match the reference format (PR 1 of the series)
+- Cause of the "chart slides, stock stills, blank circles" render: a pasted script has no `scene` keys, so `visuals`
+  fell back to stock, alternating photos, text cards and charts; fonts were Linux-only paths (tiny bitmap text on
+  Windows) and characters became blank circles when cairosvg/cairo was missing.
+- Now: on a cast channel (history) a script without scene types prints one line, `No scenes assigned for this script.`,
+  and Claude assigns scene, cast, speech and map/diagram data once (`studio/history/scene_plan.py`, prompt task
+  `scenes`, saved into script.json). If the provider fails, `studio/history/autoscene.py` word rules fill in.
+  Issues panel offers "Assign scenes with Claude". Stock, photos and 3D chart scenes are never used on cast
+  channels; a chart only appears on an explicit `easel` scene; a photo only where the segment has a `photo` request.
+- Fonts come from matplotlib's bundled DejaVu (fails loudly, never Pillow's bitmap font); `render.pil_character`
+  draws the cast with Pillow when cairo is missing.
+- Next (PR 2): richer skits, terrain maps, more backdrops, internal cuts, true 1080p; (PR 3): per-character voices,
+  speech-only captions, end card. Gap list: `youtube-studio/audit/reference-gap-list.md`.
+- Look (same branch): five new backdrops (snow, field, market, plain, sea) picked from the skit's words; crowds of
+  extras on army/crowd scenes; wide <-> close-up cuts every 4.5 s on skits; history no longer burns word captions
+  (`burn_captions` flag, `captions.srt` still written). Sample: `youtube-studio/e2e-test/history-v2-sample-hannibal.mp4`.
+- Character voices: skit speech lines are spoken in each character's own voice (`history/speech_audio.py`, synthesised
+  in `visuals`, mixed into the narration in `build` with the narrator ducked); mouths follow that audio.
+- Cast scenes are resampled once to the video size and frame rate (1080p/30 by default; draft 720p/24).
+- Maps: textured satellite-style terrain, tinted territories with white borders, a marching army and a troop
+  counter (`scene_data.troops`). Still a western-Mediterranean schematic only.
+- Still open: a title card at ~40 s, a Part 2 end card scene, maps outside the western Mediterranean, static long
+  lectern shots, richer art/props/gags, Whisper-synced captions for non-cast channels.
+
 ## Story-based costumes (2026-11-03)
 - `studio/history/wardrobe.py`: 10 era outfits (roman, greek, viking, medieval, desert, egyptian, samurai, renaissance, sail, modern). Same face, body shape, badge letter, colour and voice; only headwear, garment, cape, collar and (non-signature) prop change. Code-drawn SVG, no GPU, no extra files.
 - Choose with `era` on the script (top level, or per segment when the story jumps period). Missing `era` is guessed from the title; no match keeps the default outfit, so old scripts render as before.
