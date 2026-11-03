@@ -22,7 +22,7 @@ CARD_STYLES = ("none", "card")  # intro / outro: nothing, or a short branded tit
 MASCOT_FIELDS = {"name": "", "kind": "coin", "color": "", "look": "", "personality": "", "catchphrase": "",
                  "intro_line": "", "outro_line": "", "on_thumbnail": True,
                  "skin": "", "hair": "", "hair_style": "short",  # skin/hair/hair_style: analyst only
-                 "model": "", "clips": {}}  # model: optional .glb in assets/characters; clips: action -> clip name
+                 "model": "", "model_scale": 1.0, "clips": {}}  # optional .glb model; clips: action -> clip
 THEME_FIELDS = {"bg": "", "accent": "", "accent2": "", "text": "", "heading_font": "", "intro_style": "none",
                 "outro_style": "card", "thumbnail_style": "", "motion": ""}
 PLAYLIST_FIELDS = {"name": "", "description": "", "title_pattern": "", "topics": [], "youtube_id": ""}
@@ -114,6 +114,11 @@ def clean_mascot(values: dict | None) -> dict:
         raise StudioError(f"The mascot model '{out['model']}' is not a .glb or .gltf file.",
                           "3D character models are loaded from glTF files (Kenney, Quaternius and KayKit ship them).",
                           "Use a .glb file in assets/characters, or clear the model field.")
+    try:
+        out["model_scale"] = min(max(float(out["model_scale"] or 1.0), 0.2), 5.0)
+    except (TypeError, ValueError) as exc:
+        raise StudioError("The mascot model_scale is not a number.", "It must be like 1.0 or 1.3.",
+                          "Fix model_scale.") from exc
     clips = out["clips"] if isinstance(out["clips"], dict) else {}
     out["clips"] = {str(k): str(v) for k, v in clips.items() if str(v).strip()}
     out["hair_style"] = str(out["hair_style"] or "short").strip().lower()

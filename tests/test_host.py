@@ -156,7 +156,8 @@ def test_gpu_quality_is_opt_in(monkeypatch):
 
 def test_model_field_is_validated_and_resolved(tmp_path, capsys):
     ok = identity.clean_mascot({"name": "Kay", "kind": "coin", "model": "kay.glb", "clips": {"point": "Interact"}})
-    assert ok["model"] == "kay.glb" and ok["clips"] == {"point": "Interact"}
+    assert ok["model"] == "kay.glb" and ok["clips"] == {"point": "Interact"} and ok["model_scale"] == 1.0
+    assert identity.clean_mascot({"name": "Kay", "model_scale": "1.3"})["model_scale"] == 1.3
     with pytest.raises(StudioError):
         identity.clean_mascot({"name": "Kay", "model": "kay.obj"})
     assert identity.clean_mascot({"name": "Kay"})["model"] == ""
