@@ -548,3 +548,10 @@ Decisions: OpenUtau has no CLI renderer, so a voicebank "preview" is a clip expo
 - Decision: no mouth flaps for imported models (they have no mouth shapes); gestures come from the clip.
 - Not verified: a real Kenney pack (kenney.nl is blocked from the build sandbox). Tested with a generated .glb.
   Owner: download the Kenney "Animated Characters" CC0 pack, copy a .glb into `assets/characters/`, set `model`.
+
+## Story-based costumes (2026-11-03)
+- `studio/history/wardrobe.py`: 10 era outfits (roman, greek, viking, medieval, desert, egyptian, samurai, renaissance, sail, modern). Same face, body shape, badge letter, colour and voice; only headwear, garment, cape, collar and (non-signature) prop change. Code-drawn SVG, no GPU, no extra files.
+- Choose with `era` on the script (top level, or per segment when the story jumps period). Missing `era` is guessed from the title; no match keeps the default outfit, so old scripts render as before.
+- Planner/script prompt lists the eras; `scene_problems` rejects unknown eras. Thumbnails use the same era.
+- Preview: `python -m studio.cli wardrobe <character> --out sheet.png`.
+- Decision: kids cast not included in this change (separate 2D/3D sprite pipeline); named historical figures keep their own headwear/prop.

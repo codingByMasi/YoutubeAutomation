@@ -12,6 +12,7 @@ import re
 from pathlib import Path
 
 from studio.errors import StudioError
+from studio.history import wardrobe
 from studio.providers import voices
 
 SCENE_TYPES = ("lectern", "skit", "map", "diagram", "easel", "archive", "calendar", "silhouette", "title")
@@ -107,10 +108,12 @@ _PROP = {
 
 
 def build_svg(body: str = "#2E7D87", headwear: str = "none", prop: str = "none", badge: str = "",
-              skin: str = _SKIN, shape: str = "standard") -> str:
-    """One character as SVG text (400x400) with the four sprite groups. Unknown headwear/prop/shape raise ValueError.
+              skin: str = _SKIN, shape: str = "standard", outfit: str = "default") -> str:
+    """One character as SVG text (400x400) with the four sprite groups. Unknown headwear/prop/shape/outfit raise ValueError.
 
-    Recurring-cast extras (`CAST_HEADWEAR`, `CAST_PROPS`) are accepted too; generated figures use the base lists."""
+    Recurring-cast extras (`CAST_HEADWEAR`, `CAST_PROPS`) are accepted too; generated figures use the base lists.
+    `outfit` is an era from `wardrobe.ERAS`: it swaps headwear, adds a garment/cape/collar and (unless the prop is a
+    signature one) the prop. Face, skin, shape, badge letter and the four sprite groups stay as they are."""
     heads, props = {**_HEAD, **CAST_HEADWEAR}, {**_PROP, **CAST_PROPS}
     if headwear not in heads:
         raise ValueError(f"headwear {headwear!r} not in {list(HEADWEAR)}")
@@ -119,11 +122,19 @@ def build_svg(body: str = "#2E7D87", headwear: str = "none", prop: str = "none",
     if shape not in SHAPES:
         raise ValueError(f"shape {shape!r} not in {list(SHAPES)}")
     sx, sy = SHAPES[shape]
-    wrap_open = "" if shape == "standard" else f'<g transform="translate(200 378) scale({sx} {sy}) translate(-200 -378)">\n'
-    wrap_close = "" if shape == "standard" else "</g>\n"
     for v in (body, skin):
         if not re.fullmatch(r"#[0-9a-fA-F]{6}", v):
             raise ValueError(f"colour {v!r} must look like #RRGGBB")
+    fit = wardrobe.parts(outfit, body, prop)
+    if fit:
+        heads = {**heads, headwear: fit["head"]}
+        props = {**props, prop: fit["prop"] or props[prop]}
+    cape = f'{fit["cape"]}\n' if fit and fit["cape"] else ""
+    garment = (f'<defs><clipPath id="bodyclip"><rect x="130" y="210" width="140" height="150" rx="52"/></clipPath></defs>'
+               f'<g clip-path="url(#bodyclip)">{fit["garment"]}</g>\n') if fit and fit["garment"] else ""
+    collar = f'{fit["collar"]}\n' if fit and fit["collar"] else ""
+    wrap_open = "" if shape == "standard" else f'<g transform="translate(200 378) scale({sx} {sy}) translate(-200 -378)">\n'
+    wrap_close = "" if shape == "standard" else "</g>\n"
     letter = re.sub(r"[^A-Za-z0-9]", "", badge)[:1].upper()
     badge_svg = (f'<circle cx="200" cy="292" r="22" fill="#fff"/><text x="200" y="301" text-anchor="middle" '
                  f'font-family="Arial,sans-serif" font-size="26" font-weight="700" fill="{_INK}">{letter}</text>'
@@ -132,9 +143,11 @@ def build_svg(body: str = "#2E7D87", headwear: str = "none", prop: str = "none",
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">\n'
         '<ellipse cx="200" cy="378" rx="96" ry="12" fill="#000" opacity="0.12"/>\n'
         f"{wrap_open}"
+        f"{cape}"
         f'<rect x="130" y="210" width="140" height="150" rx="52" fill="{body}"/>\n'
+        f"{garment}"
         f'<ellipse cx="118" cy="268" rx="20" ry="16" fill="{skin}"/><ellipse cx="282" cy="268" rx="20" ry="16" fill="{skin}"/>\n'
-        f"{badge_svg}\n"
+        f"{collar}{badge_svg}\n"
         f'<circle cx="200" cy="162" r="84" fill="{skin}"/>\n'
         f"{heads[headwear]}\n"
         f"{props[prop].replace('{color}', body)}\n"
@@ -149,10 +162,10 @@ def build_svg(body: str = "#2E7D87", headwear: str = "none", prop: str = "none",
     )
 
 
-def roster_svg(char_id: str) -> str:
-    """SVG of a recurring character."""
+def roster_svg(char_id: str, outfit: str = "default") -> str:
+    """SVG of a recurring character, optionally dressed for an era (see `studio.history.wardrobe`)."""
     c = ROSTER[char_id]
-    return build_svg(c["body"], c["headwear"], c["prop"], c["badge"], shape=c.get("shape", "standard"))
+    return build_svg(c["body"], c["headwear"], c["prop"], c["badge"], shape=c.get("shape", "standard"), outfit=outfit)
 
 
 def export_roster(dest: Path) -> list[Path]:
@@ -182,6 +195,7 @@ def prompt_block(profile: dict) -> str:
     lines.append("Historical figures: never a real likeness. Each gets a faction colour, a letter badge, one "
                  f"headwear from {list(HEADWEAR)} and one prop from {list(PROPS)}. Rules:")
     lines += [f"- {r}" for r in dep.get("rules", [])]
+    lines.append(wardrobe.prompt_line())
     lines.append(f"Scene types per segment: {', '.join(SCENE_TYPES)}. Add optional keys to each segment: `scene`, "
                  "`cast` (list of roster ids or figure names), `staging` (one sentence), `speech` (at most "
                  f"{MAX_SPEECH_LINES} on-screen lines of at most {MAX_SPEECH_WORDS} words, each "
@@ -193,6 +207,8 @@ def prompt_block(profile: dict) -> str:
 def scene_problems(pkg: dict, profile: dict | None = None) -> list[str]:
     """Plain-language problems with the optional scene/cast/speech keys of each segment."""
     out: list[str] = []
+    if pkg.get("era") and not wardrobe.known(str(pkg["era"]).lower()):
+        out.append(f"era {pkg['era']!r} is not one of {[wardrobe.DEFAULT, *wardrobe.ERAS]}")
     run, prev = 0, None
     for i, s in enumerate(pkg.get("segments") or [], 1):
         scene = s.get("scene")
@@ -201,6 +217,8 @@ def scene_problems(pkg: dict, profile: dict | None = None) -> list[str]:
             continue
         if scene not in SCENE_TYPES:
             out.append(f"segment {i}: scene {scene!r} is not one of {list(SCENE_TYPES)}")
+        if s.get("era") and not wardrobe.known(str(s["era"]).lower()):
+            out.append(f"segment {i}: era {s['era']!r} is not one of {[wardrobe.DEFAULT, *wardrobe.ERAS]}")
         run = run + 1 if scene == prev else 1
         prev = scene
         if run >= 3 and scene not in ("map", "diagram"):

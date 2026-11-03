@@ -20,7 +20,7 @@ import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 from studio.errors import StudioError
-from studio.history import cast
+from studio.history import cast, wardrobe
 from studio.kids.sprites import SpriteBank, blink
 from studio.util import ffmpeg as ff
 
@@ -175,15 +175,26 @@ class Cast:
         self.bank = SpriteBank(self.dir)
         self.ok = self.bank.enabled
 
-    def key(self, who: str) -> str:
-        """File stem for a roster id or a named historical figure (generated once, stable for the video)."""
+    def _outfit(self, cid: str, era: str) -> str:
+        """File stem of a roster character dressed for `era` (written once; the default outfit uses the plain file)."""
+        if not era or era == wardrobe.DEFAULT or era not in wardrobe.OUTFITS:
+            return cid
+        stem = f"{cid}__{era}"
+        if not (self.dir / f"{stem}.svg").exists():
+            (self.dir / f"{stem}.svg").write_text(cast.roster_svg(cid, era), encoding="utf-8")
+        return stem
+
+    def key(self, who: str, era: str = wardrobe.DEFAULT) -> str:
+        """File stem for a roster id or a named historical figure (generated once, stable for the video).
+
+        Roster characters wear `era`'s costume; named historical figures keep their own headwear and prop."""
         who = (who or "dusty").strip()
         low = who.lower()
         if low in cast.ROSTER:
-            return low
+            return self._outfit(low, era)
         for cid, c in cast.ROSTER.items():  # "Captain Blunder" -> blunder
             if low == c["name"].lower():
-                return cid
+                return self._outfit(cid, era)
         if who not in self.figs:
             h = int(hashlib.sha1(who.encode()).hexdigest(), 16)
             stem = f"fig_{len(self.figs) + 1}"
@@ -196,9 +207,10 @@ class Cast:
             self.figs[who] = stem
         return self.figs[who]
 
-    def sprite(self, who: str, px: int, t: float, i: int, talking: bool, silhouette: bool = False) -> Image.Image:
+    def sprite(self, who: str, px: int, t: float, i: int, talking: bool, silhouette: bool = False,
+               era: str = wardrobe.DEFAULT) -> Image.Image:
         """The character as an RGBA picture `px` wide; eyes blink, the mouth follows `talking`."""
-        img = self.bank.get(self.key(who), px, eyes_closed=blink(t, i), mouth_open=talking) if self.ok else None
+        img = self.bank.get(self.key(who, era), px, eyes_closed=blink(t, i), mouth_open=talking) if self.ok else None
         if img is None:  # no cairosvg: a simple round fallback so the scene still reads
             img = Image.new("RGBA", (px, px), (0, 0, 0, 0))
             d = ImageDraw.Draw(img)
@@ -310,6 +322,8 @@ class Scene:
         guess = "mountains" if self.kind == "skit" and any(w in kw for w in ("alps", "mountain", "snow")) else None
         self.back = self.data.get("backdrop") or guess or DEFAULT_BACKDROP.get(self.kind, "parchment")
         self.faction0 = faction0
+        e = str(seg.get("era") or "").lower()
+        self.era = e if e in wardrobe.OUTFITS else wardrobe.DEFAULT
 
     def mouth(self, t: float, speaking: bool = True) -> bool:
         i = min(len(self.env) - 1, int(t * FPS))
@@ -321,7 +335,7 @@ class Scene:
         bob = math.sin((t + i * 0.6) * 2.4) * 4 if t > enter + 0.5 else 0
         if talking and t > enter + 0.5:  # a little hop on every syllable-ish burst
             bob -= 5 * abs(math.sin(t * 11 + i))
-        spr = self.cast.sprite(who, px, t, i, talking, silhouette)
+        spr = self.cast.sprite(who, px, t, i, talking, silhouette, self.era)
         paste(img, spr, cx, bottom + rise + bob)
 
     def frame(self, t: float) -> Image.Image:
@@ -604,7 +618,7 @@ _CODE_STAMP = hashlib.sha1(Path(__file__).read_bytes()).hexdigest()[:8]  # drawi
 
 def fingerprint(seg: dict, dur: float, audio: Path | None) -> str:
     """Hash of everything that decides how a scene looks (re-render only when it changes)."""
-    keys = {k: seg.get(k) for k in ("scene", "scene_data", "cast", "speech", "chapter")}
+    keys = {k: seg.get(k) for k in ("scene", "scene_data", "cast", "speech", "chapter", "era")}
     keys.update(dur=round(dur, 2), audio=audio.stat().st_size if audio and Path(audio).exists() else 0, code=_CODE_STAMP)
     return hashlib.sha1(json.dumps(keys, sort_keys=True, default=str).encode()).hexdigest()[:12]
 
