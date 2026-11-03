@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -325,10 +326,14 @@ def run(ctx: Ctx, video_id: int, force: bool = False) -> None:
                           sfx={k: snd[k] for k in sound.SFX}, sfx_events=events, total=total,
                           lufs=sprof["lufs_target"], true_peak=sprof["true_peak"]), "mixing audio")
         main = tmp / "main.mp4"
-        ff.run(["ffmpeg", "-y", "-i", str(clean), "-vf", ff._sub_filter(main_ass),
-                "-c:v", "libx264", "-preset", ff.profile().preset, "-crf", str(ff.profile().crf), "-pix_fmt", "yuv420p",
-                "-c:a", "copy",
-                "-movflags", "+faststart", str(main)], "burning captions")
+        if not sprofile.enabled(sprof_c, "burn_captions"):
+            # cast channels: the text on screen is the speech lines; captions.srt is still written for upload
+            shutil.copyfile(clean, main)
+        else:
+            ff.run(["ffmpeg", "-y", "-i", str(clean), "-vf", ff._sub_filter(main_ass),
+                    "-c:v", "libx264", "-preset", ff.profile().preset, "-crf", str(ff.profile().crf),
+                    "-pix_fmt", "yuv420p", "-c:a", "copy",
+                    "-movflags", "+faststart", str(main)], "burning captions")
 
         # 5. intro / outro
         pieces, intro_s = [], 0.0

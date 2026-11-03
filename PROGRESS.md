@@ -562,3 +562,8 @@ Decisions: OpenUtau has no CLI renderer, so a voicebank "preview" is a clip expo
   draws the cast with Pillow when cairo is missing.
 - Next (PR 2): richer skits, terrain maps, more backdrops, internal cuts, true 1080p; (PR 3): per-character voices,
   speech-only captions, end card. Gap list: `youtube-studio/audit/reference-gap-list.md`.
+- Look (same branch): five new backdrops (snow, field, market, plain, sea) picked from the skit's words; crowds of
+  extras on army/crowd scenes; wide <-> close-up cuts every 4.5 s on skits; history no longer burns word captions
+  (`burn_captions` flag, `captions.srt` still written). Sample: `youtube-studio/e2e-test/history-v2-sample-hannibal.mp4`.
+- Still open: terrain-style maps, per-character voices, true 1080p scene drawing (scenes are drawn at 720p and
+  upscaled once), long lectern shots are static, end card.

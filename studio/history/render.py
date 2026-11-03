@@ -49,7 +49,7 @@ def _font_candidates(serif: bool) -> list[str]:
     return out
 
 
-BACKDROPS = ("parchment", "mountains", "hall", "night")
+BACKDROPS = ("parchment", "mountains", "hall", "night", "snow", "field", "market", "plain", "sea")
 DEFAULT_BACKDROP = {"lectern": "parchment", "skit": "hall", "map": "parchment", "diagram": "parchment",
                     "easel": "parchment", "archive": "parchment", "calendar": "parchment", "silhouette": "night",
                     "title": "night"}
@@ -171,7 +171,82 @@ def _parchment() -> Image.Image:
     return _vignette(img, 0.4)
 
 
-_BACK = {"parchment": _parchment, "mountains": _mountains, "hall": _hall, "night": _night}
+def _snow() -> Image.Image:
+    """A snowy pass: pale sky, layered white ridges, a trampled path."""
+    img = _gradient((176, 196, 220), (236, 242, 250))
+    rng = random.Random(41)
+    for base, amp, col in [(0.46, 90, (196, 208, 230)), (0.58, 80, (222, 230, 244)), (0.7, 60, (244, 247, 252))]:
+        pts = _ridge(rng, H * base, amp)
+        ImageDraw.Draw(img).polygon([*pts, (W, H), (0, H)], fill=col)
+    d = ImageDraw.Draw(img)
+    for _ in range(14):  # dark pines
+        x, y = rng.randint(0, W), rng.randint(int(H * 0.55), int(H * 0.8))
+        for k in range(3):
+            d.polygon([(x - 26 + k * 4, y - k * 26), (x, y - 46 - k * 26), (x + 26 - k * 4, y - k * 26)], fill=(52, 84, 84))
+    d.rectangle([0, int(H * 0.84), W, H], fill=(250, 252, 255))
+    d.polygon([(0, H), (W * 0.35, int(H * 0.84)), (W * 0.55, int(H * 0.84)), (W * 0.4, H)], fill=(214, 224, 240))
+    return _vignette(img, 0.25)
+
+
+def _field() -> Image.Image:
+    """A green plain with a river and far blue mountains (a battlefield or a march)."""
+    img = _gradient((150, 206, 238), (222, 240, 250))
+    rng = random.Random(77)
+    pts = _ridge(rng, H * 0.42, 40)
+    d = ImageDraw.Draw(img)
+    d.polygon([*pts, (W, H), (0, H)], fill=(146, 168, 204))
+    pts2 = _ridge(rng, H * 0.47, 22)
+    d.polygon([*pts2, (W, H), (0, H)], fill=(118, 160, 134))
+    d.rectangle([0, int(H * 0.5), W, H], fill=(120, 176, 84))
+    d.polygon([(0, int(H * 0.58)), (W, int(H * 0.54)), (W, int(H * 0.62)), (0, int(H * 0.68))], fill=(110, 178, 218))
+    d.rectangle([0, int(H * 0.84), W, H], fill=(96, 154, 66))
+    for _ in range(60):
+        x, y = rng.randint(0, W), rng.randint(int(H * 0.7), H)
+        d.line([(x, y), (x + 3, y - 12)], fill=(78, 138, 54), width=3)
+    return _vignette(img, 0.25)
+
+
+def _market() -> Image.Image:
+    """A sunny sandy square: pale wall, banner posts, a wooden stage."""
+    img = _gradient((250, 226, 172), (236, 204, 144))
+    d = ImageDraw.Draw(img)
+    d.rectangle([0, 0, W, int(H * 0.5)], fill=(176, 160, 138))
+    for x in range(0, W, 90):  # rock/wall texture
+        d.rectangle([x, 0, x + 60, int(H * 0.5)], fill=(166 - x % 9, 150, 128))
+    d.rectangle([0, int(H * 0.5), W, H], fill=(226, 200, 134))
+    d.rectangle([80, int(H * 0.52), W - 80, int(H * 0.6)], fill=(214, 170, 96))
+    d.rectangle([80, int(H * 0.6), W - 80, int(H * 0.64)], fill=(160, 118, 66))
+    for x in (160, W - 220):  # palms
+        d.line([(x, int(H * 0.52)), (x - 10, int(H * 0.22))], fill=(120, 84, 48), width=12)
+        for ang in range(-60, 70, 30):
+            ex, ey = x - 10 + math.sin(math.radians(ang)) * 90, int(H * 0.22) + 40 - math.cos(math.radians(ang)) * 30
+            d.line([(x - 10, int(H * 0.22)), (ex, ey)], fill=(70, 140, 70), width=12)
+    return _vignette(img, 0.3)
+
+
+def _plain() -> Image.Image:
+    """A white void with a thin floor line, for props, money and gags."""
+    img = Image.new("RGB", (W, H), (250, 249, 244))
+    d = ImageDraw.Draw(img)
+    d.rectangle([0, int(H * 0.86), W, H], fill=(236, 232, 222))
+    d.line([(0, int(H * 0.86)), (W, int(H * 0.86))], fill=(205, 198, 184), width=4)
+    return img
+
+
+def _sea() -> Image.Image:
+    img = _gradient((168, 214, 238), (236, 246, 250))
+    d = ImageDraw.Draw(img)
+    d.rectangle([0, int(H * 0.5), W, H], fill=(62, 128, 176))
+    for k in range(9):
+        y = int(H * 0.54) + k * 26
+        for x in range(-40 + (k % 2) * 60, W, 120):
+            d.arc([x, y, x + 80, y + 22], 200, 340, fill=(180, 220, 240), width=4)
+    d.rectangle([0, int(H * 0.5) - 3, W, int(H * 0.5) + 3], fill=(236, 246, 250))
+    return _vignette(img, 0.25)
+
+
+_BACK = {"parchment": _parchment, "mountains": _mountains, "hall": _hall, "night": _night, "snow": _snow,
+         "field": _field, "market": _market, "plain": _plain, "sea": _sea}
 _back_cache: dict[str, Image.Image] = {}
 
 
@@ -217,6 +292,24 @@ class Cast:
             self.look[stem] = (cast.faction_color(len(self.figs)), heads[h % len(heads)], props[(h >> 8) % len(props)], who[:1])
             self.figs[who] = stem
         return self.figs[who]
+
+    def crowd_key(self, side: int, i: int, color: str) -> str:
+        """File stem of a background extra (a small figure in a side's colour); made once, never counted as a figure."""
+        stem = f"ext_{side}_{i % 4}"
+        if stem not in self.look:
+            head = ("helmet", "cap", "fur_hat", "hood")[i % 4]
+            (self.dir / f"{stem}.svg").write_text(cast.build_svg(color, head, "none", ""), encoding="utf-8")
+            self.bank._svg.pop(stem, None)  # noqa: SLF001
+            self.look[stem] = (color, head, "none", "")
+        return stem
+
+    def extra(self, side: int, i: int, color: str, px: int, t: float, talking: bool = False) -> Image.Image:
+        """A crowd member (same blink and mouth contract as the main cast)."""
+        stem = self.crowd_key(side, i, color)
+        img = self.bank.get(stem, px, eyes_closed=blink(t, i + 7 * side), mouth_open=talking) if self.ok else None
+        if img is None:
+            img = pil_character(color, self.look[stem][1], "none", "", px, blink(t, i), talking)
+        return img
 
     def sprite(self, who: str, px: int, t: float, i: int, talking: bool, silhouette: bool = False) -> Image.Image:
         """The character as an RGBA picture `px` wide; eyes blink, the mouth follows `talking`."""
@@ -399,6 +492,25 @@ def banner(img: Image.Image, text: str, cy: int, sub: str = "", width: int = 880
 
 
 # ---------------------------------------------------------------- the scene drawers
+_BACK_WORDS = [("snow", ("snow", "alps", "blizzard", "winter", "frozen", "pass")),
+               ("sea", ("ship", "fleet", "sail", "harbour", "harbor", "naval", "sea ", "ocean", "island")),
+               ("field", ("battle", "plain", "river", "field", "march", "army", "legion", "camp", "valley", "elephant")),
+               ("market", ("tax", "silver", "coin", "market", "trade", "merchant", "pay", "debt", "mercenar", "wage",
+                           "city", "square", "carthage", "desert", "africa")),
+               ("mountains", ("mountain", "cliff", "peak")),
+               ("night", ("night", "dark", "torch", "assassin", "secret", "plot")),
+               ("plain", ("contract", "treaty", "gag", "paper", "list", "number"))]
+
+
+def guess_backdrop(text: str) -> str | None:
+    """A backdrop that fits the words around a skit (first matching group wins), or None for the default hall."""
+    low = text.lower()
+    for name, words in _BACK_WORDS:
+        if any(w in low for w in words):
+            return name
+    return None
+
+
 class Scene:
     """One segment's scene. `frame(t)` returns the picture at second t of `dur`."""
 
@@ -408,10 +520,41 @@ class Scene:
         self.data = seg.get("scene_data") or {}
         self.who = list(seg.get("cast") or ["quill"])
         self.speech = [s for s in (seg.get("speech") or []) if isinstance(s, dict)]
-        kw = " ".join(str(k).lower() for k in seg.get("visual_keywords") or [])
-        guess = "mountains" if self.kind == "skit" and any(w in kw for w in ("alps", "mountain", "snow")) else None
+        kw = " ".join(str(k).lower() for k in [*(seg.get("visual_keywords") or []), seg.get("narration", "")])
+        guess = guess_backdrop(kw) if self.kind == "skit" else None
         self.back = self.data.get("backdrop") or guess or DEFAULT_BACKDROP.get(self.kind, "parchment")
         self.faction0 = faction0
+        words = " ".join([str(seg.get("narration", "")), kw]).lower()
+        self.crowd = bool(self.data.get("crowd")) or (self.kind == "skit" and any(
+            w in words for w in ("army", "armies", "soldiers", "crowd", "mercenar", "legion", "troops", "citizens",
+                                 "revolt", "people", "mob", "rebels", "elephants", "tribes")))
+
+    def camera(self, t: float) -> tuple[float, float, float]:
+        """(zoom, focus x, focus y) at second t: a wide shot with a slow push, then hard cuts to a close-up of whoever
+        is speaking (the reference videos cut between wide and close angles every few seconds)."""
+        wide = (1.0 + 0.04 * (t / max(self.dur, 0.1)), 0.5, 0.5)
+        if self.kind != "skit" or self.dur < 5.5:
+            return wide
+        shot = 4.5
+        k = int(t // shot)
+        if k % 2 == 0:
+            return wide
+        who = self.who[:4] or ["dusty"]
+        n = len(who)
+        act = next((k for k in range(len(self.speech) - 1, -1, -1) if self._line_start(k) <= t), None)
+        idx = 0
+        if self.kind == "skit":
+            if act is not None:
+                sp = str(self.speech[act].get("who", "")).lower()
+                idx = next((i for i, w in enumerate(who) if w.lower() == sp
+                            or cast.ROSTER.get(w, {}).get("name", "").lower() == sp), k // 2 % n)
+            else:
+                idx = (k // 2) % n
+            fx = (idx + 1) / (n + 1)
+        else:
+            fx = 0.75
+        local = (t - k * shot) / shot
+        return 1.3 + 0.05 * local, fx, 0.44
 
     def mouth(self, t: float, speaking: bool = True) -> bool:
         i = min(len(self.env) - 1, int(t * FPS))
@@ -452,9 +595,24 @@ class Scene:
         d.rectangle([760, 632, 1160, 644], fill=(92, 60, 36))
 
     # -- skit: two to four characters with speech bubbles
+    def _crowd(self, img: Image.Image, t: float) -> None:
+        """Two rows of small extras behind the speakers: our side on the left, the other side on the right."""
+        rng = random.Random(len(str(self.seg.get("narration", ""))) + 11)
+        count = int(self.data.get("crowd") or 14)
+        for row, (bottom, px) in enumerate(((600, 150), (630, 190))):
+            for i in range(count // 2):
+                side = 0 if i % 2 == 0 else 1
+                x = (W * (i + 0.5) / (count // 2)) + rng.randint(-26, 26)
+                col = cast.faction_color(self.faction0 + side)
+                bob = math.sin(t * 2.2 + i * 1.3 + row) * 3
+                spr = self.cast.extra(side, i + row * 3, col, px, t, int(t * 6 + i) % 5 == 0)
+                paste(img, spr, x, bottom + bob)
+
     def _skit(self, img: Image.Image, t: float) -> None:
         who = self.who[:4] or ["dusty"]
         n = len(who)
+        if self.crowd:
+            self._crowd(img, t)
         for i, w in enumerate(who):
             cx = W * (i + 1) / (n + 1)
             lines = [k for k, s in enumerate(self.speech) if str(s.get("who", "")).lower() == w.lower()
@@ -621,7 +779,9 @@ class Scene:
 
     def _silhouette(self, img: Image.Image, t: float) -> None:
         self.actor(img, self.who[0] if self.who else "dusty", 640, 700, 520, t, 0, False, silhouette=True)
-        centered(ImageDraw.Draw(img), (640, 110), str(self.data.get("title") or ""), font(48), fill=(255, 246, 214))
+        d = ImageDraw.Draw(img)
+        for k, ln in enumerate(wrap(str(self.data.get("title") or ""), font(48), 1100)[:3]):
+            centered(d, (640, 100 + k * 62), ln, font(48), fill=(255, 246, 214))
 
     def _title(self, img: Image.Image, t: float) -> None:
         d = ImageDraw.Draw(img)
@@ -729,11 +889,12 @@ def render_scene(seg: dict, dur: float, out: Path, work: Path, audio: Path | Non
         for f in range(n):
             t = f / FPS
             img = scene.frame(t)
-            z = 1.0 + 0.035 * (t / max(dur, 0.1))  # slow push-in keeps every shot alive
-            if z > 1.0005 and scene.kind not in ("map",):
+            z, fx, fy = scene.camera(t) if scene.kind != "map" else (1.0, 0.5, 0.5)
+            if z > 1.0005:
                 cw, ch = W / z, H / z
-                x0, y0 = (W - cw) / 2, (H - ch) / 2
-                img = img.resize((W, H), Image.BILINEAR, box=(x0, y0, x0 + cw, y0 + ch))
+                x0 = min(max(fx * W - cw / 2, 0), W - cw)
+                y0 = min(max(fy * H - ch / 2, 0), H - ch)
+                img = img.resize((W, H), Image.BICUBIC, box=(x0, y0, x0 + cw, y0 + ch))
             proc.stdin.write(img.tobytes())
         proc.stdin.close()
         err = proc.stderr.read().decode(errors="replace")

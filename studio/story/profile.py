@@ -31,6 +31,7 @@ DEFAULT_FLAGS: dict[str, bool] = {
     "mood_music": True,          # per-chapter mood, stingers, drop before the twist
     "title_judge": True,         # deterministic title ranking + promise check
     "cast_scenes": False,        # history: scene/cast/speech keys per segment are validated (studio/history/cast.py)
+    "burn_captions": True,       # burn word captions in (off for cast channels)
     "feedback_loop": True,       # auto learn after analytics and feed top/bottom hooks into prompts
 }
 
@@ -116,7 +117,7 @@ PACKS: dict[str, dict] = {
         "ending_style": "land the emotional beat, name the next threat, point to the next part",
         "needs_disclaimer": False, "number_first_hooks": False, "kids": False,
         "music_default": "tense", "drop_before_twist": True,
-        "flag_overrides": {"cast_scenes": True},
+        "flag_overrides": {"cast_scenes": True, "burn_captions": False},
         "extra_banned": ["little did they know", "and the rest is history", "history would never be the same"],
     },
     "kids": {
