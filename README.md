@@ -112,6 +112,11 @@ Kids scenes can be rendered as soft 3D instead of the flat 2D drawings. It is op
 hosted app (no GPU there). Without Blender everything keeps working with the 2D renderer; if you ask for Blender and
 it is missing or too old, the build prints a note and uses 2D.
 
+**Voices page (in the app):** the sidebar's **🎙️ Voices** page lets you hear each narration voice and pick one (saved to
+`.env` and the active channel), and lists the approved voicebanks with licence, monetisation status and warnings. AyaLuna
+bans AI-generated content, so it needs a ticked confirmation before it can be selected. Voicebank previews are clips you
+export from OpenUtau (CPU only, no GPU) and upload on that page; OpenUtau is found at `C:\Tools\OpenUtau` automatically.
+
 Windows setup (one time):
 1. Install Blender 4.2 LTS or newer from blender.org (free, GPL; videos you render are yours). The default folder
    `C:\Program Files\Blender Foundation\Blender <version>\` is found automatically. Otherwise set

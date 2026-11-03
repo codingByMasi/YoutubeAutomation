@@ -22,7 +22,13 @@ class Voicebank:
     credit: str  # line to put in the video description
     warnings: tuple[str, ...]
     checked: str
+    monetisation: str = "allowed_with_credit"  # key into MONETISATION_LABEL
+    ai_warning: bool = False  # terms ban AI-generated content: needs the creator's OK before monetising
 
+
+MONETISATION_LABEL = {
+    "allowed_with_credit": "Monetising allowed (credit required)",
+}
 
 VOICEBANKS: dict[str, Voicebank] = {
     "ayaluna-english": Voicebank(
@@ -37,6 +43,8 @@ VOICEBANKS: dict[str, Voicebank] = {
                   "with an AI model, so ask the creator (@AyaLunaPNG) whether that is allowed before you monetise.",
                   "The terms do not mention kids content, and they may change without warning."),
         checked="2026-11-03",
+        monetisation="allowed_with_credit",
+        ai_warning=True,
     ),
 }
 
@@ -63,3 +71,27 @@ def write_licence(vb: Voicebank, sung_dir: Path) -> Path:
     path = sung_dir / "VOICEBANK_LICENCE.txt"
     path.write_text(licence_note(vb), encoding="utf-8")
     return path
+
+
+def monetisation_label(vb: Voicebank) -> str:
+    """Plain-language monetisation status for the Voices screen."""
+    return MONETISATION_LABEL.get(vb.monetisation, "Unknown: do not monetise")
+
+
+def singer_dirs(openutau_exe: Path | None) -> list[Path]:
+    """Folders where OpenUtau keeps installed voicebanks (next to the app, and in the user's data folder)."""
+    import os
+
+    dirs = []
+    if openutau_exe is not None:
+        dirs.append(openutau_exe.parent / "Singers")
+    for base in (os.environ.get("APPDATA"), os.environ.get("LOCALAPPDATA")):
+        if base:
+            dirs.append(Path(base) / "OpenUtau" / "Singers")
+    return dirs
+
+
+def is_installed(vb: Voicebank, openutau_exe: Path | None) -> bool:
+    """True when a folder named like the voicebank (e.g. 'AyaLuna') sits in an OpenUtau Singers folder."""
+    needle = vb.name.split(" ")[0].lower()
+    return any(d.is_dir() and any(needle in c.name.lower() for c in d.iterdir()) for d in singer_dirs(openutau_exe))
