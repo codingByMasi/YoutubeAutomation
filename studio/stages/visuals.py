@@ -10,7 +10,7 @@ import typer
 from studio import scenes
 from studio.context import Ctx
 from studio.errors import StudioError
-from studio.history import autoscene
+from studio.history import autoscene, scene_plan
 from studio.models import Asset, Segment
 from studio.providers import brand, chart_anim
 from studio.providers.charts import render_chart, source_line, text_card
@@ -161,12 +161,13 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
         cast_on = sprofile.enabled(sprof, "cast_scenes")
         cast_stage = cast_render.Cast(out / "cast") if cast_on else None
         faction0 = 0
-        if cast_on:  # a pasted or old-shaped script has no scene keys: pick them from the narration, never from stock
-            filled = autoscene.assign(pkg["segments"])
-            if filled:
-                autoscene.persist(out / "script.json", pkg["segments"])
-                typer.echo(f"Chose a cartoon scene for {filled} segment(s) from what the narration says "
-                           f"(stock footage, photos and charts are used only where the script asks for them).")
+        if cast_on and scene_plan.missing(pkg["segments"]):
+            # No scene types on a pasted script: say so in one line and have Claude assign them once (saved in the
+            # script). Never a silent fall back to stock, photos or charts.
+            how = scene_plan.assign(ctx.settings, out, pkg["segments"], typer.echo)
+            autoscene.persist(out / "script.json", pkg["segments"])
+            who = "Claude" if how == "claude" else "the built-in rules"
+            typer.echo(f"Scenes assigned by {who} and saved in the script.")
         for pos, seg in enumerate(pkg["segments"], 1):
             left3d = None
             if budget.sec_per_frame and todo3d:

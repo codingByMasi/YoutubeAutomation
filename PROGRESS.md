@@ -548,3 +548,17 @@ Decisions: OpenUtau has no CLI renderer, so a voicebank "preview" is a clip expo
 - Decision: no mouth flaps for imported models (they have no mouth shapes); gestures come from the clip.
 - Not verified: a real Kenney pack (kenney.nl is blocked from the build sandbox). Tested with a generated .glb.
   Owner: download the Kenney "Animated Characters" CC0 pack, copy a .glb into `assets/characters/`, set `model`.
+
+## 2026-11-03: history videos match the reference format (PR 1 of the series)
+- Cause of the "chart slides, stock stills, blank circles" render: a pasted script has no `scene` keys, so `visuals`
+  fell back to stock, alternating photos, text cards and charts; fonts were Linux-only paths (tiny bitmap text on
+  Windows) and characters became blank circles when cairosvg/cairo was missing.
+- Now: on a cast channel (history) a script without scene types prints one line, `No scenes assigned for this script.`,
+  and Claude assigns scene, cast, speech and map/diagram data once (`studio/history/scene_plan.py`, prompt task
+  `scenes`, saved into script.json). If the provider fails, `studio/history/autoscene.py` word rules fill in.
+  Issues panel offers "Assign scenes with Claude". Stock, photos and 3D chart scenes are never used on cast
+  channels; a chart only appears on an explicit `easel` scene; a photo only where the segment has a `photo` request.
+- Fonts come from matplotlib's bundled DejaVu (fails loudly, never Pillow's bitmap font); `render.pil_character`
+  draws the cast with Pillow when cairo is missing.
+- Next (PR 2): richer skits, terrain maps, more backdrops, internal cuts, true 1080p; (PR 3): per-character voices,
+  speech-only captions, end card. Gap list: `youtube-studio/audit/reference-gap-list.md`.

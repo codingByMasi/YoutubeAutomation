@@ -83,7 +83,7 @@ def chart_items(seg: dict) -> list[dict]:
 
 
 def style_pickable(seg: dict) -> tuple[bool, str]:
-    """(has a 2D/3D choice, label) for a segment: a dict scene or a bar/line/pie chart; a cast scene is a plain string."""
+    """(has a 2D/3D choice, label) for a segment: a dict scene or a bar/line/pie chart (a cast scene is a string)."""
     scene = seg.get("scene")
     if isinstance(scene, dict):
         return True, str(scene.get("kind") or "chart3d")
