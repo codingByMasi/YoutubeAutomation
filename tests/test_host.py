@@ -138,3 +138,17 @@ def test_blender_builds_every_character_action_set_and_prop(kind, tmp_path):
                "mascot": {"kind": kind, "color": "#F5B700"}, "out_dir": str(tmp_path / f"{kind}_{action}")}
         ss.main(cfg)
         assert (tmp_path / f"{kind}_{action}" / "still.png").exists()
+
+
+def test_gpu_quality_is_opt_in(monkeypatch):
+    from studio.util import ffmpeg as ff
+
+    big = ff.Profile(w=1920, h=1080)
+    monkeypatch.delenv("STUDIO_3D_QUALITY", raising=False)
+    assert render3d.quality() == "light" and render3d.size_for(big) == (1280, 720)
+    assert render3d.scene_config({"kind": "timeline", "items": []}, 5.0, (1280, 720))["samples"] == 16
+    monkeypatch.setenv("STUDIO_3D_QUALITY", "gpu")
+    assert render3d.size_for(big) == (1920, 1080)
+    assert render3d.scene_config({"kind": "timeline", "items": []}, 5.0, (1920, 1080))["samples"] == 64
+    monkeypatch.setenv("STUDIO_3D_QUALITY", "turbo")  # unknown values fall back to the light default
+    assert render3d.quality() == "light"

@@ -472,7 +472,8 @@ With a 3D scene style (`3d` or `mixed`), the channel's mascot acts out script be
 celebrates, reacts, thinks or shrugs, with props (money stacks, bars, generic logo blocks), camera cuts every few
 seconds and a mouth that opens with the narration's loudness. Segments without a chart or scene of their own get a
 host scene automatically (the first, then every other one); set `host_scenes` to `off` in the channel profile to
-stop that. Add one yourself in `script.json`:
+stop that. With a good graphics card, set `STUDIO_3D_QUALITY=gpu` in `.env` for 1080p scenes with smoother
+edges; it is optional and the default stays light for any PC. Add one yourself in `script.json`:
 `"scene": {"kind": "host", "action": "point", "set": "vault", "props": ["money_stack", "bars_up"]}`
 (actions: present, point, celebrate, shock, think, shrug, walk_in, fall, wave; sets: studio, vault, street,
 boardroom, stage). The character is the mascot `kind`: `coin`, `owl`, `robot`, `piggy`, `bull` or `analyst`
