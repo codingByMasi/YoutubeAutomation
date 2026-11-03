@@ -157,6 +157,24 @@ def check_visuals(pkg: dict, t: dict) -> list[dict]:
     return out
 
 
+def check_output(pkg: dict) -> list[dict]:
+    """The finished file's real size and frame rate, as recorded by `build`: it must be a full-quality 1080p render."""
+    build = pkg.get("build") or {}
+    real = build.get("video") or {}
+    if not real:
+        return []
+    out = []
+    if build.get("draft"):
+        out.append(_issue("visuals", "major", f"This is a quick DRAFT render ({real['width']}x{real['height']}).",
+                          "Run `build --force` without draft mode before publishing."))
+    elif real["height"] < 1080:
+        out.append(_issue("visuals", "major", f"The video is only {real['width']}x{real['height']}, not 1080p.",
+                          "Check STUDIO_DRAFT is not set, then run `build --force`."))
+    if real["fps"] and real["fps"] < 24 and not build.get("draft"):
+        out.append(_issue("visuals", "minor", f"The frame rate is {real['fps']:g} fps.", "Rebuild at 30 fps."))
+    return out
+
+
 def measure_audio(path: Path) -> dict | None:
     """Integrated loudness (LUFS) and true peak (dBTP) of a file via ffmpeg's ebur128, or None if unmeasurable."""
     exe = shutil.which("ffmpeg")
@@ -250,7 +268,7 @@ def evaluate(pkg: dict, ctype: str = profiles.DEFAULT_TYPE, tuning: dict | None 
                      min_open_loops=story_profile.get("min_loops", 2),
                      beat_gap_max=story_profile["beat_seconds"][1])
     checks = {"script": check_script(pkg, t), "hook": check_hook(pkg, t), "pacing": check_pacing(pkg, t),
-              "visuals": check_visuals(pkg, t), "audio": check_audio(pkg, t, audio),
+              "visuals": check_visuals(pkg, t) + check_output(pkg), "audio": check_audio(pkg, t, audio),
               "metadata": check_metadata(pkg, t, thumb), "fit": growth.check_fit(pkg, t),
               "packaging": growth.check_packaging(pkg, t, in_series),
               "originality": growth.check_originality(pkg, t, peers)}

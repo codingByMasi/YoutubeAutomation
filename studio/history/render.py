@@ -23,6 +23,7 @@ from studio.errors import StudioError
 from studio.history import cast
 from studio.kids.sprites import SpriteBank, blink
 from studio.util import ffmpeg as ff
+from studio.util import fonts
 
 W, H, FPS = 1280, 720, 24
 INK = (43, 43, 61)
@@ -33,8 +34,6 @@ SEA = (176, 205, 210)
 LAND = (222, 204, 160)
 LAND_EDGE = (150, 122, 76)
 RED = (192, 57, 43)
-BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf"
-SANS = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 BACKDROPS = ("parchment", "mountains", "hall", "night")
 DEFAULT_BACKDROP = {"lectern": "parchment", "skit": "hall", "map": "parchment", "diagram": "parchment",
                     "easel": "parchment", "archive": "parchment", "calendar": "parchment", "silhouette": "night",
@@ -43,13 +42,10 @@ _fonts: dict[tuple[str, int], ImageFont.FreeTypeFont] = {}
 
 
 def font(size: int, serif: bool = True) -> ImageFont.FreeTypeFont:
-    """Cached bold font (serif for titles, sans for labels); falls back to Pillow's default."""
+    """Cached bold font (serif for titles, sans for labels), the same size on every OS."""
     key = ("s" if serif else "n", size)
     if key not in _fonts:
-        try:
-            _fonts[key] = ImageFont.truetype(BOLD if serif else SANS, size)
-        except OSError:
-            _fonts[key] = ImageFont.load_default()
+        _fonts[key] = fonts.load(size, serif)
     return _fonts[key]
 
 

@@ -118,7 +118,7 @@ Script rules: a 15-second hook; a retention beat (question, reveal, example, or 
 - `voice <video_id>`: synthesize narration per segment; measure real durations and update segment timings.
 - `visuals <video_id>`: for each segment fetch matching stock clips by keyword from the configured footage provider (fallback: generated cards; with no provider or key, cards and charts only, with a clear message); cache; record attribution and licence info in `assets`. It also searches photos (Pixabay photos if keyed, then Wikimedia Commons, which needs no key) and alternates video and photo shots; only public domain, CC0, CC BY and CC BY-SA Commons files are used, and CC BY credits are added to the description. There is no maximum video length and no cap on shots per segment (a new shot at least every 6 s).
   - Segments that contain numbers (revenue splits, margins, prices, growth) must also produce a chart, diagram, or number card via `providers/charts.py`, driven by a `chart_data` field in `script.json` (type, labels, values, unit). Target at least one chart or diagram every 60-90 seconds.
-  - Every number in `chart_data` must have a source URL or note in `script.json`; `review` fails if a chart has no source.
+  - Scripts carry no sources or fact ids (owner decision): use real figures and word estimates as estimates.
 
 ### 4.4 Build
 - `build <video_id>`: stitch clips to narration timing; add background music from `assets/music` ducked under voice; burn in captions; add intro/outro; export 1080p MP4.
@@ -216,7 +216,7 @@ Worked example for one fully-published video:
 3. **Inauthentic content:** do not produce mass-repetitive videos from one template with swapped words. Vary structure and add real value per video.
 4. **Synthetic media:** set the disclosure when the video contains realistic AI-generated people, places, or events. Review step must show this flag.
 5. **Licensing:** only use footage, music, and fonts with licences that allow YouTube use and monetization; store licence info per asset; fail `review` if an asset has an unknown licence.
-6. **Factual claims:** scripts on finance, health, legal, or news topics must list sources in `script.json` and avoid advice phrased as guarantees. Add a disclaimer line where relevant.
+6. **Factual claims:** scripts on finance, health, legal, or news topics avoid advice phrased as guarantees. Add a disclaimer line where relevant.
 7. **Secrets:** never log or commit API keys, tokens, or `client_secret.json`.
 
 ---
@@ -228,13 +228,13 @@ Worked example for one fully-published video:
 - **Titles:** under 70 characters; one clear promise; no all-caps shouting; no claims the video can't back up. Preferred patterns: "How X Makes Money", "The Economics of X", "How X Really Works", with a concrete number or price where the video supports it (e.g. "$300 Cabin vs $50,000 Suite", "a ₹518 Order").
 - **Video structure:** (1) hook with a surprising number or question, (2) the product or customer, (3) where the money comes in, (4) where the costs go, (5) the clever trick or weak point, (6) what it means / takeaway, (7) call to action. Every video walks the money flow end to end.
 - **Visual rule:** show the money. Use a chart, diagram, or number card for every major figure; stock footage only illustrates the setting.
-- **Accuracy:** every figure needs a named source (annual report, filing, reputable article) in `script.json`. Label estimates as estimates. No investment advice; add a one-line "educational, not financial advice" disclaimer in the description.
+- **Accuracy:** use real, well-known figures; no sources or fact ids in `script.json`. Label estimates as estimates. No investment advice; add a one-line "educational, not financial advice" disclaimer in the description.
 - **Hook:** first 15 seconds state the problem and the payoff; no long intros or "before we start, subscribe".
 - **Pacing:** visual change at least every 4-6 seconds; one retention beat every 30-45 seconds.
 - **Thumbnails:** 3-5 words max; one focal element; high contrast; brand colors from the channel profile (default #0B1F3A and #F5B700); bold sans-serif heading font.
 - **Intro/outro:** under 5 seconds each.
 - **Music mood:** calm, light, instrumental, ducked at least 15 dB under voice.
-- **Description template:** 2-line summary, chapters, sources, disclaimer, links.
+- **Description template:** 2-line summary, chapters, disclaimer, links.
 
 ---
 

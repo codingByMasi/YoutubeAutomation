@@ -205,7 +205,9 @@ def test_tolerant_package_tolerates_old_shapes():
                                           {"narration": "m", "scene": {"kind": "map"}, "chart_data": {"type": "bar"}}]})
     segs = pkg["segments"]
     assert [g["narration"] for g in segs] == ["plain text", "n", "m"]
-    assert segs[1] == {"narration": "n", "scene": "skit"}
+    # nothing is lost: wrong-typed values are kept aside and missing timing/keywords are filled in
+    assert segs[1]["scene"] == "skit" and segs[1]["_unreadable"] == {"chart_data": "x", "visual": []}
+    assert segs[0]["est_seconds"] > 0 and segs[0]["visual_keywords"]
     assert segs[2]["scene"] == {"kind": "map"} and segs[2]["chart_data"] == {"type": "bar"}
     assert tolerant_package(None) == {"segments": []}
     assert tolerant_package({"title": "t"})["segments"] == []

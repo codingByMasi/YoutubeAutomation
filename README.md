@@ -191,7 +191,7 @@ per channel, per video and per scene; the more specific choice wins (scene > vid
 | Style | What you get |
 |---|---|
 | `2d` | Scenes are 2D motion graphics (steps appear one by one). Bar/line charts stay normal 2D charts. |
-| `3d` | Scenes are 3D, and every bar/line chart becomes a 3D chart too (source line kept on screen). |
+| `3d` | Scenes are 3D, and every bar/line chart becomes a 3D chart too (no source line). |
 | `mixed` | Scenes are 3D, plain charts stay 2D. |
 
 Defaults by channel type: history and business `mixed`, general and kids `2d`. If Blender is missing or a render fails,
@@ -201,7 +201,7 @@ turns the type's 3D default off.
 Scene kinds (an optional `scene` on any script segment; the script prompt explains it to Claude): `timeline`
 (milestones along a line, the camera flies along it), `map` (schematic route between places, not real geography),
 `artifact` (one object turning on a pedestal: coin, column, vase, box) and `chart3d` (bars rising in 3D).
-Timelines and 3D charts need `source_ids`.
+Scripts carry no sources or `source_ids`.
 
 Where to choose:
 - App: **Channels** page ("Scenes: 3D or 2D"), and on page 3 the "Look and sound for this video" box, which also lists
@@ -471,7 +471,7 @@ All external APIs are mocked, so tests need no keys or network. Tests that rende
 - Every video needs original commentary, structure, or analysis. Do not copy other creators' content.
 - Avoid mass-producing near-identical videos; YouTube can demote or demonetize repetitive, low-effort content.
 - Disclose realistic AI-generated or altered content when YouTube requires it. The review step shows this flag.
-- Add sources and a disclaimer to finance, health, legal, and news videos.
+- Add a disclaimer to finance, health, legal, and news videos.
 
 ## Host character in 3D scenes
 With a 3D scene style (`3d` or `mixed`), the channel's mascot acts out script beats in a small Blender set: it points,
@@ -491,7 +491,7 @@ per action, e.g. `{"point": "Interact"}`). The model is sized to the set, stands
 name matches the action (idle, walk, jump, die ...); with no match it plays its first clip. If the file is missing or
 cannot load, the built-in shapes are used. A model needs no GPU: it renders with the same light settings. Rendering stays
 local: Eevee, 720p, 15 fps, about the same cost as the other 3D scenes. Real logos are never drawn; a prop that
-shows a figure needs `source_ids`.
+shows a figure uses real numbers.
 
 ## Channel identity (mascot, theme, niche, playlists)
 `python -m studio.cli channels identity --preset finance-stories --preview out/` gives the active channel a niche

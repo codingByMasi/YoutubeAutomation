@@ -15,20 +15,17 @@ from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
 
 from studio.errors import StudioError
 from studio.util import ffmpeg as ff
+from studio.util import fonts
 
 W, H, FPS = 1280, 720, 24
 INK = (43, 43, 61)
 PAPER = (239, 227, 200)
-SANS = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-SERIF = "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf"
+SANS, SERIF = False, True  # font faces for `_font` (see studio/util/fonts.py)
 CODE_STAMP = "photo-scene-1"
 
 
-def _font(size: int, path: str = SANS) -> ImageFont.ImageFont:
-    try:
-        return ImageFont.truetype(path, size)
-    except OSError:
-        return ImageFont.load_default()
+def _font(size: int, serif: bool = SANS) -> ImageFont.ImageFont:
+    return fonts.load(size, serif)
 
 
 def _cover(im: Image.Image, w: int, h: int) -> Image.Image:
