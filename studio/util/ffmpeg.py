@@ -289,8 +289,12 @@ LOUDNORM = "loudnorm=I=-14:TP=-1:LRA=11,aresample=48000"  # default target; YouT
 
 
 def loudnorm(lufs: float = -14.0, true_peak: float = -1.0) -> str:
-    """ffmpeg loudnorm filter for a configurable integrated loudness and true-peak ceiling."""
-    return f"loudnorm=I={lufs:g}:TP={true_peak:g}:LRA=11,aresample=48000"
+    """ffmpeg loudnorm filter for a configurable integrated loudness and true-peak ceiling, followed by a hard limiter.
+    Single-pass loudnorm can overshoot its ceiling (the gate measured +1 dB), so a limiter 0.5 dB under the ceiling
+    runs last, leaving headroom for inter-sample peaks and AAC encoding."""
+    ceiling = 10 ** ((true_peak - 0.5) / 20)
+    return (f"loudnorm=I={lufs:g}:TP={true_peak:g}:LRA=11,aresample=48000,"
+            f"alimiter=limit={ceiling:.4f}:level=disabled")
 
 
 def mix_cmd(video: Path, voice: Path, out: Path, music: Path | None, music_db: float = -20.0,
