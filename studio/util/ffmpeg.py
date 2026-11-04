@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from studio.errors import StudioError
+from studio.util import gpu
 from studio.util.logging import get_logger
 
 log = get_logger("ffmpeg")
@@ -74,6 +75,12 @@ def low_memory_cmd(cmd: list[str]) -> list[str]:
 
 def run(cmd: list[str], what: str) -> None:
     """Run an ffmpeg command; on failure show the tail of stderr."""
+    if "libx264" in cmd and gpu.available():  # optional NVIDIA encoding; any failure retries on the CPU below
+        fast = gpu.nvenc_cmd(cmd)
+        log.debug("ffmpeg (gpu): %s", " ".join(fast))
+        if subprocess.run(fast, capture_output=True, text=True).returncode == 0:
+            return
+        gpu.mark_broken()
     cmd = low_memory_cmd(cmd)
     log.debug("ffmpeg: %s", " ".join(cmd))
     p = subprocess.run(cmd, capture_output=True, text=True)

@@ -24,6 +24,7 @@ def clean_env(monkeypatch):
     for k in ENV_KEYS:
         monkeypatch.delenv(k, raising=False)
     monkeypatch.setattr(retry, "BASE_DELAY", 0)
+    monkeypatch.setenv("STUDIO_GPU", "off")  # tests never depend on this computer's graphics card
     yield
 
 
