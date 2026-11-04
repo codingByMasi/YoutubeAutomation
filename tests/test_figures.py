@@ -99,3 +99,56 @@ def test_scene_plan_keeps_the_scripts_characters():
     assert scene_plan.validate({"characters": ["bad"], "segments": [{}]}, 1)
     assert "characters" in scene_plan.build_prompt([{"narration": "A queen.", "chapter": "c"}])
     _ = subprocess
+
+
+def test_unusual_roles_are_drawn_from_their_own_description_not_the_fixed_cast(tmp_path):
+    mapmaker = {"name": "Mapmaker Odo", "gender": "male", "age": "elder", "clothing": {"type": "apron", "color": "teal"},
+                "props": ["scroll"]}
+    fisher = {"name": "Fisherwoman", "gender": "female", "clothing": {"type": "dress", "color": "navy"}}
+    cst = r.Cast(tmp_path, [mapmaker, fisher])
+    assert cst.described("Mapmaker Odo") is mapmaker
+    assert cst.described("mapmaker") is mapmaker  # a short role name finds the described character
+    assert cst.described("fisherwoman") is fisher
+    spy = cst.described("Mir Jafar")  # never described: still its own person, not a roster member
+    assert spy == {"name": "Mir Jafar", "role": "Mir Jafar"}
+    assert cst.described("Quill") is None and cst.described("dusty") is None  # host and undescribed roster keep their art
+    a, b, c = (cst.sprite(n, 200, 0.0, 0, False) for n in ("mapmaker", "fisherwoman", "Mir Jafar"))
+    assert not _same(a, b) and not _same(b, c)
+
+
+def test_describe_asks_only_for_names_the_script_has_not_described():
+    segs = [{"scene": "skit", "cast": ["coin", "Mir Jafar", "quill"], "speech": [{"who": "Ramesh", "text": "x"}]},
+            {"scene": "map", "cast": ["brine"]}]
+    assert scene_plan.undescribed(segs, None) == ["coin", "Mir Jafar", "Ramesh"]
+    assert scene_plan.undescribed(segs, [{"name": "Madame Coin"}, {"name": "Mir Jafar"}]) == ["Ramesh"]
+
+
+def test_rule_fallback_casts_only_people_the_script_names_never_the_fixed_cast():
+    from studio.history import autoscene
+    text = "Hannibal paid the tax and counted the silver."
+    assert autoscene._pick_cast(text, ["Hannibal"], 0) == ["Hannibal"]  # noqa: SLF001
+    assert autoscene._pick_cast("Why did the taxes rise?", [], 3) == ["quill"]  # noqa: SLF001
+
+
+def test_characters_in_one_video_get_different_faces():
+    names = ["Gaius", "Dido", "Baal", "Tiro", "Hannibal", "Sophe", "Odo", "Nell", "Rolf", "Livia"]
+    faces = {tuple(figures.normalize({"name": n})["face"][k] for k in ("shape", "eyes", "brows", "nose", "mouth")) for n in names}
+    assert len(faces) >= 9  # same template, different faces
+    pics = {figures.draw({"name": n}, 120).tobytes() for n in names}
+    assert len(pics) == len(names)  # even undescribed people each get their own picture
+
+
+def test_script_face_words_win_and_unknown_words_fall_back():
+    n = figures.normalize({"name": "Hannibal", "face": {"nose": "hooked", "eyes": "sharp", "brows": "stern"}, "posture": "proud"})
+    assert (n["face"]["nose"], n["face"]["eyes"], n["face"]["brows"], n["face"]["posture"]) == ("hooked", "sharp", "stern", "proud")
+    odd = figures.normalize({"name": "Zed", "face": {"nose": "trunk"}})
+    assert odd["face"]["nose"] in figures.FACE_OPTIONS["nose"]
+    assert figures.normalize({"name": "Zed"}) == figures.normalize({"name": "Zed"})  # stable across scenes
+
+
+def test_every_face_option_and_posture_draws():
+    for part, options in figures.FACE_OPTIONS.items():
+        for o in options:
+            assert figures.draw({"name": "t", "face": {part: o}}, 80).getchannel("A").getbbox() is not None
+    for p in figures.POSTURES:
+        assert figures.draw({"name": "t", "posture": p}, 80).getchannel("A").getbbox() is not None

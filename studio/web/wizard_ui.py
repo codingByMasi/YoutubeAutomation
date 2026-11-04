@@ -81,6 +81,20 @@ def _qa_panel(ctx, v) -> None:
             st.caption(f"• {w}")
 
 
+BLOCK_BELOW = 55  # quality-gate block line for explainer and story channels (studio/quality/profiles.py)
+
+
+def weak_script_warnings(ctx, v) -> list[str]:
+    """The saved quality check's warnings when its score is below the block line, else []. A script that scored
+    below the line is stopped at review, so it is better to say so before the video is rendered."""
+    f = ctx.settings.project_dir(v.id) / "qa.json"
+    try:
+        rep = json.loads(f.read_text(encoding="utf-8"))
+        return list(rep.get("warnings", [])) if rep["score"] < BLOCK_BELOW else []
+    except (OSError, ValueError, KeyError, TypeError):
+        return []
+
+
 def _voice_picker(ctx, v) -> None:
     s = ctx.settings
     if s.tts_provider != "edge":
@@ -138,6 +152,12 @@ def step_make(ctx, v, show, production_box=None) -> None:
         if production_box:
             production_box(ctx, v.id)  # 2D/3D/mixed scenes, renderer, voice and music for this video
         _qa_panel(ctx, v)
+    weak = weak_script_warnings(ctx, v) if v.stage == "scripted" else []
+    weak_ok = True
+    if weak:
+        st.error("The script scored below the quality block line, so it will be stopped at review. "
+                 "Fix the weak spots above, or make a draft anyway.")
+        weak_ok = st.checkbox("Make it anyway", key=f"wz_weak{v.id}")
     draft = st.checkbox("Fast draft (720p, quicker) to check the story first", key="wz_draft")
     labels = [f"{'✅' if STAGES.index(v.stage) > STAGES.index(d) else '⬜'} {svc.STAGE_LABEL[s]}"
               for s, d in zip(svc.PRODUCE_STAGES, ["scripted", "voiced", "visuals_ready", "built"])]
@@ -145,7 +165,8 @@ def step_make(ctx, v, show, production_box=None) -> None:
     running = svc.render_status(ctx, v.id)
     if running:  # a step started earlier is still working (the page was refreshed); never start a second one
         _live_panel(ctx, v)
-    if nxt and st.button("🎬 Make my video", type="primary", key="wz_make", disabled=bool(running)):
+    if nxt and st.button("🎬 Make my video", type="primary", key="wz_make",
+                                          disabled=bool(running) or not weak_ok):
         st.caption("To cancel slow 3D rendering, reload the page: the Cancel button appears with the live panel.")
         bar = st.progress(0.0)
         box = st.empty()

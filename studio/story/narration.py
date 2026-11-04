@@ -17,6 +17,26 @@ Word = tuple[float, float, str]
 MAX_GROUP_SECONDS = 150.0
 
 
+# ---------- stage directions ----------
+_ACTORS = r"(?:Quill|Dusty|Dash|Vizier Vex|Vex|Captain Blunder|Blunder|Madame Coin|Coin|Admiral Brine|Brine|" \
+          r"Inspector Hindsight|Hindsight|Ironhand(?: the Smith)?|Almanac Alma|Alma|She|He|They)"
+_ACTIONS = (r"states?|puts?|sets?|closes?|opens?|whistles?|nods?|sighs?|pauses?|looks?|turns?|walks?|slams?|"
+            r"shrugs?|grins?|smiles?|waves?|points?|picks?|lowers?|raises?|leans?|steps?|stares?|gasps?|"
+            r"laughs?|winks?|clears?|taps?|folds?|unrolls?|rolls?|flips?|slides?|hands?|shakes?|frowns?")
+_DIRECTION = re.compile(
+    rf"^(?:(?:Then|Now|Next|Meanwhile|Finally|Slowly)[, ]+)?(?:{_ACTORS})\s+(?:{_ACTIONS})\b"
+    r"|^No jokes here\b|^Nobody speaks\b|^(?:Everyone|The room) (?:goes|falls|is) (?:quiet|silent)\b|^Silence\b",
+    re.I)
+_SENT = re.compile(r"(?<=[.!?])\s+")
+
+
+def spoken(text: str) -> str:
+    """Narration minus stage directions ("Quill states it plainly. Dash puts down the pen."): those describe on-screen
+    action only, so they are never spoken or captioned. Text that is all direction is returned unchanged."""
+    keep = [x for x in _SENT.split(text.strip()) if x and not _DIRECTION.match(x.strip())]
+    return " ".join(keep) if keep else text
+
+
 # ---------- prosody ----------
 def emotion_of(seg: dict, idx: int) -> str:
     """The segment's emotion key for the profile's voice table."""
@@ -81,6 +101,33 @@ def group_key(texts: list[str], prosody: dict, voice: str, engine: str) -> str:
 # ---------- splitting by word timing ----------
 def _tokens(text: str) -> list[str]:
     return text.split()
+
+
+def align_words(words: list[Word], text: str) -> list[Word]:
+    """Word times with the script's own words and punctuation (the engine drops punctuation and may merge words
+    such as "£68,373 end" into one timed word; a merged word's time is shared by its parts in proportion to
+    length). Returns `words` unchanged if they do not line up with `text`."""
+    def norm(s: str) -> str:
+        return re.sub(r"\W+", "", s.lower())
+
+    tokens, out, i = _tokens(text), [], 0
+    for s, e, w in words:
+        target, got, group = norm(w), "", []
+        if not target:
+            continue
+        while i < len(tokens) and len(got) < len(target):
+            group.append(tokens[i])
+            got += norm(tokens[i])
+            i += 1
+        if got != target:
+            return words
+        total = sum(max(1, len(norm(t))) for t in group)
+        at = s
+        for t in group:
+            end = at + (e - s) * max(1, len(norm(t))) / total
+            out.append((round(at, 3), round(end, 3), t))
+            at = end
+    return out if all(not norm(t) for t in tokens[i:]) else words
 
 
 def split_points(words: list[Word], texts: list[str], total: float) -> list[float] | None:

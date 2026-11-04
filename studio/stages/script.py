@@ -296,7 +296,7 @@ def pacing_warnings(segs: list[dict], key: str = "est_seconds", min_minutes: flo
     total = spans[-1][1] if spans else 0
     if total < min_minutes * 60:
         warns.append(f"total length {total / 60:.1f} min is under {min_minutes:g} min")
-    for label, field, gap_max in (("retention beat", "beat", BEAT_GAP_MAX), ("chart", "chart_data", CHART_GAP_MAX)):
+    for label, field, gap_max in (("retention beat", "beat", BEAT_GAP_MAX),):
         last = 0.0
         for (start, _), seg in zip(spans, segs):
             if seg.get(field):

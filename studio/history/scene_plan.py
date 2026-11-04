@@ -13,7 +13,7 @@ from pathlib import Path
 from studio import llm
 from studio.config import Settings
 from studio.errors import PendingLLMResponse
-from studio.history import autoscene, cast
+from studio.history import autoscene, cast, maps
 
 ONE_LINE = "No scenes assigned for this script."
 
@@ -49,9 +49,11 @@ the whole video. Per character return:
   goatee), "clothing" {{"type": e.g. tunic, robe, dress, gown, toga, coat, apron, kimono, kilt, "color": "...",
   "trim": "..."}}, "armour" (none, chainmail, breastplate, plate), "headwear" (e.g. helmet, crown, hood, turban, veil,
   hat, cap, laurel, none), "props" (up to 2: sword, spear, shield, staff, bow, scroll, book, torch, purse, hammer,
-  banner, or any object), "accent_color", optional "cape_color", optional "pitch" (low, mid, high) for the voice.
-Dress them for the story's era and place (what people there and then wore). Use the recurring cast below only for
-the host (`quill`, at the lectern) and for light helper roles; everything else is a character from the list above.
+  banner, or any object), optional "face" {{"shape", "eyes", "brows", "nose", "mouth", "marks"}} (make faces
+  differ), optional "posture", "accent_color", optional "cape_color", optional "pitch" (low, mid, high) for the voice.
+Dress them for the story's era and place (what people there and then wore).
+Use the recurring cast below only for the host (`quill`, at the lectern); every other character is one from the
+list above, described from this script, never a recurring-cast id.
 Recurring cast:
 {roster}
 
@@ -113,6 +115,8 @@ def merge(segments: list[dict], data: dict, store: dict | None = None) -> None:
                 key = str(p.get("label", "")).lower()
                 if key in autoscene.PLACES:
                     pts.append({"x": autoscene.PLACES[key][0], "y": autoscene.PLACES[key][1], "label": key.title()})
+                elif any(key in reg["places"] for reg in maps.REGIONS.values()):  # positioned by maps.py when drawn
+                    pts.append({"x": 0.5, "y": 0.5, "label": key.title()})
             sd["points"] = pts or [{"x": autoscene.PLACES[k][0], "y": autoscene.PLACES[k][1], "label": k.title()}
                                    for k in autoscene.places_in(str(seg.get("narration", "")))[:4]]
         if sd and not seg.get("scene_data"):
@@ -140,3 +144,59 @@ def assign(settings: Settings, work_dir: Path, segments: list[dict], say=print, 
     merge(segments, data, store)
     autoscene.assign(segments)  # fills anything the answer left without cast/data
     return "claude"
+
+
+def undescribed(segments: list[dict], characters: list[dict] | None) -> list[str]:
+    """Names on screen (skit cast and speakers, except the host) that the script has not described yet."""
+    have = [str(c.get("name", "")).strip().lower() for c in characters or [] if isinstance(c, dict)]
+    out: list[str] = []
+    for s in segments:
+        if s.get("scene") != "skit":
+            continue
+        names = [*(s.get("cast") or []), *(str(x.get("who", "")) for x in s.get("speech") or [] if isinstance(x, dict))]
+        for n in names:
+            low = str(n).strip().lower()
+            if low in ("", "quill", "narrator") or any(low in h or h in low for h in have) or n in out:
+                continue
+            out.append(str(n))
+    return out
+
+
+def describe(settings: Settings, work_dir: Path, segments: list[dict], characters: list[dict] | None,
+             say=print) -> list[dict]:
+    """Ask Claude once to describe every on-screen character the script names but has not described (look follows
+    the script: role, gender, age, build, clothing, era, props). Returns the full character list; a failed answer
+    returns the list unchanged and those names are drawn from their own words."""
+    names = undescribed(segments, characters)
+    if not names:
+        return list(characters or [])
+    say("Characters in this script have no descriptions yet.")
+    story = "\n".join(f"{i}. {s.get('narration', '')}" for i, s in enumerate(segments, 1))
+    prompt = (f"""Describe each character below the way THIS script shows them, so a 2D cartoon artist can draw them:
+never pick from a fixed type list; dress them for the story's era and place. Characters: {', '.join(names)}.
+Per character return "name" (exactly as listed), "role", "gender" (female, male or neutral: only what the script
+says; never guess from a name), "age" (child, young, adult, elder), "build", "skin", "hair" {{"style", "color"}},
+"facial_hair", "clothing" {{"type", "color", "trim"}}, "armour", "headwear", "props" (up to 2), optional "face"
+{{"shape", "eyes", "brows", "nose", "mouth", "marks"}} (make faces differ), optional "posture", "accent_color",
+optional "pitch" (low, mid, high). Write ONLY {{"characters": [...]}}.
+
+Script:
+{story}
+""")
+    try:
+        data = llm.ask_json(settings, work_dir, "characters", prompt, validate=lambda d: validate_characters(d))
+    except PendingLLMResponse:
+        raise
+    except Exception as exc:  # noqa: BLE001 - unusable answer: names are drawn from their own words instead
+        say(f"Claude could not describe the characters ({str(exc)[:100]}); drawing them from their names.")
+        return list(characters or [])
+    return [*(characters or []), *(c for c in data["characters"])]
+
+
+def validate_characters(data: dict) -> list[str]:
+    """Problems with a character-description answer (empty when fine)."""
+    rows = data.get("characters")
+    if not isinstance(rows, list) or not rows or any(not isinstance(c, dict) or not str(c.get("name", "")).strip()
+                                                    for c in rows):
+        return ["`characters` must be a non-empty list of objects that each have a `name`"]
+    return []

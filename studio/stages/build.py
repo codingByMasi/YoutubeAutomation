@@ -227,6 +227,14 @@ def render_picture(segs: list[dict], work: Path, limits: dict | None = None,
     return outs, plans
 
 
+def fit_voice_cmd(voice: Path, seconds: float | None, out: Path) -> list[str]:
+    """Decode one segment's voice to WAV, padded or trimmed to exactly `seconds` (its real_seconds, which is what the
+    picture and caption timeline use). mp3 durations from ffprobe differ from the decoded length by a few tens of ms,
+    and joining the mp3 files directly let those differences pile up into captions seconds out of step."""
+    fit = f",apad,atrim=end={float(seconds):.3f}" if seconds else ""
+    return ["ffmpeg", "-y", "-i", str(voice), "-af", f"aresample=48000{fit}", "-ac", "2", "-c:a", "pcm_s16le", str(out)]
+
+
 def run(ctx: Ctx, video_id: int, force: bool = False) -> None:
     s = ctx.session
     video = get_video(s, video_id)
@@ -258,8 +266,12 @@ def run(ctx: Ctx, video_id: int, force: bool = False) -> None:
 
         # 2. narration track
         voices = [out / "voice" / f"seg_{i:03d}.mp3" for i in range(1, len(segs) + 1)]
-        ff.run(ff.audio_concat_cmd(ff.concat_list(voices, tmp / "voice.txt"), tmp / "narration.wav"),
-               "joining narration")
+        fitted = [fit_voice_cmd(v, g.get("real_seconds"), tmp / f"fit_{i:03d}.wav")
+                  for i, (v, g) in enumerate(zip(voices, segs, strict=True), 1)]
+        for cmd in fitted:
+            ff.run(cmd, "preparing narration")
+        ff.run(ff.audio_concat_cmd(ff.concat_list([Path(c[-1]) for c in fitted], tmp / "voice.txt"),
+                                   tmp / "narration.wav"), "joining narration")
         from studio.history import speech_audio  # characters' own voices over the narrator (cast channels only)
         narr_track = speech_audio.mix_into_narration(tmp / "narration.wav", segs, timeline(segs),
                                                      tmp / "narration_mix.wav")  # captions still use the pure narration
@@ -283,11 +295,11 @@ def run(ctx: Ctx, video_id: int, force: bool = False) -> None:
                             "(see the Issues panel).", fg=typer.colors.YELLOW)
         if words is None:
             words, caption_source = (ref, "whisper") if ref else (None, "script")
-        words = words or captions.words_from_script(spans, [g["narration"] for g in segs])
-        sync = nar.sync_report(words, ref, [g["narration"] for g in segs]) if (ref and caption_source == "tts") else []
+        texts = [nar.spoken(g["narration"]) for g in segs]
+        words = words or captions.words_from_script(spans, texts)
+        sync = nar.sync_report(words, ref, texts) if (ref and caption_source == "tts") else []
         (out / "caption_sync.json").write_text(json.dumps(sync), encoding="utf-8")
-        cues = cues_from_words(words) if caption_source in ("whisper", "tts") else script_cues(
-            spans, [g["narration"] for g in segs])
+        cues = cues_from_words(words) if caption_source in ("whisper", "tts") else script_cues(spans, texts)
         chapters, prev = [], None
         for (start, _), g in zip(spans, segs):
             if g.get("chapter") and g["chapter"] != prev and start > 0:

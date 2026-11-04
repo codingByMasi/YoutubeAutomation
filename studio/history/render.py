@@ -13,6 +13,7 @@ import hashlib
 import json
 import math
 import random
+import re
 import subprocess
 from pathlib import Path
 
@@ -20,7 +21,7 @@ import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
 from studio.errors import StudioError
-from studio.history import cast, figures, speech_audio, wardrobe
+from studio.history import autoscene, cast, figures, maps, speech_audio, wardrobe
 from studio.kids.sprites import SpriteBank, blink
 from studio.util import ffmpeg as ff
 from studio.util import fonts
@@ -235,6 +236,16 @@ def backdrop(kind: str) -> Image.Image:
 
 
 # ---------------------------------------------------------------- characters
+def card_question(narration: str, title: str = "", limit: int = 70) -> str:
+    """Line for a chapter card that has no `question`: the narration's last question, else its last sentence.
+    Returns "" if that would only repeat the title."""
+    parts = [p.strip() for p in re.split(r"(?<=[.!?])\s+", narration.strip()) if p.strip()]
+    pick = next((p for p in reversed(parts) if p.endswith("?")), parts[-1] if parts else "")
+    if len(pick) > limit or pick.lower().rstrip(".!? ") == title.lower().rstrip(".!? "):
+        return ""
+    return pick
+
+
 class Cast:
     """Sprites for the recurring roster plus the video's own historical figures (same faction colour all video)."""
 
@@ -303,11 +314,22 @@ class Cast:
         return img
 
     def described(self, who: str) -> dict | None:
-        """The script's own description of this character, unless the name is one of the recurring cast."""
+        """The script's own description of this character; only the host (Quill) always stays the recurring cast.
+
+        A name that is not in the script's list (or not one of the recurring cast) is drawn from its own words,
+        never mapped to a fixed cast member: "Mir Jafar" or "the mapmaker" get a person of their own."""
         low = (who or "").strip().lower()
-        if low in cast.ROSTER or any(low == c["name"].lower() for c in cast.ROSTER.values()):
+        if low in ("quill", cast.ROSTER["quill"]["name"].lower()):
             return None
-        return self.chars.get(low)
+        found = self.chars.get(low)
+        if found is None and low:  # "mapmaker" <-> "Mapmaker Odo": one name contains the other
+            found = next((c for k, c in self.chars.items() if low in k or k in low), None)
+        if found is None:
+            for cid, c in cast.ROSTER.items():  # an undescribed recurring character keeps its own art
+                if low == cid or low == c["name"].lower():
+                    return None
+            found = {"name": who, "role": who}
+        return found
 
     def _from_spec(self, spec: dict, px: int, closed: bool, talking: bool, era: str) -> Image.Image:
         key = (str(spec.get("name", "")).lower(), px, closed, talking, era)
@@ -598,7 +620,8 @@ class Scene:
     # -- lectern: host at a wooden lectern, chapter card on the left
     def _lectern(self, img: Image.Image, t: float) -> None:
         d = ImageDraw.Draw(img)
-        title, q = str(self.data.get("title") or self.seg.get("chapter", "")), str(self.data.get("question") or "")
+        title = str(self.data.get("title") or self.seg.get("chapter", ""))
+        q = str(self.data.get("question") or card_question(str(self.seg.get("narration", "")), title))
         a = ease(t / 0.6)
         shadowed_box(img, (60, 170, 700, 470), (252, 244, 222), outline=WOOD, radius=20, width=6)
         d = ImageDraw.Draw(img)
@@ -681,9 +704,21 @@ class Scene:
 
     # -- map: a schematic western-Mediterranean map with a growing route
     def _map(self, img: Image.Image, t: float) -> None:
-        img.paste(_territories(self.faction0))
+        region = maps.pick_region(self.data, str(self.seg.get("narration", "")))
+        if region is None:
+            img.paste(_territories(self.faction0))
+            pts = self.data.get("points") or []
+        else:  # a real-place map: outlines and positions come from studio/history/maps.py, drawn as approximate
+            img.paste(_geo_base(region))
+            pts = maps.resolve_points(region, self.data.get("points") or [])
+            d = ImageDraw.Draw(img)
+            marks = [(p["x"] * (W - 160) + 80, p["y"] * (H - 220) + 130) for p in pts]
+            for name, (lon, lat) in maps.REGIONS[region]["labels"].items():  # real names, clear of the markers and title
+                x, y = (v * k for v, k in zip(maps.project(region, lon, lat), (W, H)))
+                if y > 150 and all(abs(x - mx) > 190 or abs(y - my) > 110 for mx, my in marks):
+                    centered(d, (x, y), name, font(30, False), fill=(250, 246, 230), stroke=(30, 36, 50), sw=3)
         d = ImageDraw.Draw(img)
-        pts = self.data.get("points") or []
+        centered(d, (W - 190, H - 22), "Approximate map", font(24, False), fill=(235, 240, 245), stroke=(20, 40, 70), sw=2)
         n = len(pts)
         if n:
             prog = min(1.0, max(0.0, (t - 0.4) / max(1.0, self.dur * 0.72))) * (n - 1 if n > 1 else 1)
@@ -738,7 +773,8 @@ class Scene:
 
     # -- diagram: numbered steps appear one after another
     def _diagram(self, img: Image.Image, t: float) -> None:
-        steps = [str(s) for s in (self.data.get("steps") or ["Step one", "Step two", "Step three"])][:5]
+        steps = autoscene.steps_for(str(self.seg.get("narration", "")), self.data.get("steps")) \
+            or [str(self.data.get("title") or self.seg.get("chapter") or "How it worked")]
         n = len(steps)
         banner(img, str(self.data.get("title") or self.seg.get("chapter", "")), 90, width=760)
         cw = min(300, (W - 200 - (n - 1) * 60) // n)
@@ -914,6 +950,37 @@ def _map_base() -> Image.Image:
     return _MAP
 
 
+_geo_cache: dict[str, Image.Image] = {}
+
+
+def _geo_base(region: str) -> Image.Image:
+    """A coarse map of a real region (see maps.py): textured sea and land, shoreline, and the region's real names."""
+    if region in _geo_cache:
+        return _geo_cache[region]
+    S = 2
+    w, h = W * S, H * S
+    land = Image.new("L", (w, h), 0)
+    ld = ImageDraw.Draw(land)
+    polys = [[maps.project(region, *pt) for pt in poly] for poly in maps.REGIONS[region]["land"]]
+    for poly in polys:
+        ld.polygon(_smooth([(x * w, y * h) for x, y in poly], 2), fill=255)
+    n1, n2 = _fractal(5, w, h), _fractal(9, w, h)
+    sea = np.stack([18 + 26 * n1, 52 + 40 * n1, 96 + 52 * n1], axis=-1)
+    tt = n2[..., None]
+    low, mid, high = np.array([86, 124, 66]), np.array([150, 138, 88]), np.array([118, 96, 72])
+    ground = np.where(tt < 0.5, low + (mid - low) * (tt / 0.5), mid + (high - mid) * ((tt - 0.5) / 0.5))
+    ground = ground * (0.86 + 0.28 * n1[..., None])
+    mask = np.asarray(land, dtype=np.float32)[..., None] / 255.0
+    img = Image.fromarray(np.clip(sea * (1 - mask) + ground * mask, 0, 255).astype("uint8"), "RGB")
+    d = ImageDraw.Draw(img)
+    for poly in polys:
+        pts = _smooth([(x * w, y * h) for x, y in poly], 2)
+        d.line([*pts, pts[0]], fill=(196, 214, 204), width=4 * S)
+    out = _vignette(img.resize((W, H), Image.LANCZOS), 0.3)
+    _geo_cache[region] = out
+    return out
+
+
 _terr_cache: dict[int, Image.Image] = {}
 
 
@@ -996,7 +1063,7 @@ def render_scene(seg: dict, dur: float, out: Path, work: Path, audio: Path | Non
     cmd = ["ffmpeg", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{ow}x{oh}", "-r", str(fps), "-i", "-", "-an",
            "-c:v", "libx264", "-preset", "veryfast", "-crf", "16", "-pix_fmt", "yuv420p", "-movflags", "+faststart",
            str(out)]
-    proc = subprocess.Popen(ff.low_memory_cmd(cmd), stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+    proc = ff.popen_raw(cmd)
     try:
         for f in range(n):
             t = f / fps

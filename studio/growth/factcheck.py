@@ -1,4 +1,4 @@
-"""Fact and source checklist that must be completed before approval."""
+"""Fact checklist that must be completed before approval."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ FIGURE = re.compile(r"(\$\s?\d|\d+\s?%|\d[\d,.]*\s?(million|billion|trillion|tho
 STANDARD = [
     ("dates", "Every figure states or implies its year/date, and the data is the latest available"),
     ("rounding", "Numbers are rounded honestly and units (USD, %, per year) are correct"),
-    ("charts", "Each chart's numbers match its cited source"),
+    ("charts", "Each chart's numbers match the real figures"),
     ("claims", "No claim of guaranteed returns or personal financial advice"),
     ("original", "Wording and structure are my own; nothing is copied from another creator"),
     ("photos", "Photo and footage credits are in the description"),
@@ -28,16 +28,14 @@ def build_items(pkg: dict) -> list[dict]:
         for sent in re.split(r"(?<=[.!?])\s+", seg.get("narration", "")):
             if FIGURE.search(sent):
                 items.append({"id": f"fig:{i}:{hashlib.md5(sent.encode()).hexdigest()[:8]}",
-                              "text": f"Segment {i + 1}: \"{sent.strip()}\" matches a cited source"})
+                              "text": f"Segment {i + 1}: \"{sent.strip()}\" matches the real figure"})
     return items + [{"id": f"std:{k}", "text": t} for k, t in STANDARD]
 
 
 def auto_problems(pkg: dict) -> list[str]:
-    """Problems no tick can fix: missing or placeholder sources."""
+    """Problems no tick can fix: placeholder sources (scripts carry none by default)."""
     problems = []
     sources = pkg.get("sources") or []
-    if not sources:
-        problems.append("The script lists no sources. Add them (Script page) before approving.")
     for s in sources:
         note = str(s.get("url_or_note", "")).lower()
         if not note.strip() or any(p in note for p in PLACEHOLDER):

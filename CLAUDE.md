@@ -16,12 +16,21 @@ YouTube Channel Studio: a Python CLI that runs a faceless channel from topic res
 - Never copy other creators' content. Research finds topics only.
 - Read official API docs at build time for quota costs, OAuth steps, and field names. Do not rely on memory for those.
 - Do not add features outside `SPEC.md` Section 12 "Out of scope" without asking.
+- Everything the owner needs must be doable in the app. Never ask them to edit files (`.env`) or paste paths; if no in-app setting exists, say so and list it as a gap.
+- Never ask the owner for credentials.
+- Keep fixes minimal: when fixing one thing, change no unrelated code or text.
+- Disclose every change made to a PR after the owner reviewed it (conflict merges, extra commits, rule tweaks), including at merge time.
+- There is no CI. Run the full `pytest -q` before any merge, and merge only after the owner says merge.
 
 ## Stack
-Python 3.11, Typer, SQLAlchemy + SQLite, google-api-python-client, edge-tts, faster-whisper, ffmpeg/MoviePy, Pixabay/Pexels API, Pillow, matplotlib, pytest.
+Python 3.11, Typer, Streamlit app, SQLAlchemy + SQLite, google-api-python-client, Kokoro (offline) then edge-tts for voice, TTS word timings with optional faster-whisper for captions, ffmpeg, optional Blender (3D, PC only), Pixabay/Pexels API, Pillow, matplotlib, pytest.
 
-## Channel
-Business-model and economics explainers, English, faceless narration with charts and diagrams. Scripts carry no sources or fact ids (owner decision); use real figures and word estimates as estimates. Details in `SPEC.md` Sections 1 and 9.
+## Channels
+The app runs three channel types (details in `SPEC.md` Sections 1 and 9). Scripts carry no sources or fact ids (owner decision); use real figures and word estimates as estimates.
+- **Business:** economics explainers, faceless narration with charts and diagrams. Narration default: calm explainer.
+- **History:** animated storytelling. Narration default: comic storyteller. Defaults to the 2D cartoon cast renderer, not stock, photos or charts, unless asked. Characters come from the script (2D or 3D as it says), not a fixed cast. 3D needs Blender and has no history cast mode.
+- **Kids:** 2D by default, warm sing-song narration.
+- The narrator is muted while a character line plays; two voices never overlap.
 
 ## Layout
 - `studio/cli.py` entry point; `studio/stages/` pipeline stages; `studio/manage/` channel management; `studio/youtube/` API clients and quota; `studio/providers/` TTS, footage, captions; `studio/util/` helpers.
@@ -64,6 +73,7 @@ When asked to answer one:
 
 Story tasks use the same flow: `outline` (retention outline) and `critique` (score the script on the 10-point
 checklist, then return the full rewritten package in `revised`). Read `studio/prompts/hooks.md` first.
+History scripts also use the `story_plan` and `story_review` prompts in the same flow.
 
 ## Token discipline
 Prefer one consolidated pass per milestone. Do not re-read whole files unnecessarily; read only the section you need.

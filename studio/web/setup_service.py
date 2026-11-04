@@ -65,6 +65,19 @@ def checks(settings: Settings) -> list[doctor.Check]:
     return sorted(doctor.run_checks(settings), key=lambda c: order[c.level])
 
 
+def computer_checks(settings: Settings, network: bool = False) -> list[doctor.Check]:
+    """Environment preflight (packages, ffmpeg, models, fonts, disk), worst first."""
+    from studio.manage import environment
+    order = {doctor.FAIL: 0, doctor.WARN: 1, doctor.OK: 2}
+    return sorted(environment.run_checks(settings, network=network), key=lambda c: order[c.level])
+
+
+def fix_computer(settings: Settings, action: str) -> Outcome:
+    """Run one environment fix (install a package, download a model...) for a Setup button."""
+    from studio.manage import environment
+    return capture(lambda: print(environment.apply_fix(action, settings)))
+
+
 def test_footage_keys(settings: Settings, opener=None) -> list[doctor.Check]:
     """Live test of the saved Pixabay/Pexels keys for the Setup page button."""
     return doctor.test_footage_keys(settings, opener)

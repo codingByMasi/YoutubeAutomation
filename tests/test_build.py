@@ -95,3 +95,30 @@ def test_missing_ffmpeg_message(monkeypatch):
     with pytest.raises(StudioError) as e:
         ff.ensure_ffmpeg()
     assert "install" in str(e.value).lower()
+
+
+def test_whisper_words_decodes_with_ffmpeg_not_pyav(monkeypatch, tmp_path):
+    """Regression: faster-whisper's PyAV decode broke on new PyAV; we pass decoded samples instead."""
+    import subprocess
+    import sys
+    import types
+
+    import numpy as np
+
+    from studio.providers import whisper as w
+
+    seen = {}
+
+    class FakeModel:
+        def __init__(self, *a, **k): ...
+
+        def transcribe(self, audio, **k):
+            seen["audio"] = audio
+            word = types.SimpleNamespace(start=0.0, end=0.5, word=" hi")
+            return [types.SimpleNamespace(words=[word])], None
+
+    monkeypatch.setitem(sys.modules, "faster_whisper", types.SimpleNamespace(WhisperModel=FakeModel))
+    pcm = np.zeros(1600, dtype=np.float32).tobytes()
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: types.SimpleNamespace(stdout=pcm))
+    assert w.whisper_words(tmp_path / "a.wav") == [(0.0, 0.5, "hi")]
+    assert isinstance(seen["audio"], np.ndarray) and seen["audio"].shape == (1600,)

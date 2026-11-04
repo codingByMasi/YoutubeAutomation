@@ -5,7 +5,6 @@ from __future__ import annotations
 import dataclasses
 import json
 import os
-import subprocess
 from pathlib import Path
 
 from PIL import ImageDraw, ImageFont
@@ -53,8 +52,7 @@ def render_scene(scene: dict, audio: Path, narration: float, out: Path, size: tu
     w, h = size
     dur = scene_seconds(narration)
     bg = draw.background(scene["visual"]["background"], w, h)
-    proc = subprocess.Popen(ff.low_memory_cmd(_scene_cmd(audio, dur, w, h, fps, out)), stdin=subprocess.PIPE,
-                            stderr=subprocess.PIPE)
+    proc = ff.popen_raw(_scene_cmd(audio, dur, w, h, fps, out))
     try:
         for f in range(round(dur * fps)):
             t = f / fps

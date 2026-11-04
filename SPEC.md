@@ -21,6 +21,14 @@ Fill every `[PLACEHOLDER]` in Section 1 before starting the build.
 | 6-month goal | 1,000 subscribers and 4,000 watch hours (default) |
 | Monetization plan | AdSense (default) |
 
+The table above is the **business** channel. The app runs three channel types, each with its own defaults (`studio/growth/channel_types.py`):
+
+| Type | Style | Narration default | Pictures |
+|---|---|---|---|
+| Business | Faceless explainer with charts and diagrams | calm explainer | `mixed` scene style: 3D scenes when Blender is installed, else 2D |
+| History | Animated storytelling | comic storyteller | 2D cartoon cast renderer (`studio/history/`); characters come from the script, not a fixed cast. 3D needs Blender and has no history cast mode |
+| Kids | Songs and rhymes | warm sing-song | 2D by default; optional Blender 3D |
+
 ---
 
 ## 2. What we are building
@@ -65,8 +73,8 @@ Rules: a stage can only advance in order; re-running a finished stage is a no-op
 | Config | python-dotenv (`.env`) |
 | YouTube | google-api-python-client, google-auth-oauthlib (Data API v3 + Analytics API) |
 | LLM | One wrapper module. Default `claude_code`: the CLI writes a prompt file and Claude Code writes the JSON answer (no API key). Optional API providers: anthropic, openai, gemini |
-| TTS | edge-tts default; ElevenLabs optional behind the same interface |
-| Captions | faster-whisper (local) -> SRT |
+| TTS | Kokoro (offline) first, then edge-tts; ElevenLabs optional behind the same interface. Seven narration styles (`studio/story/narration_styles.py`); per-character voices for cast skits |
+| Captions | Word times from the TTS timings, or from optional local faster-whisper when installed, else estimated from the script -> SRT |
 | Video | ffmpeg (command builders in `util/ffmpeg.py`; MoviePy not needed) |
 | Footage | Pluggable provider: Pixabay or Pexels API (fallback: generated text/image cards and charts) |
 | Charts/diagrams | matplotlib (and Pillow) to render animated or step-by-step charts, flow diagrams, and number cards from segment data |
@@ -228,12 +236,13 @@ Worked example for one fully-published video:
 - **Titles:** under 70 characters; one clear promise; no all-caps shouting; no claims the video can't back up. Preferred patterns: "How X Makes Money", "The Economics of X", "How X Really Works", with a concrete number or price where the video supports it (e.g. "$300 Cabin vs $50,000 Suite", "a ₹518 Order").
 - **Video structure:** (1) hook with a surprising number or question, (2) the product or customer, (3) where the money comes in, (4) where the costs go, (5) the clever trick or weak point, (6) what it means / takeaway, (7) call to action. Every video walks the money flow end to end.
 - **Visual rule:** show the money. Use a chart, diagram, or number card for every major figure; stock footage only illustrates the setting.
-- **Accuracy:** use real, well-known figures; no sources or fact ids in `script.json`. Label estimates as estimates. No investment advice; add a one-line "educational, not financial advice" disclaimer in the description.
+- **Accuracy:** use real, well-known figures; no sources or fact ids in `script.json` (the fact check asks only about figures, dates and wording). Label estimates as estimates. No investment advice; add a one-line "educational, not financial advice" disclaimer in the description.
 - **Hook:** first 15 seconds state the problem and the payoff; no long intros or "before we start, subscribe".
 - **Pacing:** visual change at least every 4-6 seconds; one retention beat every 30-45 seconds.
 - **Thumbnails:** 3-5 words max; one focal element; high contrast; brand colors from the channel profile (default #0B1F3A and #F5B700); bold sans-serif heading font.
 - **Intro/outro:** under 5 seconds each.
 - **Music mood:** calm, light, instrumental, ducked at least 15 dB under voice.
+- **Voices never overlap:** while a character line plays the narrator is muted (`studio/history/speech_audio.py`, `DUCK = 0.0`).
 - **Description template:** 2-line summary, chapters, disclaimer, links.
 
 ---
@@ -279,7 +288,6 @@ Definition of done for the build: all tests pass, `status` and `run-all` work en
 - Auto-posting comments or replies
 - Auto-publishing without review
 - AI-generated thumbnail images or video (phase two)
-- Multi-channel support
 - Analytics web dashboard (a pipeline web app exists: see README "Web app")
 - Copying, re-uploading, or transcribing other creators' videos for reuse
 

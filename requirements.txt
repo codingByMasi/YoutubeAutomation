@@ -9,7 +9,8 @@ Pillow>=10.0
 numpy>=1.26
 matplotlib>=3.8
 numpy>=1.26
-cairosvg>=2.7  # kids mode SVG characters (optional: falls back to code-drawn shapes)
+cairosvg>=2.7  # SVG characters; needs the native Cairo library, absent on many Windows PCs
+resvg-py>=0.5  # self-contained SVG renderer used automatically when cairosvg cannot draw (no native install)
 pytest>=8.0
 streamlit>=1.40
 # Optional extras (install only if you use them; see requirements-optional.txt for the story-engine extras):

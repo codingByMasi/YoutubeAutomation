@@ -47,6 +47,39 @@ ERA_STYLE: dict[str, dict] = {
 }
 
 
+# Face and body variety. A script may name any of these per character (`"face": {"shape", "eyes", "brows", "nose",
+# "mouth", "marks"}`, optional `"posture"`); whatever it leaves out is picked from the character's name, so two people in
+# one video never share a face, and the same person is the same in every scene.
+FACE_OPTIONS: dict[str, tuple[str, ...]] = {
+    "shape": ("round", "oval", "square", "long", "heart"),
+    "eyes": ("round", "narrow", "wide", "sleepy", "sharp"),
+    "brows": ("arched", "flat", "stern", "thick", "raised"),
+    "nose": ("button", "long", "hooked", "broad", "pointy"),
+    "mouth": ("smile", "flat", "smirk", "small", "grin"),
+    "marks": ("none", "none", "freckles", "scar", "mole"),
+}
+POSTURES = ("upright", "slouch", "lean_left", "lean_right", "proud")
+HAIR_FEMALE = ("long", "bun", "braid", "ponytail", "curly")
+HAIR_OTHER = ("short", "curly", "buzz", "short", "ponytail")
+
+
+def _pick(h: int, shift: int, options: tuple) -> str:
+    return options[(h >> shift) % len(options)]
+
+
+def _face(spec: dict, h: int) -> dict:
+    """The character's face parts: the script's own words where known, otherwise a stable pick from the name."""
+    given = spec.get("face") if isinstance(spec.get("face"), dict) else {}
+    face = {}
+    for i, (part, options) in enumerate(FACE_OPTIONS.items()):
+        want = _word(given.get(part) or (spec.get(f"face_{part}") if part != "marks" else spec.get("marks")))
+        face[part] = want if want in options else _pick(h, 8 + 9 * i, options)
+    face["head_scale"] = 0.93 + ((h >> 70) % 15) / 100  # 0.93 .. 1.07
+    face["eye_gap"] = 0.30 + ((h >> 80) % 13) / 100  # 0.30 .. 0.42 of the head radius
+    face["posture"] = _word(spec.get("posture")) if _word(spec.get("posture")) in POSTURES else _pick(h, 90, POSTURES)
+    return face
+
+
 def colour(value: object, default: str) -> tuple[int, int, int]:
     """RGB for a hex string or a colour/skin word; anything unknown gives `default` (a hex string)."""
     v = str(value or "").strip().lower().replace(" ", "_")
@@ -83,14 +116,18 @@ def normalize(spec: dict, era_style: dict | None = None) -> dict:
     accent = spec.get("accent_color") or spec.get("color") or f"#{(h >> 4) & 0xFFFFFF:06x}"
     props = spec.get("props") or ([spec["prop"]] if spec.get("prop") else [])
     props = [props] if isinstance(props, str) else list(props)
+    elder_m = age == "elder" and gender != "female" and h % 3 == 0
     ctype = _word(cloth.get("type")) or era_style.get("clothing") or ("dress" if gender == "female" else "tunic")
     return {
         "name": str(spec.get("name") or ""), "role": str(spec.get("role") or ""), "gender": gender, "age": age,
         "build": _word(spec.get("build")) or "average",
         "skin": colour(spec.get("skin"), SKIN["fair"]),
-        "hair_style": _word(hair.get("style")) or ("long" if gender == "female" else "short"),
+        "hair_style": _word(hair.get("style")) or (
+            "receding" if elder_m else _pick(h, 3, HAIR_FEMALE if gender == "female" else HAIR_OTHER)),
         "hair_color": colour(hair.get("color"), HAIR_DEFAULT[age]),
-        "facial_hair": _word(spec.get("facial_hair")) or "none",
+        "facial_hair": _word(spec.get("facial_hair")) or (
+            _pick(h, 40, ("none", "none", "mustache", "beard", "goatee")) if gender == "male" and age in ("adult", "elder") else "none"),
+        "face": _face(spec, h),
         "clothing": ctype,
         "cloth_color": colour(cloth.get("color") or era_style.get("color"), accent if isinstance(accent, str) else "#2E7D87"),
         "trim": colour(cloth.get("trim") or era_style.get("trim"), "#e0b43a"),
@@ -132,8 +169,13 @@ def draw(spec: dict, px: int, eyes_closed: bool = False, mouth_open: bool = Fals
     hem_y = feet - 30 * bh
     sh_y = feet - 122 * bh  # shoulder line
     half = 62 * bw
-    head_r = 66 * (1.12 if kid else 1.0)
+    fc = n["face"]
+    head_r = 66 * (1.12 if kid else 1.0) * fc["head_scale"]
     head_cy = sh_y - head_r * 0.72 - (6 if elder else 0)
+    # posture shifts the head and hurries or lifts the shoulders so bodies differ as well as faces
+    lean = {"lean_left": -9, "lean_right": 9, "slouch": 4}.get(fc["posture"], 0)
+    head_cy += {"slouch": 8, "proud": -6}.get(fc["posture"], 0)
+    hx0 = cx + lean  # the head's centre line
     skin, ink, col, trim, hair = n["skin"], INK, n["cloth_color"], n["trim"], n["hair_color"]
     long_g = n["clothing"] in LONG_GARMENTS or n["clothing"] == "dress"
     armoured = n["armour"] not in ("none", "")
@@ -194,6 +236,7 @@ def draw(spec: dict, px: int, eyes_closed: bool = False, mouth_open: bool = Fals
     d.text((cx * s, (sh_y + 24 * bh) * s), (n["badge"] or "?")[:1], font=font(int(30 * s), False), fill=ink, anchor="mm")
     # neck and head
     d.rectangle(box(cx - 10, sh_y - 14, cx + 10, sh_y + 4), fill=skin)
+    body_cx, cx = cx, hx0
     hw0, hc0 = n["headwear"], n["head_color"]
     if hw0 in ("hood", "cowl"):  # drapes behind the face
         d.pieslice(box(cx - head_r - 14, head_cy - head_r - 22, cx + head_r + 14, head_cy + head_r * 1.5), 180, 360,
@@ -202,37 +245,97 @@ def draw(spec: dict, px: int, eyes_closed: bool = False, mouth_open: bool = Fals
     elif hw0 in ("veil", "headscarf", "scarf"):
         d.pieslice(box(cx - head_r - 10, head_cy - head_r - 14, cx + head_r + 10, head_cy + head_r * 1.7), 180, 360, fill=n["accent"], outline=ink, width=int(4 * s))
         d.rectangle(box(cx - head_r - 10, head_cy + head_r * 0.4, cx + head_r + 10, sh_y + 10), fill=n["accent"])
-    d.ellipse(box(cx - head_r, head_cy - head_r, cx + head_r, head_cy + head_r * 1.04), fill=skin, outline=ink, width=int(5 * s))
-    d.ellipse(box(cx - head_r - 7, head_cy - 6, cx - head_r + 7, head_cy + 22), fill=skin, outline=ink, width=int(3 * s))  # ears
-    d.ellipse(box(cx + head_r - 7, head_cy - 6, cx + head_r + 7, head_cy + 22), fill=skin, outline=ink, width=int(3 * s))
+    wf, hf = {"oval": (0.93, 1.1), "long": (0.86, 1.2), "heart": (1.0, 1.06), "square": (1.0, 1.04)}.get(fc["shape"], (1.0, 1.04))
+    if fc["shape"] == "square":
+        d.rounded_rectangle(box(cx - head_r * 0.96, head_cy - head_r, cx + head_r * 0.96, head_cy + head_r * hf), int(30 * s), fill=skin,
+                            outline=ink, width=int(5 * s))
+    else:
+        d.ellipse(box(cx - head_r * wf, head_cy - head_r, cx + head_r * wf, head_cy + head_r * hf), fill=skin, outline=ink, width=int(5 * s))
+        if fc["shape"] == "heart":  # narrower chin
+            d.polygon(pts((cx - head_r * 0.62, head_cy + head_r * 0.45), (cx + head_r * 0.62, head_cy + head_r * 0.45), (cx, head_cy + head_r * 1.16)),
+                      fill=skin, outline=ink)
+            d.ellipse(box(cx - head_r * 0.7, head_cy + head_r * 0.2, cx + head_r * 0.7, head_cy + head_r * 0.8), fill=skin)
+    ear_x = head_r * (0.93 if fc["shape"] in ("oval", "long") else 1.0)
+    for sx in (-1, 1):  # ears
+        d.ellipse(box(cx + sx * ear_x - 7, head_cy - 6, cx + sx * ear_x + 7, head_cy + 22), fill=skin, outline=ink, width=int(3 * s))
     # hair on top
     hs = n["hair_style"]
     if hs not in ("none", "bald", "shaved") and n["headwear"] not in ("helmet", "hood", "turban", "veil", "headscarf"):
         top = head_cy - head_r
-        d.pieslice(box(cx - head_r - 3, top - 8, cx + head_r + 3, head_cy + head_r * 0.3), 180, 360, fill=hair, outline=ink, width=int(3 * s))
+        crown = {"buzz": 0.1, "receding": 0.0}.get(hs, 0.3)  # how far the hair comes down; a buzz cut hugs the skull
+        if hs == "receding":  # hair only at the temples
+            for sx in (-1, 1):
+                d.pieslice(box(cx + sx * head_r * 0.62 - 26, top + 4, cx + sx * head_r * 0.62 + 26, head_cy + 8), 180, 360, fill=hair, outline=ink, width=int(3 * s))
+        else:
+            d.pieslice(box(cx - head_r - 3, top - 8, cx + head_r + 3, head_cy + head_r * crown), 180, 360, fill=hair, outline=ink, width=int(3 * s))
         if hs in ("bun", "bun_long"):
             d.ellipse(box(cx - 24, top - 34, cx + 24, top + 8), fill=hair, outline=ink, width=int(3 * s))
         elif hs == "ponytail":
             d.line([((cx + head_r - 6) * s, (head_cy - 18) * s), ((cx + head_r + 28) * s, (head_cy + 52) * s)], fill=hair, width=int(16 * s))
         elif hs == "braid":
             d.line([(cx * s, (head_cy + head_r) * s), ((cx - 10) * s, (head_cy + head_r + 60) * s)], fill=hair, width=int(14 * s))
+        elif hs == "topknot":
+            d.ellipse(box(cx - 16, top - 30, cx + 16, top + 2), fill=hair, outline=ink, width=int(3 * s))
+        elif hs == "side_part":
+            d.polygon(pts((cx - head_r, head_cy - 8), (cx - head_r * 0.2, top + 2), (cx + head_r * 0.25, head_cy - head_r * 0.55), (cx + head_r, head_cy - 8)),
+                      fill=hair, outline=ink)
         elif hs == "curly":
             for ang in range(190, 360, 28):
                 import math
                 px_, py_ = cx + math.cos(math.radians(ang)) * (head_r + 4), head_cy + math.sin(math.radians(ang)) * (head_r + 2)
                 d.ellipse(box(px_ - 14, py_ - 14, px_ + 14, py_ + 14), fill=hair, outline=ink, width=int(2 * s))
-    # face
+    # face: eyes, brows and nose follow this character's own face description
     ey = head_cy - 2
-    for ex in (cx - head_r * 0.36, cx + head_r * 0.36):
+    gap, brow_dark = head_r * fc["eye_gap"], hair if not kid else ink
+    ew, eh = {"narrow": (10, 6), "wide": (11, 14), "sleepy": (9, 9), "sharp": (11, 8)}.get(fc["eyes"], (9, 12))
+    for sx in (-1, 1):
+        ex = cx + sx * gap
         if eyes_closed:
-            d.line([((ex - 9) * s, ey * s), ((ex + 9) * s, ey * s)], fill=ink, width=int(4 * s))
+            d.line([((ex - ew) * s, ey * s), ((ex + ew) * s, ey * s)], fill=ink, width=int(4 * s))
         else:
-            d.ellipse(box(ex - 9, ey - 12, ex + 9, ey + 12), fill=(255, 255, 255), outline=ink, width=int(3 * s))
-            d.ellipse(box(ex - 4, ey - 6, ex + 4, ey + 8), fill=ink)
+            if fc["eyes"] == "sharp":  # almond eye, outer corner lifted
+                d.polygon(pts((ex - ew, ey + 3), (ex - ew * 0.3, ey - eh), (ex + ew, ey - eh * 0.6 + 0), (ex + ew * 0.3, ey + eh * 0.8)), fill=(255, 255, 255), outline=ink)
+            else:
+                d.ellipse(box(ex - ew, ey - eh, ex + ew, ey + eh), fill=(255, 255, 255), outline=ink, width=int(3 * s))
+            pr_ = min(ew, eh) * 0.55
+            d.ellipse(box(ex - pr_, ey - pr_ * 0.8, ex + pr_, ey + pr_ * 1.2), fill=ink)
+            if fc["eyes"] == "sleepy":  # heavy lid over the top half
+                d.pieslice(box(ex - ew, ey - eh, ex + ew, ey + eh), 180, 360, fill=_dark(skin, 0.86), outline=ink, width=int(3 * s))
         if n["gender"] == "female" and not kid:  # soft lashes
-            d.line([((ex - 10) * s, (ey - 12) * s), ((ex - 15) * s, (ey - 17) * s)], fill=ink, width=int(3 * s))
-        brow = ey - 20 - (3 if elder else 0)
-        d.line([((ex - 11) * s, brow * s), ((ex + 11) * s, (brow - (3 if elder else 0)) * s)], fill=hair if not kid else ink, width=int(4 * s))
+            d.line([((ex + sx * (ew + 1)) * s, (ey - eh) * s), ((ex + sx * (ew + 6)) * s, (ey - eh - 5) * s)], fill=ink, width=int(3 * s))
+        brow = ey - eh - 8 - (3 if elder else 0)
+        kind, bw_ = fc["brows"], int(4 * s)
+        if kind == "thick":
+            d.line([((ex - 12) * s, brow * s), ((ex + 12) * s, (brow - 2) * s)], fill=brow_dark, width=int(8 * s))
+        elif kind == "stern":  # inner ends pulled down
+            d.line([((ex - sx * 12) * s, (brow + 5) * s), ((ex + sx * 12) * s, (brow - 4) * s)], fill=brow_dark, width=bw_)
+        elif kind == "arched":
+            d.arc(box(ex - 13, brow - 10, ex + 13, brow + 8), 200, 340, fill=brow_dark, width=bw_)
+        elif kind == "raised":
+            d.line([((ex - 11) * s, (brow - 6) * s), ((ex + 11) * s, (brow - 6 - 4 * sx) * s)], fill=brow_dark, width=int(3 * s))
+        else:
+            d.line([((ex - 11) * s, brow * s), ((ex + 11) * s, (brow - (3 if elder else 0)) * s)], fill=brow_dark, width=bw_)
+    ny, nose_c = ey + eh + 6, _dark(skin, 0.72)  # nose
+    nk = fc["nose"]
+    if nk == "long":
+        d.line([(cx * s, (ey + 2) * s), (cx * s, (ny + 22) * s)], fill=nose_c, width=int(4 * s))
+        d.arc(box(cx - 11, ny + 10, cx + 11, ny + 30), 20, 160, fill=nose_c, width=int(4 * s))
+    elif nk == "hooked":
+        d.arc(box(cx - 4, ey, cx + 18, ny + 26), 270, 70, fill=nose_c, width=int(4 * s))
+    elif nk == "broad":
+        d.ellipse(box(cx - 15, ny + 4, cx + 15, ny + 22), fill=_dark(skin, 0.9), outline=nose_c, width=int(3 * s))
+    elif nk == "pointy":
+        d.polygon(pts((cx - 7, ny + 18), (cx + 2, ny - 2), (cx + 10, ny + 18)), fill=_dark(skin, 0.92), outline=nose_c)
+    else:  # button
+        d.ellipse(box(cx - 6, ny + 6, cx + 6, ny + 18), fill=_dark(skin, 0.88), outline=nose_c, width=int(3 * s))
+    mk = fc["marks"]  # freckles, a scar or a mole
+    if mk == "freckles":
+        for fx, fy in ((-26, 22), (-18, 28), (-32, 30), (26, 22), (18, 28), (32, 30)):
+            d.ellipse(box(cx + fx - 2, ey + fy - 2, cx + fx + 2, ey + fy + 2), fill=_dark(skin, 0.6))
+    elif mk == "scar":
+        d.line([((cx + gap - 8) * s, (ey - eh - 14) * s), ((cx + gap + 12) * s, (ey + eh + 16) * s)], fill=(178, 70, 70), width=int(3 * s))
+    elif mk == "mole":
+        d.ellipse(box(cx + gap + 8, ey + 24, cx + gap + 14, ey + 30), fill=_dark(skin, 0.45))
     if kid:
         for ex in (cx - head_r * 0.55, cx + head_r * 0.55):
             d.ellipse(box(ex - 9, ey + 18, ex + 9, ey + 32), fill=(240, 160, 150, 150))
@@ -244,10 +347,18 @@ def draw(spec: dict, px: int, eyes_closed: bool = False, mouth_open: bool = Fals
     if fh in ("beard", "full_beard", "long_beard"):
         d.pieslice(box(cx - head_r * 0.82, head_cy - 6, cx + head_r * 0.82, head_cy + head_r * (1.5 if fh == "long_beard" else 1.25)),
                    10, 170, fill=hair, outline=ink, width=int(3 * s))
+    mk_c = ink if fh not in ("beard", "full_beard", "long_beard") else (240, 230, 210)
+    mw = {"small": 11, "grin": 24}.get(fc["mouth"], 18)
     if mouth_open:
-        d.ellipse(box(cx - 16, my - 10, cx + 16, my + 14), fill=(120, 30, 40), outline=ink, width=int(3 * s))
+        d.ellipse(box(cx - mw * 0.85, my - 10, cx + mw * 0.85, my + 14), fill=(120, 30, 40), outline=ink, width=int(3 * s))
+    elif fc["mouth"] == "flat":
+        d.line([((cx - mw) * s, (my + 2) * s), ((cx + mw) * s, (my + 2) * s)], fill=mk_c, width=int(4 * s))
+    elif fc["mouth"] == "smirk":
+        d.line([((cx - mw) * s, (my + 4) * s), ((cx + 4) * s, (my + 4) * s), ((cx + mw) * s, (my - 4) * s)], fill=mk_c, width=int(4 * s))
+    elif fc["mouth"] == "grin":
+        d.chord(box(cx - mw, my - 12, cx + mw, my + 14), 0, 180, fill=(250, 245, 235), outline=ink, width=int(3 * s))
     else:
-        d.arc(box(cx - 20, my - 14, cx + 20, my + 10), 20, 160, fill=ink if fh not in ("beard", "full_beard", "long_beard") else (240, 230, 210), width=int(4 * s))
+        d.arc(box(cx - mw, my - 14, cx + mw, my + 10), 20, 160, fill=mk_c, width=int(4 * s))
     if fh in ("mustache", "goatee", "beard", "full_beard", "long_beard"):
         d.pieslice(box(cx - 26, my - 22, cx + 26, my - 2), 0, 180, fill=hair, outline=ink, width=int(2 * s))
     if fh == "goatee":
@@ -274,6 +385,7 @@ def draw(spec: dict, px: int, eyes_closed: bool = False, mouth_open: bool = Fals
     elif hw not in ("none", ""):  # cap and anything unfamiliar: a simple cap in the character's accent colour
         d.pieslice(box(cx - head_r - 3, top - 12, cx + head_r + 3, head_cy + head_r * 0.2), 180, 360,
                    fill=hc if hc != (140, 150, 163) else n["accent"], outline=ink, width=int(4 * s))
+    cx = body_cx
     # props in the right hand
     for pr in n["props"][:2]:
         hx, hy = hand_r

@@ -146,16 +146,9 @@ def characters_for(segments: list[dict]) -> list[dict]:
 
 
 def _pick_cast(text: str, figs: list[str], k: int) -> list[str]:
-    """Primary character from the words, a counterpart, and a recurring historical figure if the text names one."""
-    primary = next((cid for cid, rx in _WHO if rx.search(text)), None)
-    default = ["blunder", "vex", "coin", "dash", "hindsight"]
-    primary = primary or default[k % len(default)]
+    """The people the script names in this text (up to three); the host fills in only when it names nobody."""
     named = [f for f in figs if re.search(rf"\b{re.escape(f)}\b", text)]
-    second = named[0] if named else ("dusty" if primary != "dusty" else "quill")
-    out = [primary, second]
-    if len(named) > 1:
-        out.append(named[1])
-    return out[:3]
+    return named[:3] or ["quill"]
 
 
 def _speech(text: str, who: list[str]) -> list[dict]:
@@ -174,6 +167,25 @@ def _speech(text: str, who: list[str]) -> list[dict]:
 def _steps(text: str) -> list[str]:
     sents = _sentences(text)
     return [_trim_line(s, 7) for s in sents[:4]] if len(sents) >= 3 else []
+
+
+_PLACEHOLDER = re.compile(r"^\s*(step\s*(\d+|one|two|three|four|five)|\.*)\s*$", re.I)
+
+
+def steps_for(text: str, given: object = None) -> list[str]:
+    """The steps a diagram scene shows: the script's own, else taken from the narration (never "Step one").
+
+    Placeholder or empty entries are dropped. With fewer than two real steps the narration is split into sentences,
+    then into clauses at "then / next / finally / and", each trimmed to a short line (at most 5 steps)."""
+    real = [str(x).strip() for x in (given if isinstance(given, list) else []) if not _PLACEHOLDER.match(str(x))]
+    if len(real) >= 2:
+        return real[:5]
+    parts = [_trim_line(s, 7) for s in _sentences(text)]
+    if len(parts) < 3:
+        clauses = re.split(r"[;:]|,?\s+(?:and then|then|next|after that|finally)\s+|,\s+(?=and\b)", text.strip())
+        parts = [_trim_line(c, 7) for c in clauses if len(c.split()) >= 3]
+    parts = [p for p in parts if p]
+    return (parts or real)[:5]
 
 
 def choose(seg: dict, idx: int, prev_chapter: str | None, figs: list[str], recent: list[str],
@@ -229,16 +241,16 @@ def assign(segments: list[dict], force: bool = False) -> int:
                     "title": str(seg.get("chapter") or "")}
             who = [who[0]]
         elif scene == "diagram":
-            data = {"steps": _steps(text), "title": str(seg.get("chapter") or "How it worked")}
+            data = {"steps": steps_for(text), "title": str(seg.get("chapter") or "How it worked")}
             who = [who[0]]
         elif scene == "calendar":
             m = _DAYS.search(text)
             days = int(m.group(1)) * (7 if m and m.group(2).lower().startswith("week") else 1) if m else 7
             data = {"days": max(1, min(days, 31)), "title": "Days pass"}
-            who = ["alma"]
+            who = ["quill"]
         elif scene == "silhouette":
             data = {"title": _trim_line(text, 6)}
-            who = [who[-1] if who[-1] not in ("dusty",) else who[0]]
+            who = [who[-1]]
         seg["scene"] = scene
         seg.setdefault("cast", who)
         if not seg.get("cast"):

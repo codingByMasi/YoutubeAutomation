@@ -12,11 +12,11 @@ import re
 import sys
 from pathlib import Path
 
-import cairosvg
 from PIL import Image, ImageDraw, ImageFilter
 
 from studio.history import cast
 from studio.history import render as R
+from studio.util import svg as svg_engine
 
 CREAM = (244, 233, 207)
 TEAL = (46, 125, 135)
@@ -36,7 +36,7 @@ def _sprite(char_id: str, px: int, viewbox: str | None = None) -> Image.Image:
         svg = re.sub(rf'<g id="{gid}">.*?</g>', "", svg, flags=re.S)
     if viewbox:
         svg = svg.replace('viewBox="0 0 400 400" width="400" height="400"', f'viewBox="{viewbox}"')
-    return Image.open(io.BytesIO(cairosvg.svg2png(bytestring=svg.encode(), output_width=px))).convert("RGBA")
+    return Image.open(io.BytesIO(svg_engine.svg_to_png(svg, px))).convert("RGBA")
 
 
 def _shadow(img: Image.Image, canvas: Image.Image, xy: tuple[int, int], off: int = 10, blur: int = 12, a: int = 90) -> None:

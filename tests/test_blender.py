@@ -24,6 +24,10 @@ SCENE = {"kind": "verse", "lines": ["One little duck", "Swims in the pond"],
 
 
 def fake_blender(tmp_path: Path, version_line: str = "Blender 4.5.1") -> Path:
+    if sys.platform == "win32":  # a shell script cannot run on Windows; a batch file can
+        exe = tmp_path / "blender.bat"
+        exe.write_text(f"@echo off\r\necho {version_line}\r\n")
+        return exe
     exe = tmp_path / "blender"
     exe.write_text(f"#!/bin/sh\necho '{version_line}'\n")
     exe.chmod(exe.stat().st_mode | stat.S_IEXEC)

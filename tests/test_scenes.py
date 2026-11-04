@@ -240,6 +240,8 @@ def _scripted_with_scenes(ctx):
 
 
 def test_visuals_mixes_3d_and_2d_scenes_per_segment(ctx, tmp_path, monkeypatch):
+    monkeypatch.setattr("studio.quality.visual_mix.MIN_CHART_GAP", 0)  # these test scenes, not the chart cap
+    monkeypatch.setattr("studio.quality.visual_mix.MAX_CHARTS", 99)
     v = _scripted_with_scenes(ctx)
     calls = []
     monkeypatch.setattr(render3d, "render", _fake_render(calls))
@@ -271,6 +273,8 @@ def test_visuals_all_2d_never_touches_blender(ctx, monkeypatch):
 
 
 def test_3d_chart_replaces_the_2d_chart_and_keeps_its_source(ctx, monkeypatch):
+    monkeypatch.setattr("studio.quality.visual_mix.MIN_CHART_GAP", 0)  # these test scenes, not the chart cap
+    monkeypatch.setattr("studio.quality.visual_mix.MAX_CHARTS", 99)
     v = scripted_video(ctx)
     voice.run(ctx, v.id, tts=FakeTTS(), measure=lambda p: 8.0)
     calls = []
