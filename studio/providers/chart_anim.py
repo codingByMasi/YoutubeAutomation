@@ -66,7 +66,8 @@ def _line_frame(chart: dict, foot: str, prev: int, k: int, p: float, path: Path)
 def _number_frame(chart: dict, foot: str, p: float, path: Path) -> None:
     """Key figure counts up from 0 and swells slightly as it lands."""
     fig = charts._fig()
-    size = 160 + 20 * p
+    final = fmt(chart["values"][0], chart.get("unit", ""))
+    size = charts.fit_size(final, 160, min_size=60) * (1 + 0.125 * p)
     fig.text(0.5, 0.55, fmt(chart["values"][0] * p, chart.get("unit", "")), ha="center", va="center",
              color=brand.ACCENT, fontsize=size, fontweight="bold")
     fig.text(0.5, 0.32, chart["labels"][0], ha="center", va="center", color=brand.FG, fontsize=48, alpha=min(1, p * 2))
