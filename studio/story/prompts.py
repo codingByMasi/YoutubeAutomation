@@ -83,6 +83,17 @@ SOURCE_ASK = re.compile(
     r"\bsources?\b|\bcit(?:e|es|ed|ation|ations)\b|fact[_ ]?ids?\b|source_(?:ids?|url)|quote_snippet|url_or_note", re.I)
 
 
+# Field names only an old prompt template asked for. Plain words like "source" can appear in a topic or in facts
+# ("sources of revenue"), so they must never make a saved prompt look stale.
+OLD_SOURCE_FIELDS = re.compile(
+    r"source_(?:ids?|url)|fact[_ ]?ids\b|quote_snippet|url_or_note|`sources?`|public source", re.I)
+
+
+def is_old_source_prompt(text: str) -> bool:
+    """True if a saved prompt was written by an older version that asked for source fields."""
+    return bool(OLD_SOURCE_FIELDS.search(text or ""))
+
+
 def asks_for_sources(text: str) -> bool:
     """True if a prompt still asks for sources, citations or fact ids (owner decision: scripts carry none)."""
     return bool(SOURCE_ASK.search(text or ""))
