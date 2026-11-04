@@ -52,7 +52,7 @@ def _voice_chapters(engine, prof: dict, pkg: dict, rows: list[Segment], out: Pat
 
     def do_group(gi: int) -> tuple[int, dict]:
         idx = groups[gi]
-        texts = [segs[i]["narration"] for i in idx]
+        texts = [nar.spoken(segs[i]["narration"]) for i in idx]
         pro = nar.prosody_for(prof, nar.emotion_of(segs[idx[0]], idx[0])) if use_pro else None
         pads = {i: (nar.pause_after(prof, segs, i) if pause_flag else 0.0) for i in idx}
         key = nar.group_key(texts + [str(pads)], pro or {}, getattr(engine, "voice", ""), engine.name)
@@ -65,7 +65,7 @@ def _voice_chapters(engine, prof: dict, pkg: dict, rows: list[Segment], out: Pat
         if cuts is None:  # no usable word timing: one call per segment (still prosody, still cached)
             sw = []
             for i in idx:
-                engine.synth(segs[i]["narration"], seg_path(i))
+                engine.synth(nar.spoken(segs[i]["narration"]), seg_path(i))
                 sw.append([])
                 if pads[i] > 0:
                     nar.ffmpeg_cut(seg_path(i), tmp, 0, None, pads[i])
@@ -119,7 +119,7 @@ def run(ctx: Ctx, video_id: int, force: bool = False, tts: TTS | None = None,
         def voice_row(row: Segment) -> tuple[Segment, Path]:
             path = out / f"seg_{row.position:03d}.mp3"
             if force or not path.exists() or path.stat().st_size == 0:
-                engine.synth(row.narration, path)
+                engine.synth(nar.spoken(row.narration), path)
             return row, path
 
         # Synthesis waits on the network, so a few at once is much faster; results are kept in order.
