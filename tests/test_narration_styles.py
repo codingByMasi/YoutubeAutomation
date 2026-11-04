@@ -40,3 +40,13 @@ def test_history_prompt_has_comic_rules_and_no_sources():
     assert not prompts.asks_for_sources(text)
     assert "Calm explainer" in prompts.compose("script", profile.get("explainer"), topic="t", brief="b", style="s",
                                                outline="o")
+
+
+def test_align_words_restores_punctuation_and_splits_merged_words():
+    from studio.story import narration as nar
+    words = [(0.0, 0.5, "How"), (0.5, 3.5, "£68,373 end"), (3.5, 4.0, "up"), (4.0, 4.4, "It's"), (4.4, 6.4, "1757")]
+    out = nar.align_words(words, "How £68,373 end up? It's 1757.")
+    assert [w[2] for w in out] == ["How", "£68,373", "end", "up?", "It's", "1757."]
+    assert out[1][0] == 0.5 and out[2][1] == 3.5 and out[1][1] == out[2][0]  # the merged word's time is shared
+    assert abs(out[1][1] - 0.5) > 1.5  # "£68,373" keeps most of it
+    assert nar.align_words(words, "completely different text") == words  # no guessing
