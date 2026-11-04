@@ -283,11 +283,11 @@ def run(ctx: Ctx, video_id: int, force: bool = False) -> None:
                             "(see the Issues panel).", fg=typer.colors.YELLOW)
         if words is None:
             words, caption_source = (ref, "whisper") if ref else (None, "script")
-        words = words or captions.words_from_script(spans, [g["narration"] for g in segs])
-        sync = nar.sync_report(words, ref, [g["narration"] for g in segs]) if (ref and caption_source == "tts") else []
+        texts = [nar.spoken(g["narration"]) for g in segs]
+        words = words or captions.words_from_script(spans, texts)
+        sync = nar.sync_report(words, ref, texts) if (ref and caption_source == "tts") else []
         (out / "caption_sync.json").write_text(json.dumps(sync), encoding="utf-8")
-        cues = cues_from_words(words) if caption_source in ("whisper", "tts") else script_cues(
-            spans, [g["narration"] for g in segs])
+        cues = cues_from_words(words) if caption_source in ("whisper", "tts") else script_cues(spans, texts)
         chapters, prev = [], None
         for (start, _), g in zip(spans, segs):
             if g.get("chapter") and g["chapter"] != prev and start > 0:
