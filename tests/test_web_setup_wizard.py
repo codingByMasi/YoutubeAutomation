@@ -114,7 +114,8 @@ def test_every_setup_action_has_guided_steps():
     assert all(a in setup.HOWTO for a, _ in SECTIONS)
 
 
-def test_renderer_info_without_blender(ctx):
+def test_renderer_info_without_blender(ctx, monkeypatch):
+    monkeypatch.setattr(setup.blender, "find_blender", lambda configured="": None)  # even if this PC has Blender
     info = setup.renderer_info(ctx.settings)
     assert info["blender_ok"] is False and "Blender" in info["note"]
 

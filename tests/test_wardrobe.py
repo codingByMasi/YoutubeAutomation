@@ -111,7 +111,9 @@ def test_scene_clip_renders_in_costume(tmp_path):
 
 
 def test_preview_sheet_has_every_outfit():
-    pytest.importorskip("cairosvg")
+    from studio.util import svg
+    if not svg.available():
+        pytest.skip("no SVG renderer")
     from studio.history import preview
     img = preview.sheet("quill")
     assert img.width == preview.COLS * preview.CELL

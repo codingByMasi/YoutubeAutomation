@@ -155,6 +155,32 @@ def _renderer(ctx) -> None:
         _save(s.root, {"RENDERER": choice, "BLENDER_PATH": path})
 
 
+def _computer(ctx, show) -> None:
+    """Environment preflight with a Fix button per problem, so nothing needs the terminal."""
+    checks = setup.computer_checks(ctx.settings, network=bool(st.session_state.get("pf_net")))
+    worst = doctor.FAIL if any(c.level == doctor.FAIL for c in checks) else (
+        doctor.WARN if any(c.level == doctor.WARN for c in checks) else doctor.OK)
+    with st.expander(f"{ICON[worst]} This computer (programs, packages, models, fonts, disk)",
+                     expanded=worst != doctor.OK):
+        for n, c in enumerate(checks):
+            st.write(f"{ICON[c.level]} {c.message}")
+            if c.level == doctor.OK:
+                continue
+            if c.fix:
+                st.caption(c.fix)
+            if c.action and st.button("🔧 Fix this", key=f"pf_fix_{n}"):
+                with st.spinner("Fixing (installs and downloads can take a few minutes)..."):
+                    res = setup.fix_computer(ctx.settings, c.action)
+                show(res, "Fixed.")
+                if res.ok:
+                    st.rerun()
+        c1, c2 = st.columns(2)
+        c1.button("✅ Check again", key="pf_again")
+        if c2.button("🌐 Also test the internet", key="pf_net_btn"):
+            st.session_state["pf_net"] = True
+            st.rerun()
+
+
 def render(ctx_for, show) -> None:
     """Draw the Setup page."""
     ctx = ctx_for()
@@ -182,6 +208,7 @@ def render(ctx_for, show) -> None:
                 _signin(ctx, show)
             else:
                 handlers[action](ctx)
+    _computer(ctx, show)
     with st.expander("🎨 Picture style (2D or 3D)"):
         _renderer(ctx)
     st.caption("Back up or restore your channels and videos on the **Data** page.")

@@ -34,12 +34,9 @@ def missing_groups(svg: str) -> list[str]:
 
 
 def available() -> bool:
-    """True when cairosvg and the cairo library can be imported."""
-    try:
-        import cairosvg  # noqa: F401
-    except (ImportError, OSError):
-        return False
-    return True
+    """True when an SVG renderer (cairosvg or the resvg-py fallback) can really draw."""
+    from studio.util import svg
+    return svg.available()
 
 
 class SpriteBank:
@@ -71,9 +68,9 @@ class SpriteBank:
             src = self._source(name) if self.enabled else None
             if src is None:
                 return None
-            import cairosvg
+            from studio.util import svg
 
-            png = cairosvg.svg2png(bytestring=variant(src, eyes_closed, mouth_open).encode(), output_width=px)
+            png = svg.svg_to_png(variant(src, eyes_closed, mouth_open), px)
             self._png[key] = Image.open(io.BytesIO(png)).convert("RGBA")
         return self._png[key]
 
