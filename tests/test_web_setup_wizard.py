@@ -239,3 +239,17 @@ def test_setup_links_to_data_page(root, monkeypatch):
     at.sidebar.radio[0].set_value("Setup").run()
     next(b for b in at.button if b.key == "setup_data").click().run()
     assert not at.exception and at.sidebar.radio[0].value == "Data"
+
+
+def test_weak_script_warnings_only_below_the_block_line(tmp_path):
+    from types import SimpleNamespace
+
+    from studio.web import wizard_ui
+    ctx, v = SimpleNamespace(settings=SimpleNamespace(project_dir=lambda _id: tmp_path)), SimpleNamespace(id=1)
+    assert wizard_ui.weak_script_warnings(ctx, v) == []  # no quality check saved yet
+    (tmp_path / "qa.json").write_text(json.dumps({"score": 52, "warnings": ["Hook is 17s"]}), encoding="utf-8")
+    assert wizard_ui.weak_script_warnings(ctx, v) == ["Hook is 17s"]
+    (tmp_path / "qa.json").write_text(json.dumps({"score": 55, "warnings": ["x"]}), encoding="utf-8")
+    assert wizard_ui.weak_script_warnings(ctx, v) == []
+    (tmp_path / "qa.json").write_text("not json", encoding="utf-8")
+    assert wizard_ui.weak_script_warnings(ctx, v) == []
