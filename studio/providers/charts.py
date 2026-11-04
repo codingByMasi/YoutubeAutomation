@@ -63,8 +63,15 @@ def _fig():
     return fig
 
 
+def fit_size(text: str, max_size: int, width_frac: float = 0.88, min_size: int = 40) -> int:
+    """Largest bold font size (pt) up to `max_size` that keeps `text` inside `width_frac` of the frame width."""
+    inches = W / DPI * width_frac
+    return max(min_size, min(max_size, int(inches * 72 / (0.62 * max(len(text), 1)))))
+
+
 def _frame(fig, title: str, footnote: str) -> None:
-    fig.text(0.06, 0.9, title, color=brand.FG, fontsize=44, fontweight="bold", va="center")
+    lines = textwrap.wrap(title, 42)[:2] if title else [""]  # a long title wraps instead of running off the edge
+    fig.text(0.06, 0.9, "\n".join(lines), color=brand.FG, fontsize=44, fontweight="bold", va="center")
     fig.text(0.06, 0.05, textwrap.shorten(footnote, 150), color=brand.MUTED, fontsize=18, va="center")
 
 
@@ -167,7 +174,7 @@ def _flow(chart, foot, out: Path, stem: str) -> list[Path]:
 def _number(chart, foot, out: Path, stem: str) -> list[Path]:
     fig = _fig()
     text = fmt(chart["values"][0], chart.get("unit", ""))
-    size = max(60, min(180, int(1500 / max(len(text), 1) * 1.5)))  # keep the figure inside the frame
+    size = fit_size(text, 180, min_size=60)  # keep the figure inside the frame
     fig.text(0.5, 0.55, text, ha="center", va="center", color=brand.ACCENT, fontsize=size, fontweight="bold")
     fig.text(0.5, 0.32, chart["labels"][0], ha="center", va="center", color=brand.FG, fontsize=48)
     _frame(fig, chart.get("title", ""), foot)
