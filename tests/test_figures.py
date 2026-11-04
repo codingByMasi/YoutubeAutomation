@@ -128,3 +128,27 @@ def test_rule_fallback_casts_only_people_the_script_names_never_the_fixed_cast()
     text = "Hannibal paid the tax and counted the silver."
     assert autoscene._pick_cast(text, ["Hannibal"], 0) == ["Hannibal"]  # noqa: SLF001
     assert autoscene._pick_cast("Why did the taxes rise?", [], 3) == ["quill"]  # noqa: SLF001
+
+
+def test_characters_in_one_video_get_different_faces():
+    names = ["Gaius", "Dido", "Baal", "Tiro", "Hannibal", "Sophe", "Odo", "Nell", "Rolf", "Livia"]
+    faces = {tuple(figures.normalize({"name": n})["face"][k] for k in ("shape", "eyes", "brows", "nose", "mouth")) for n in names}
+    assert len(faces) >= 9  # same template, different faces
+    pics = {figures.draw({"name": n}, 120).tobytes() for n in names}
+    assert len(pics) == len(names)  # even undescribed people each get their own picture
+
+
+def test_script_face_words_win_and_unknown_words_fall_back():
+    n = figures.normalize({"name": "Hannibal", "face": {"nose": "hooked", "eyes": "sharp", "brows": "stern"}, "posture": "proud"})
+    assert (n["face"]["nose"], n["face"]["eyes"], n["face"]["brows"], n["face"]["posture"]) == ("hooked", "sharp", "stern", "proud")
+    odd = figures.normalize({"name": "Zed", "face": {"nose": "trunk"}})
+    assert odd["face"]["nose"] in figures.FACE_OPTIONS["nose"]
+    assert figures.normalize({"name": "Zed"}) == figures.normalize({"name": "Zed"})  # stable across scenes
+
+
+def test_every_face_option_and_posture_draws():
+    for part, options in figures.FACE_OPTIONS.items():
+        for o in options:
+            assert figures.draw({"name": "t", "face": {part: o}}, 80).getchannel("A").getbbox() is not None
+    for p in figures.POSTURES:
+        assert figures.draw({"name": "t", "posture": p}, 80).getchannel("A").getbbox() is not None
