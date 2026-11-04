@@ -4,7 +4,7 @@ Every `speech` line of a skit is spoken in its character's own voice (`cast.voic
 stable voice picked from the roster's voices). The lines are synthesised once in `visuals` (after the scenes are
 assigned), saved under `projects/<id>/speech/`, and their real length is stored in the line (`seconds`, `audio`).
 The scene renderer shows each bubble and moves the speaker's mouth with that audio; `build` mixes the lines into
-the narration track, with the narrator ducked while a character speaks (`line_times` is shared by both).
+the narration track, with the narrator silent while a character speaks (`line_times` is shared by both).
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from studio.util.logging import get_logger
 log = get_logger("speech_audio")
 GAP = 0.35  # seconds between two spoken lines
 LEAD = 0.5  # seconds before the first line
-DUCK = 0.3  # narrator volume while a character speaks
+DUCK = 0.0  # narrator volume while a character speaks (silent: two voices must never overlap)
 
 
 # Voices by what the script says about a character (all ids are used by the recurring cast, so they exist).
@@ -141,7 +141,7 @@ def synth_lines(settings, project_dir: Path, segments: list[dict], say=print,
 
 
 def mix_into_narration(narration: Path, segments: list[dict], spans: list[tuple[float, float]], out: Path) -> Path:
-    """Overlay the characters' lines on the narration track (narrator ducked while a line plays). Returns `out`, or
+    """Overlay the characters' lines on the narration track (narrator silenced while a line plays). Returns `out`, or
     `narration` unchanged when there is no line audio."""
     items: list[tuple[float, float, Path]] = []
     for (start, end), seg in zip(spans, segments, strict=False):
