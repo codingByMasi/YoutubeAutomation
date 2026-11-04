@@ -303,11 +303,22 @@ class Cast:
         return img
 
     def described(self, who: str) -> dict | None:
-        """The script's own description of this character, unless the name is one of the recurring cast."""
+        """The script's own description of this character; only the host (Quill) always stays the recurring cast.
+
+        A name that is not in the script's list (or not one of the recurring cast) is drawn from its own words,
+        never mapped to a fixed cast member: "Mir Jafar" or "the mapmaker" get a person of their own."""
         low = (who or "").strip().lower()
-        if low in cast.ROSTER or any(low == c["name"].lower() for c in cast.ROSTER.values()):
+        if low in ("quill", cast.ROSTER["quill"]["name"].lower()):
             return None
-        return self.chars.get(low)
+        found = self.chars.get(low)
+        if found is None and low:  # "mapmaker" <-> "Mapmaker Odo": one name contains the other
+            found = next((c for k, c in self.chars.items() if low in k or k in low), None)
+        if found is None:
+            for cid, c in cast.ROSTER.items():  # an undescribed recurring character keeps its own art
+                if low == cid or low == c["name"].lower():
+                    return None
+            found = {"name": who, "role": who}
+        return found
 
     def _from_spec(self, spec: dict, px: int, closed: bool, talking: bool, era: str) -> Image.Image:
         key = (str(spec.get("name", "")).lower(), px, closed, talking, era)
