@@ -591,3 +591,8 @@ Decisions: OpenUtau has no CLI renderer, so a voicebank "preview" is a clip expo
 ## 2026-11-04 Script screen stuck on "Nothing to answer"
 - Cause: `read_prompt` (PR #61) deleted any saved prompt that matched the word "source" anywhere, including data embedded in the prompt (an older outline with source or fact-id fields). The step then wrote a fresh prompt and the next read deleted it again, so the main panel was empty while the real request sat in Advanced.
 - Fix: the old-prompt check matches only old field names; a prompt just written is never dropped (`fresh=True`); an empty panel now shows a "Write the request for Claude" button instead of "Nothing to answer". Removed the "Pending: ... answer file" caption. The wizard forgets the selected video when the channel changes.
+
+## 2026-11-04 Characters follow the script, not the fixed cast
+- Cause: scripts that already carry scenes (project 8) never ran the scene-planning step, so `script.json` had no `characters`. Names such as "Mir Jafar" or "Ramesh" were then drawn from the fixed cast's headwear and props, and the recurring ids (`coin`, `dusty`...) always won over the script.
+- Fix: `visuals` asks Claude once (`characters` prompt) to describe every on-screen name the script has not described; `Cast.described` matches short or long names ("mapmaker" for "Mapmaker Odo"), lets a script description win over a recurring id, and draws an undescribed unknown name with `figures.draw` from its own words. Only Quill (host) always stays the recurring cast.
+- Not done: a script-chosen 3D style. Blender path only knows kids cast and chart scenes; it would need a style field in the script and a Blender builder for `figures` specs.
