@@ -528,3 +528,8 @@ finished minute, from e2e-test/quality-report.md) plus estimated owner minutes a
 - Titles: 10-15 accepted (was exactly 15).
 - Taste rules (total length, sentence length/rhythm, reading grade, words vs seconds) are warnings now (`checks.style_notes`); the quality gate still flags them. Banned phrases, sources, facts and loop rules still block.
 - Sources are optional for every channel type (decision, 2026-11-02): no script/outline/chart/scene/fact check blocks on missing sources any more, charts draw no footnote without one, and the prompts say sources are optional ("never invent a source"). A source given with a bad link or unknown id is no longer an error. Facts that have a `source_url` are still verified; unsourced facts are not.
+
+## 2026-11-04 Charts and stills are rare, everything moves
+- `studio/quality/visual_mix.py`: at most 3 charts per video, never within 3 segments of each other (extras dropped, noted in the log); pie charts are drawn as bar charts so they animate. Still stock photos are a fallback only (clips first, at most 2 per video). With `cast_scenes` on, a segment with no scene and no chart gets the default animated `lectern` cast scene.
+- Removed the "no chart for 90 s" warnings (script pacing, `chart_gaps`) and the "chart every 60-90 s" prompt rule; the script prompt now asks for charts only when a number needs to be seen.
+- Not changed: `flow` charts stay static (diagram work is in another thread); script-requested photo scenes (max 3) already have a camera move.

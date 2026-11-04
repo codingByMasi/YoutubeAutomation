@@ -14,13 +14,13 @@ from studio.providers import brand, chart_anim
 from studio.providers.charts import render_chart, source_line, text_card
 from studio.providers.footage import make_footage
 from studio.providers.images import make_images
-from studio.quality import rules
+from studio.quality import rules, visual_mix
 from studio.scenes import photo as photo_scene
 from studio.scenes import render3d
 from studio.scenes import stage as scene_stage
 from studio.scenes.budget import SceneBudget
 from studio.stages.base import get_video, run_stage
-from studio.stages.script import CHART_GAP_MAX, load_package, timeline, write_package
+from studio.stages.script import load_package, write_package
 from studio.stages.timing import shot_max_for, shots_needed, split_segment
 from studio.util import progress
 from studio.util.logging import get_logger
@@ -79,15 +79,8 @@ def scene_note(seg: dict, scene: dict, sources: list[dict]) -> str:
 
 
 def chart_gaps(segs: list[dict]) -> list[str]:
-    """Warn where more than CHART_GAP_MAX seconds pass without a chart."""
-    warns, last = [], 0.0
-    spans = timeline(segs)
-    for (start, _), seg in zip(spans, segs):
-        if seg.get("chart_data"):
-            if start - last > CHART_GAP_MAX:
-                warns.append(f"{start - last:.0f}s without a chart before {start / 60:.1f} min")
-            last = start
-    return warns
+    """Always empty: charts are rare by design (`quality/visual_mix.py`), so long stretches without one are fine."""
+    return []
 
 
 def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET) -> None:
@@ -123,6 +116,8 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
         clips_dir.mkdir(exist_ok=True)
         (out / "scenes").mkdir(exist_ok=True)
         pkg = load_package(ctx, video_id)
+        for note in visual_mix.limit_charts(pkg["segments"]):
+            log.info("Visual mix: %s", note)
         limits = rules.edit_limits(ctx.settings.root)
         new_assets: list[Asset] = []  # written in one short transaction after the slow work
         rows = {r.position: r for r in s.query(Segment).filter_by(video_id=video_id)}
@@ -157,6 +152,7 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
         cast_on = sprofile.enabled(sprof, "cast_scenes")
         cast_stage = cast_render.Cast(out / "cast") if cast_on else None
         faction0 = 0
+        stills = 0
         for pos, seg in enumerate(pkg["segments"], 1):
             left3d = None
             if budget.sec_per_frame and todo3d:
@@ -169,7 +165,7 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
             found = []
             drawn = None  # a cast scene (studio/history/render.py) replaces stock footage for this segment
             queries = story_visuals.queries_for(seg) if use_intent else seg["visual_keywords"]
-            photo_mode = None
+            photo_mode = cast_kind = None
             ask = story_photo.request(seg)
             if ask and images:  # the script asked for a real photo here (and only here)
                 try:
@@ -189,22 +185,26 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
                     rejected.append(f"segment {pos}: no usable photo for {ask['subject']!r}; drawn scene used")
             if drawn:
                 pass
-            elif cast_on and isinstance(seg.get("scene"), str) and seg["scene"] in cast_mod.SCENE_TYPES:
+            elif cast_on and (cast_kind := visual_mix.cast_scene_for(seg, cast_mod.SCENE_TYPES)):
                 audio = Path(rows[pos].audio_path) if pos in rows and rows[pos].audio_path else None
-                drawn = cast_render.render_scene(seg, duration, out / "cast" / f"cast_{pos:03d}.mp4", out / "cast",
+                drawn = cast_render.render_scene({**seg, "scene": cast_kind}, duration,
+                                                 out / "cast" / f"cast_{pos:03d}.mp4", out / "cast",
                                                  audio, faction0, cast_stage)
                 scene_counts["cast"] = scene_counts.get("cast", 0) + 1
             query = " ".join([str((seg.get("visual_intent") or {}).get("must_show") or ""), seg.get("narration", "")]) \
                 if scorer else ""
-            for k in range(0 if drawn else max(1, shots_needed(bg_seconds, shot_max=shot_max_for(pos, limits)))):
+            for _ in range(0 if drawn else max(1, shots_needed(bg_seconds, shot_max=shot_max_for(pos, limits)))):
                 # alternate video and photo so the picture type changes with every shot; fall back to the other
                 order = [("clip", stock, used), ("image", images, used_img)]
                 got = False
-                for kind, prov, seen in (order if k % 2 == 0 else order[::-1]):
+                for kind, prov, seen in order:  # clips first; a still photo only when no clip is found
+                    if kind == "image" and stills >= visual_mix.STOCK_STILL_MAX:
+                        continue
                     clip = find_valid(prov, queries, seen, kind, hashes, rejected, avoid, scorer,
                                       query) if prov else None
                     if clip:
                         got = True
+                        stills += kind == "image"
                         found.append((kind, clip))
                         new_assets.append(Asset(video_id=video_id, kind=kind, path=str(clip.path),
                                     source=f"{clip.provider}: {clip.author}".strip(), licence=clip.licence,
@@ -217,9 +217,9 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
                            scene={"kind": "photo", "mode": "photo", "fell_back": False})
             elif drawn:
                 vis.update(kind="scene", path=str(drawn), paths=[str(drawn)], scene_clip=str(drawn),
-                           scene={"kind": seg["scene"], "mode": "cast", "fell_back": False})
+                           scene={"kind": cast_kind, "mode": "cast", "fell_back": False})
                 new_assets.append(Asset(video_id=video_id, kind="scene", path=str(drawn), licence=OWN_LICENCE,
-                                        source=f"generated cast scene ({seg['scene']})"))
+                                        source=f"generated cast scene ({cast_kind})"))
             elif found:
                 vis.update(kind=found[0][0], path=str(found[0][1].path), paths=[str(c.path) for _, c in found])
             else:

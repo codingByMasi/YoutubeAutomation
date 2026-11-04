@@ -68,7 +68,8 @@ You are writing a complete YouTube video package for a faceless, narrated explai
 - Ending: the last segment pays off the hook in one sentence (call back to its first line), then a specific
   call to action tied to this topic: ask one concrete question to answer in the comments and name what the
   next video covers. A generic "like and subscribe" alone is not enough.
-- A chart, diagram or number card (`chart_data`) at least every 60-90 seconds, and for every major figure.
+- Charts are RARE: `chart_data` only where a number cannot be understood without seeing it, at most 3 per video and never
+  within 3 segments of each other (extras are dropped). Everything else is animated cast scenes or footage, never stills.
 - Optional `scene` (leave it `null` when a plain chart or footage is enough): a short animated scene that the owner can
   draw in 3D or 2D. Use it for at most one segment in four, only where it explains something better than footage.
   Kinds and their `items`: `timeline` (2-10 `{{label: "1066", text: "Norman conquest"}}`, in order, `source_ids` optional),

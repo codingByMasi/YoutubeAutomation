@@ -94,13 +94,14 @@ class FakeStock:
                          "Pexels License", "Pexels")
 
 
-def test_visuals_fallback_cards_and_licences(ctx, tmp_path):
+def test_visuals_fallback_cards_and_licences(ctx, tmp_path, monkeypatch):
+    monkeypatch.setattr("studio.quality.visual_mix.MIN_CHART_GAP", 0)  # this tests cards and licences, not the cap
     v = scripted_video(ctx)
     voice.run(ctx, v.id, tts=FakeTTS(), measure=lambda p: 8.0)
     visuals.run(ctx, v.id, stock=FakeStock(tmp_path, hits={1, 3}))
     assets = ctx.session.query(Asset).filter_by(video_id=v.id).all()
     kinds = [a.kind for a in assets]
-    assert kinds.count("clip") == 2 and kinds.count("card") == 4 and kinds.count("chart") >= 3
+    assert kinds.count("clip") == 2 and kinds.count("card") == 4 and kinds.count("chart") >= 1
     assert all(a.licence and a.licence != "unknown" for a in assets)
     clip = next(a for a in assets if a.kind == "clip")
     assert "Pexels" in clip.licence and clip.attribution_url.startswith("https://pexels.com/video/")
@@ -319,7 +320,7 @@ def test_make_images_selection(ctx):
     assert make_images(s)[0] == "Pixabay images, Wikimedia Commons"
 
 
-def test_visuals_mixes_clips_and_photos_without_shot_cap(ctx, tmp_path):
+def test_visuals_prefers_clips_over_photos_without_shot_cap(ctx, tmp_path):
     v = scripted_video(ctx)
     voice.run(ctx, v.id, tts=FakeTTS(), measure=lambda p: 60.0)  # long segments: many shots each, past the old cap of 4
 
@@ -338,7 +339,7 @@ def test_visuals_mixes_clips_and_photos_without_shot_cap(ctx, tmp_path):
     # 60 s of background: one shot per 5 s, or per 3 s in the hook (segment 1)
     assert plain and all(len(g["visual"]["paths"]) == (20 if i == 1 else 12) for i, g in plain)
     kinds = {a.kind for a in ctx.session.query(Asset).filter_by(video_id=v.id)}
-    assert {"clip", "image"} <= kinds
+    assert "clip" in kinds and "image" not in kinds  # still photos are only a fallback when no clip is found
     assert all(a.licence for a in ctx.session.query(Asset).filter_by(video_id=v.id))
 
 
