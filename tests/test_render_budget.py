@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import stat
+import sys
 from pathlib import Path
 
 import pytest
@@ -18,6 +19,10 @@ CHART = {"kind": "chart3d", "title": "t", "items": [{"label": "a", "value": 1, "
 
 
 def sleeper(tmp_path: Path, seconds: int = 30) -> Path:
+    if sys.platform == "win32":  # shell scripts cannot run on Windows; a batch file can
+        exe = tmp_path / "blender.bat"
+        exe.write_text(f"@echo off\r\nping -n {seconds + 1} 127.0.0.1 >nul\r\n")
+        return exe
     exe = tmp_path / "blender"
     exe.write_text(f"#!/bin/sh\nsleep {seconds}\n")
     exe.chmod(exe.stat().st_mode | stat.S_IEXEC)
@@ -46,9 +51,15 @@ def test_render_frames_cancel_stops_and_reports(tmp_path):
 
 def test_render_frames_reports_progress(tmp_path):
     seen = []
-    exe = tmp_path / "blender"
-    exe.write_text("#!/bin/sh\nmkdir -p \"$(dirname \"$6\")\"\nd=$(dirname \"$6\")\ntouch $d/f_0001.png\nsleep 0.5\n")
-    exe.chmod(exe.stat().st_mode | stat.S_IEXEC)
+    if sys.platform == "win32":
+        exe = tmp_path / "blender.bat"
+        exe.write_text('@echo off\r\nmkdir "%~dp6" 2>nul\r\ntype nul > "%~dp6f_0001.png"\r\n'
+                       'ping -n 2 127.0.0.1 >nul\r\n')
+    else:
+        exe = tmp_path / "blender"
+        exe.write_text("#!/bin/sh\nmkdir -p \"$(dirname \"$6\")\"\nd=$(dirname \"$6\")\n"
+                       "touch $d/f_0001.png\nsleep 0.5\n")
+        exe.chmod(exe.stat().st_mode | stat.S_IEXEC)
     provider.render_frames(exe, cfg(), tmp_path / "f", on_frame=lambda d, t: seen.append((d, t)))
     assert seen and seen[0][1] == 30 and seen[-1][0] >= 1
 
