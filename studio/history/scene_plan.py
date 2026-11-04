@@ -13,7 +13,7 @@ from pathlib import Path
 from studio import llm
 from studio.config import Settings
 from studio.errors import PendingLLMResponse
-from studio.history import autoscene, cast
+from studio.history import autoscene, cast, maps
 
 ONE_LINE = "No scenes assigned for this script."
 
@@ -115,6 +115,8 @@ def merge(segments: list[dict], data: dict, store: dict | None = None) -> None:
                 key = str(p.get("label", "")).lower()
                 if key in autoscene.PLACES:
                     pts.append({"x": autoscene.PLACES[key][0], "y": autoscene.PLACES[key][1], "label": key.title()})
+                elif any(key in reg["places"] for reg in maps.REGIONS.values()):  # positioned by maps.py when drawn
+                    pts.append({"x": 0.5, "y": 0.5, "label": key.title()})
             sd["points"] = pts or [{"x": autoscene.PLACES[k][0], "y": autoscene.PLACES[k][1], "label": k.title()}
                                    for k in autoscene.places_in(str(seg.get("narration", "")))[:4]]
         if sd and not seg.get("scene_data"):
