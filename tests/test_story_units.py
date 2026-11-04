@@ -379,3 +379,28 @@ def test_replace_package_is_atomic_and_numbered(ctx, monkeypatch):
     monkeypatch.undo()
     assert json.loads((out / "script.json").read_text())["segments"][0]["narration"] == "A brand new opening line."
     assert ctx.session.query(Segment).filter_by(video_id=v.id, position=1).one().narration == "A brand new opening line."  # noqa: E501
+
+
+def test_voice_segments_fit_their_real_seconds_so_captions_cannot_drift(tmp_path):
+    """Joined narration must be exactly as long as the sum of real_seconds (the caption and picture timeline)."""
+    import shutil
+    import subprocess
+
+    import pytest
+
+    from studio.stages.build import fit_voice_cmd
+    from studio.util import ffmpeg
+    if not shutil.which("ffmpeg"):
+        pytest.skip("ffmpeg not installed")
+    real, wavs = [2.037, 1.5, 2.6, 0.9], []
+    for i, sec in enumerate(real):
+        mp3 = tmp_path / f"s{i}.mp3"
+        subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", "sine=f=300:d=2", "-c:a", "libmp3lame",
+                        str(mp3)], check=True)
+        cmd = fit_voice_cmd(mp3, sec, tmp_path / f"f{i}.wav")
+        subprocess.run(cmd, check=True, capture_output=True)
+        wavs.append(tmp_path / f"f{i}.wav")
+    out = tmp_path / "n.wav"
+    subprocess.run(ffmpeg.audio_concat_cmd(ffmpeg.concat_list(wavs, tmp_path / "l.txt"), out), check=True,
+                   capture_output=True)
+    assert abs(ffmpeg.probe_duration(out) - sum(real)) < 0.01
