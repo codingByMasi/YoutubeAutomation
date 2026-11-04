@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import shutil
-import subprocess
 import sys
 from pathlib import Path
 
@@ -42,8 +41,7 @@ def render_scene(exe: Path, scene: dict, audio: Path, narration: float, out: Pat
 
     dur = scene_seconds(narration)
     frames = provider.render_frames(exe, scene_config(scene, dur, size, fps, cam), work)
-    proc = subprocess.Popen(ff.low_memory_cmd(_scene_cmd(audio, dur, size[0], size[1], fps, out)),
-                            stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+    proc = ff.popen_raw(_scene_cmd(audio, dur, size[0], size[1], fps, out))
     n = scene["visual"].get("count", len(scene["visual"]["characters"]))
     try:
         for f in range(round(dur * fps)):

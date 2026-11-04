@@ -72,6 +72,17 @@ def low_memory_cmd(cmd: list[str]) -> list[str]:
     return [*cmd[:-1], "-x264-params", f"threads={threads}:lookahead_threads=1:rc-lookahead=10", cmd[-1]]
 
 
+def popen_raw(cmd: list[str]) -> subprocess.Popen:
+    """Start ffmpeg reading raw frames from our stdin.
+
+    stderr is a pipe nobody reads while frames are written, and ffmpeg's banner plus progress lines fill a Windows
+    pipe within seconds, which blocks ffmpeg and then us (the render "hangs"). Quiet logging keeps it empty, so only
+    real errors reach the pipe and are read after the last frame.
+    """
+    quiet = [cmd[0], "-hide_banner", "-nostats", "-loglevel", "error", *cmd[1:]]
+    return subprocess.Popen(low_memory_cmd(quiet), stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+
+
 def run(cmd: list[str], what: str) -> None:
     """Run an ffmpeg command; on failure show the tail of stderr."""
     cmd = low_memory_cmd(cmd)
