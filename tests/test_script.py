@@ -35,8 +35,11 @@ def test_sample_package_is_valid():
 
 def test_title_count_and_single_pick():
     d = pkg()
-    d["titles"] = d["titles"][:9]
-    assert any("15 titles" in p for p in sc.validate_package(d))
+    d["titles"] = d["titles"][:3]
+    assert sc.validate_package(d) == []  # fewer than 15 titles is only a warning
+    assert any("only 3 titles" in w for w in sc.soft_warnings(d))
+    d["titles"] = []
+    assert any("no titles" in p for p in sc.validate_package(d))
     d = pkg()
     d["titles"][1]["is_pick"] = True
     assert sc.validate_package(d) == []  # two picks: the first is kept, the studio fixes it
@@ -175,3 +178,36 @@ def test_charts_do_not_draw_sources_and_do_not_need_them(tmp_path):
         charts.render_chart({"type": "number", "title": "T", "value": 5}, [], tmp_path, "b")
     finally:
         charts.RENDERERS["number"] = orig
+
+
+def test_facts_and_sources_never_block_a_script():
+    """The pasted script from the bug report: 3 titles, fact ids that exist nowhere, figures and chart values."""
+    d = pkg()
+    d["titles"] = d["titles"][:3]
+    d["sources"] = []
+    for seg, fid in zip(d["segments"], ["s4", "s6", "s8", "s1", "s10"]):
+        seg["fact_ids"] = [fid, "s2"]
+        seg["narration"] += " It took 450,000 people and 476 ships, about 98 percent of the 225 total."
+        seg["chart_data"] = {"type": "bar", "title": "Ships", "labels": ["a", "b"], "values": [225, 165500],
+                             "unit": "n", "fact_ids": [fid], "source_ids": ["nope"]}
+    from studio.story.profile import for_channel  # noqa: F401
+    assert sc.validate_package(d) == []
+    for prof in ({"fact_ledger": True}, None):
+        assert sc.validate_package(d, prof, []) == []
+    assert "Sources" not in sc.render_markdown(d)
+
+
+def test_tolerant_package_tolerates_old_shapes():
+    from studio.stages.script import tolerant_package
+
+    pkg = tolerant_package({"segments": ["plain text", 7, {"narration": "n", "scene": "skit", "chart_data": "x",
+                                                            "visual": []},
+                                          {"narration": "m", "scene": {"kind": "map"}, "chart_data": {"type": "bar"}}]})
+    segs = pkg["segments"]
+    assert [g["narration"] for g in segs] == ["plain text", "n", "m"]
+    # nothing is lost: wrong-typed values are kept aside and missing timing/keywords are filled in
+    assert segs[1]["scene"] == "skit" and segs[1]["_unreadable"] == {"chart_data": "x", "visual": []}
+    assert segs[0]["est_seconds"] > 0 and segs[0]["visual_keywords"]
+    assert segs[2]["scene"] == {"kind": "map"} and segs[2]["chart_data"] == {"type": "bar"}
+    assert tolerant_package(None) == {"segments": []}
+    assert tolerant_package({"title": "t"})["segments"] == []

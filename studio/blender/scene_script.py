@@ -573,11 +573,79 @@ def _build_analyst(root, cfg, n_frames, sc, fps):
                 o.keyframe_insert(path, frame=f)
 
 
+def _pick_clip(cfg, names):
+    """Name of the animation clip to play for cfg["action"]: the channel's override, a keyword match, else the first."""
+    want = (cfg.get("clip") or "").lower()
+    if want:
+        for n in names:
+            if want in n.lower():
+                return n
+    for word in cfg.get("clip_words") or ("idle",):
+        for n in names:
+            if word in n.lower():
+                return n
+    return names[0] if names else None
+
+
+def _build_model(root, cfg, n_frames, sc, fps):
+    """Load the mascot's glTF model (a free CC0 character), size it to 2 units, stand it on the floor and loop
+    the clip that suits the action. Returns True on success; the caller falls back to the built-in shapes."""
+    path = cfg["mascot"]["model"]
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=path)
+    new = [o for o in bpy.data.objects if o not in before]
+    meshes = [o for o in new if o.type == "MESH"]
+    if not meshes:
+        return False
+    bpy.context.view_layer.update()
+    pts = [o.matrix_world @ Vector(c) for o in meshes for c in o.bound_box]
+    lo = Vector((min(p.x for p in pts), min(p.y for p in pts), min(p.z for p in pts)))
+    hi = Vector((max(p.x for p in pts), max(p.y for p in pts), max(p.z for p in pts)))
+    k = 2.0 * float(cfg["mascot"].get("model_scale") or 1.0) / max(hi.z - lo.z, 1e-6)
+    holder = bpy.data.objects.new("model", None)
+    bpy.context.collection.objects.link(holder)
+    holder.parent = root
+    holder.scale = (k, k, k)
+    holder.location = (-(lo.x + hi.x) / 2 * k, -(lo.y + hi.y) / 2 * k, -lo.z * k)
+    for o in new:
+        if o.parent is None:
+            o.parent = holder
+    names = [a.name for a in bpy.data.actions]
+    clip = _pick_clip(cfg, names)
+    target = next((o for o in new if o.type == "ARMATURE"), None) or next(
+        (o for o in new if o.animation_data), None)
+    if clip and target is not None:
+        act = bpy.data.actions[clip]
+        if target.animation_data is None:
+            target.animation_data_create()
+        target.animation_data.action = None
+        for track in list(target.animation_data.nla_tracks):  # the importer's own tracks would play on top
+            target.animation_data.nla_tracks.remove(track)
+        strip = target.animation_data.nla_tracks.new().strips.new(clip, 1, act)
+        length = max(act.frame_range[1] - act.frame_range[0], 1.0)
+        strip.repeat = max(1.0, math.ceil((n_frames + 1) / length))
+    return True
+
+
 def build_host(sc, cfg, n_frames):
     """The host: a stylised human analyst, or a mascot (coin, owl, robot, piggy, bull) with floating hands."""
     kind = (cfg.get("mascot") or {}).get("kind", "coin")
     root = bpy.data.objects.new("host", None)
     bpy.context.collection.objects.link(root)
+    if (cfg.get("mascot") or {}).get("model"):  # optional real character; built-in shapes if it cannot load
+        try:
+            if _build_model(root, cfg, n_frames, sc, sc.render.fps):
+                for f in range(1, n_frames + 1):
+                    P = host_pose(cfg.get("action", "present"), (f - 1) / sc.render.fps)
+                    root.location = (P["x"], 0, 0)
+                    root.rotation_euler = (0, 0, P["yaw"])
+                    for path in ("location", "rotation_euler"):
+                        root.keyframe_insert(path, frame=f)
+                return root
+        except Exception as exc:  # noqa: BLE001 - any import problem means "use the shapes"
+            print("character model failed to load, using shapes:", exc)
+        for o in list(root.children):
+            bpy.data.objects.remove(o)
     if kind == "analyst":
         _build_analyst(root, cfg, n_frames, sc, sc.render.fps)
         return root
@@ -814,9 +882,9 @@ def main(cfg):
     wanted = os.environ.get("STUDIO_BLENDER_ENGINE") or cfg.get("engine", "BLENDER_EEVEE_NEXT")
     sc.render.engine = pick_engine(sc, wanted)
     if sc.render.engine == "CYCLES":  # only used for headless tests without a GPU
-        sc.cycles.samples, sc.cycles.device = cfg.get("samples", 8), "CPU"
+        sc.cycles.samples, sc.cycles.device = min(cfg.get("samples", 8), 32), "CPU"
     elif hasattr(sc, "eevee") and hasattr(sc.eevee, "taa_render_samples"):
-        sc.eevee.taa_render_samples = 16
+        sc.eevee.taa_render_samples = cfg.get("samples", 16)
     sc.view_settings.view_transform = "Standard"  # flat bright colours, not the filmic look
     if cfg.get("kind") == "scene":
         build_scene(cfg, n_frames, fps)

@@ -9,18 +9,17 @@ You are writing a complete YouTube video package for a faceless, narrated explai
 # Style guide (from SPEC.md section 9)
 {style}
 
+{narration_block}
+
 # Hook formula library
 {hooks}
 
-# Retention outline (follow it: its hook, open loops, beat order, ending and sources)
+# Retention outline (follow it: its hook, open loops, beat order and ending)
 {outline}
 
-# Verified facts and recent videos (story engine)
-{facts_block}
-
-- When a facts list is given: every number in the narration and every chart value comes from a fact; cite its id in
-  the segment's `fact_ids` (and the chart's `fact_ids`). Unverified facts only with `is_estimate` true and wording
-  such as "about" or "an estimated". Never invent figures.
+# Story engine notes
+- Use real, well-known figures; word estimates as estimates ("about", "roughly"). Never invent figures. Keep the
+  script plain narration: no references, footnotes or ids.
 - When a plan is given: use its loop ids in `plants_loop` / `pays_loop` (two planted in the first 60 seconds, payoffs
   spread out and 1-3 minutes after the plant), its chosen hook, and its chapter order.
 - Add per segment: `visual_intent` {{"shot_type": "wide|close|detail|map|chart|text", "must_show": "...", "avoid": "..."}}
@@ -37,9 +36,7 @@ You are writing a complete YouTube video package for a faceless, narrated explai
 # Hard rules
 - Original analysis only. Do not copy or closely paraphrase any existing video, script or article.
   Explain the money flow in your own structure, with your own examples and comparisons.
-- Sources are optional. If a chart or figure has one, list it in `sources` and cite it with `source_ids` (annual
-  report, filing, reputable article); if not, leave `sources` and `source_ids` empty. Never invent a source.
-  Label estimates as estimates (`"is_estimate": true`). No investment advice; no guarantees.
+- Label estimates as estimates (`"is_estimate": true`). No investment advice; no guarantees.
 - Banned phrases anywhere: {banned}.
 - Titles: exactly 15, each under 70 characters, one clear promise, no ALL-CAPS words longer than
   3 letters, no claims the video cannot back up. Mark exactly one `"is_pick": true`.
@@ -53,7 +50,7 @@ You are writing a complete YouTube video package for a faceless, narrated explai
 - Storytelling arc, in order: hook; the familiar situation and what is at stake; the money flow in 2-4 steps,
   each with a surprising figure; the complication or weak point; the payoff that answers the hook; a one-sentence
   takeaway; the call to action. Use the `chapter` field to name each part (short, viewer-facing).
-- Open loops: in the first 60 seconds plant at least two teasers that are paid off later ("The third source is
+- Open loops: in the first 60 seconds plant at least two teasers that are paid off later ("The third profit stream is
   the one nobody notices", "And that is not even where the real profit hides"). Each payoff should plant the
   next teaser. Describe each teaser in the segment's `open_loop` field (empty string if none).
 - `beat` must be exactly one of: `question`, `reveal`, `example`, `pattern_break`, or `null` for a plain explanatory
@@ -72,10 +69,10 @@ You are writing a complete YouTube video package for a faceless, narrated explai
   within 3 segments of each other (extras are dropped). Everything else is animated cast scenes or footage, never stills.
 - Optional `scene` (leave it `null` when a plain chart or footage is enough): a short animated scene that the owner can
   draw in 3D or 2D. Use it for at most one segment in four, only where it explains something better than footage.
-  Kinds and their `items`: `timeline` (2-10 `{{label: "1066", text: "Norman conquest"}}`, in order, `source_ids` optional),
+  Kinds and their `items`: `timeline` (2-10 `{{label: "1066", text: "Norman conquest"}}`, in order),
   `map` (2-10 places in route order, `{{label, x, y}}` with x and y between 0 and 1: a schematic map, not real
   geography), `artifact` (exactly one `{{label, shape}}`, shape coin, column, vase or box), `chart3d` (bars
-  from the segment's bar/line `chart_data`; give `items` `{{label, value}}` plus `source_ids` only if there is no chart_data).
+  from the segment's bar/line `chart_data`; give `items` `{{label, value}}` if there is no chart_data).
   `style` is "" (follow the video's setting), "2d" or "3d".
 - Typical total length is {min_minutes}-{max_minutes} minutes at about 150 spoken words per minute; go longer if the
   topic needs it. There is no maximum length: never cut the money flow short to fit.
@@ -98,7 +95,6 @@ You are writing a complete YouTube video package for a faceless, narrated explai
   "thumbnail_texts": ["3-5 words", "3-5 words", "3-5 words"],
   "description_summary": "Two short lines summarising the video.",
   "tags": ["10-15 tags"],
-  "sources": [{{"id": "s1", "title": "Carnival Corp 2025 Annual Report", "url_or_note": "https://..."}}],
   "segments": [
     {{
       "chapter": "The $300 question",
@@ -121,7 +117,6 @@ You are writing a complete YouTube video package for a faceless, narrated explai
         "labels": ["Tickets", "Onboard spending"],
         "values": [65, 35],
         "unit": "%",
-        "source_ids": ["s1"],
         "is_estimate": false
       }},
       "scene": null

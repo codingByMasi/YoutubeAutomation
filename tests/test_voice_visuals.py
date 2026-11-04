@@ -351,3 +351,28 @@ def test_image_source_failure_is_skipped(tmp_path):
         def find(self, kw, ex):
             raise StudioError("down", "network", "retry")
     assert ImageSearch([Down()]).find(["x"], set()) is None
+
+
+def test_cast_segments_keep_their_visual_for_the_render_report(ctx, monkeypatch):
+    """Regression: cast scenes work on a copy of the segment, so `visual` was lost and the report raised KeyError."""
+    from studio.history import cast as cast_mod
+    from studio.history import render as cast_render
+    from studio.story import profile as sprofile
+    v = scripted_video(ctx)
+    voice.run(ctx, v.id, tts=FakeTTS(), measure=lambda p: 8.0)
+    pkg = sc.load_package(ctx, v.id)
+    scene_type = sorted(cast_mod.SCENE_TYPES)[0]
+    for g in pkg["segments"]:
+        g["scene"] = scene_type
+    sc.write_package(ctx, v.id, pkg)
+    monkeypatch.setattr(sprofile, "enabled", lambda prof, key: key == "cast_scenes")
+    monkeypatch.setattr(cast_render, "Cast", lambda *a, **k: object())
+
+    def fake_scene(seg, duration, out, *a, **k):
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_bytes(b"x")
+        return out
+    monkeypatch.setattr(cast_render, "render_scene", fake_scene)
+    visuals.run(ctx, v.id)
+    segs = sc.load_package(ctx, v.id)["segments"]
+    assert all(g["visual"]["scene"]["mode"] == "cast" for g in segs)

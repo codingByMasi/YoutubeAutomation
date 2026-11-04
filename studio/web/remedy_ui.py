@@ -19,11 +19,23 @@ def error_panel(error: str, *, key: str, ctx=None, log: str = "", retry: Callabl
     is missing are hidden, so every page can use this with whatever it can re-run.
     """
     dx = rem.diagnose(error, can_retry=retry is not None)
-    st.error(f"❌ {dx.title}\n\n{error}")
+    st.error(f"❌ {dx.title}\n\n{rem.plain_message(error, dx.kind)}")
+    with st.expander("Technical details"):
+        st.code(error, language="text", wrap_lines=True)
+    outcome: svc.Outcome | None = None
+    root = getattr(getattr(ctx, "settings", None), "root", None)
+    if root is not None and st.button("🔧 Fix this", key=f"fixthis_{key}", type="primary"):
+        res = rem.fix_this(root, error, log)
+        (st.info if res.ok else st.warning)(res.message)
+        if res.data:
+            st.code(res.data[0], language="text", wrap_lines=True)
+        if res.retry and retry is not None:
+            with st.spinner("Trying the step again..."):
+                outcome = retry()
+            (st.success("✅ Fixed. The step now works.") if outcome.ok else st.warning("Still failing."))
     funcs = {rem.RETRY: retry, rem.RETRY_DRAFT: retry_draft, rem.RETRY_FORCE: retry_force}
     shown = [r for r in dx.remedies if r not in funcs or funcs[r] is not None]
     cols = st.columns(len(shown) or 1)
-    outcome: svc.Outcome | None = None
     for col, r in zip(cols, shown, strict=False):
         if not col.button(rem.LABELS[r], key=f"fix_{key}_{r}"):
             continue

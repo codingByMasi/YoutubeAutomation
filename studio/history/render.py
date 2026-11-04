@@ -17,12 +17,13 @@ import subprocess
 from pathlib import Path
 
 import numpy as np
-from PIL import Image, ImageChops, ImageDraw, ImageFont
+from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
 from studio.errors import StudioError
-from studio.history import cast
+from studio.history import cast, figures, speech_audio, wardrobe
 from studio.kids.sprites import SpriteBank, blink
 from studio.util import ffmpeg as ff
+from studio.util import fonts
 
 W, H, FPS = 1280, 720, 24
 INK = (43, 43, 61)
@@ -33,9 +34,7 @@ SEA = (176, 205, 210)
 LAND = (222, 204, 160)
 LAND_EDGE = (150, 122, 76)
 RED = (192, 57, 43)
-BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf"
-SANS = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-BACKDROPS = ("parchment", "mountains", "hall", "night")
+BACKDROPS = ("parchment", "mountains", "hall", "night", "snow", "field", "market", "plain", "sea")
 DEFAULT_BACKDROP = {"lectern": "parchment", "skit": "hall", "map": "parchment", "diagram": "parchment",
                     "easel": "parchment", "archive": "parchment", "calendar": "parchment", "silhouette": "night",
                     "title": "night"}
@@ -43,13 +42,10 @@ _fonts: dict[tuple[str, int], ImageFont.FreeTypeFont] = {}
 
 
 def font(size: int, serif: bool = True) -> ImageFont.FreeTypeFont:
-    """Cached bold font (serif for titles, sans for labels); falls back to Pillow's default."""
+    """Cached bold font (serif for titles, sans for labels), the same size on every OS."""
     key = ("s" if serif else "n", size)
     if key not in _fonts:
-        try:
-            _fonts[key] = ImageFont.truetype(BOLD if serif else SANS, size)
-        except OSError:
-            _fonts[key] = ImageFont.load_default()
+        _fonts[key] = fonts.load(size, serif)
     return _fonts[key]
 
 
@@ -151,7 +147,82 @@ def _parchment() -> Image.Image:
     return _vignette(img, 0.4)
 
 
-_BACK = {"parchment": _parchment, "mountains": _mountains, "hall": _hall, "night": _night}
+def _snow() -> Image.Image:
+    """A snowy pass: pale sky, layered white ridges, a trampled path."""
+    img = _gradient((176, 196, 220), (236, 242, 250))
+    rng = random.Random(41)
+    for base, amp, col in [(0.46, 90, (196, 208, 230)), (0.58, 80, (222, 230, 244)), (0.7, 60, (244, 247, 252))]:
+        pts = _ridge(rng, H * base, amp)
+        ImageDraw.Draw(img).polygon([*pts, (W, H), (0, H)], fill=col)
+    d = ImageDraw.Draw(img)
+    for _ in range(14):  # dark pines
+        x, y = rng.randint(0, W), rng.randint(int(H * 0.55), int(H * 0.8))
+        for k in range(3):
+            d.polygon([(x - 26 + k * 4, y - k * 26), (x, y - 46 - k * 26), (x + 26 - k * 4, y - k * 26)], fill=(52, 84, 84))
+    d.rectangle([0, int(H * 0.84), W, H], fill=(250, 252, 255))
+    d.polygon([(0, H), (W * 0.35, int(H * 0.84)), (W * 0.55, int(H * 0.84)), (W * 0.4, H)], fill=(214, 224, 240))
+    return _vignette(img, 0.25)
+
+
+def _field() -> Image.Image:
+    """A green plain with a river and far blue mountains (a battlefield or a march)."""
+    img = _gradient((150, 206, 238), (222, 240, 250))
+    rng = random.Random(77)
+    pts = _ridge(rng, H * 0.42, 40)
+    d = ImageDraw.Draw(img)
+    d.polygon([*pts, (W, H), (0, H)], fill=(146, 168, 204))
+    pts2 = _ridge(rng, H * 0.47, 22)
+    d.polygon([*pts2, (W, H), (0, H)], fill=(118, 160, 134))
+    d.rectangle([0, int(H * 0.5), W, H], fill=(120, 176, 84))
+    d.polygon([(0, int(H * 0.58)), (W, int(H * 0.54)), (W, int(H * 0.62)), (0, int(H * 0.68))], fill=(110, 178, 218))
+    d.rectangle([0, int(H * 0.84), W, H], fill=(96, 154, 66))
+    for _ in range(60):
+        x, y = rng.randint(0, W), rng.randint(int(H * 0.7), H)
+        d.line([(x, y), (x + 3, y - 12)], fill=(78, 138, 54), width=3)
+    return _vignette(img, 0.25)
+
+
+def _market() -> Image.Image:
+    """A sunny sandy square: pale wall, banner posts, a wooden stage."""
+    img = _gradient((250, 226, 172), (236, 204, 144))
+    d = ImageDraw.Draw(img)
+    d.rectangle([0, 0, W, int(H * 0.5)], fill=(176, 160, 138))
+    for x in range(0, W, 90):  # rock/wall texture
+        d.rectangle([x, 0, x + 60, int(H * 0.5)], fill=(166 - x % 9, 150, 128))
+    d.rectangle([0, int(H * 0.5), W, H], fill=(226, 200, 134))
+    d.rectangle([80, int(H * 0.52), W - 80, int(H * 0.6)], fill=(214, 170, 96))
+    d.rectangle([80, int(H * 0.6), W - 80, int(H * 0.64)], fill=(160, 118, 66))
+    for x in (160, W - 220):  # palms
+        d.line([(x, int(H * 0.52)), (x - 10, int(H * 0.22))], fill=(120, 84, 48), width=12)
+        for ang in range(-60, 70, 30):
+            ex, ey = x - 10 + math.sin(math.radians(ang)) * 90, int(H * 0.22) + 40 - math.cos(math.radians(ang)) * 30
+            d.line([(x - 10, int(H * 0.22)), (ex, ey)], fill=(70, 140, 70), width=12)
+    return _vignette(img, 0.3)
+
+
+def _plain() -> Image.Image:
+    """A white void with a thin floor line, for props, money and gags."""
+    img = Image.new("RGB", (W, H), (250, 249, 244))
+    d = ImageDraw.Draw(img)
+    d.rectangle([0, int(H * 0.86), W, H], fill=(236, 232, 222))
+    d.line([(0, int(H * 0.86)), (W, int(H * 0.86))], fill=(205, 198, 184), width=4)
+    return img
+
+
+def _sea() -> Image.Image:
+    img = _gradient((168, 214, 238), (236, 246, 250))
+    d = ImageDraw.Draw(img)
+    d.rectangle([0, int(H * 0.5), W, H], fill=(62, 128, 176))
+    for k in range(9):
+        y = int(H * 0.54) + k * 26
+        for x in range(-40 + (k % 2) * 60, W, 120):
+            d.arc([x, y, x + 80, y + 22], 200, 340, fill=(180, 220, 240), width=4)
+    d.rectangle([0, int(H * 0.5) - 3, W, int(H * 0.5) + 3], fill=(236, 246, 250))
+    return _vignette(img, 0.25)
+
+
+_BACK = {"parchment": _parchment, "mountains": _mountains, "hall": _hall, "night": _night, "snow": _snow,
+         "field": _field, "market": _market, "plain": _plain, "sea": _sea}
 _back_cache: dict[str, Image.Image] = {}
 
 
@@ -167,23 +238,39 @@ def backdrop(kind: str) -> Image.Image:
 class Cast:
     """Sprites for the recurring roster plus the video's own historical figures (same faction colour all video)."""
 
-    def __init__(self, work: Path) -> None:
+    def __init__(self, work: Path, characters: list[dict] | None = None) -> None:
+        # characters the script describes (name, gender, age, clothing, props ...): drawn from those attributes
+        self.chars = {str(c.get("name", "")).strip().lower(): c for c in characters or []
+                      if isinstance(c, dict) and str(c.get("name", "")).strip()}
+        self._cs: dict[tuple, Image.Image] = {}
         self.dir = work / "figures"
         self.dir.mkdir(parents=True, exist_ok=True)
         cast.export_roster(self.dir)
         self.figs: dict[str, str] = {}  # figure name -> file stem
+        self.look: dict[str, tuple[str, str, str, str]] = {}  # stem -> (body colour, headwear, prop, badge)
         self.bank = SpriteBank(self.dir)
         self.ok = self.bank.enabled
 
-    def key(self, who: str) -> str:
-        """File stem for a roster id or a named historical figure (generated once, stable for the video)."""
+    def _outfit(self, cid: str, era: str) -> str:
+        """File stem of a roster character dressed for `era` (written once; the default outfit uses the plain file)."""
+        if not era or era == wardrobe.DEFAULT or era not in wardrobe.OUTFITS:
+            return cid
+        stem = f"{cid}__{era}"
+        if not (self.dir / f"{stem}.svg").exists():
+            (self.dir / f"{stem}.svg").write_text(cast.roster_svg(cid, era), encoding="utf-8")
+        return stem
+
+    def key(self, who: str, era: str = wardrobe.DEFAULT) -> str:
+        """File stem for a roster id or a named historical figure (generated once, stable for the video).
+
+        Roster characters wear `era`'s costume; named historical figures keep their own headwear and prop."""
         who = (who or "dusty").strip()
         low = who.lower()
         if low in cast.ROSTER:
-            return low
+            return self._outfit(low, era)
         for cid, c in cast.ROSTER.items():  # "Captain Blunder" -> blunder
             if low == c["name"].lower():
-                return cid
+                return self._outfit(cid, era)
         if who not in self.figs:
             h = int(hashlib.sha1(who.encode()).hexdigest(), 16)
             stem = f"fig_{len(self.figs) + 1}"
@@ -193,21 +280,152 @@ class Cast:
                                  props[(h >> 8) % len(props)], who[:1])
             (self.dir / f"{stem}.svg").write_text(svg, encoding="utf-8")
             self.bank._svg.pop(stem, None)  # noqa: SLF001
+            self.look[stem] = (cast.faction_color(len(self.figs)), heads[h % len(heads)], props[(h >> 8) % len(props)], who[:1])
             self.figs[who] = stem
         return self.figs[who]
 
-    def sprite(self, who: str, px: int, t: float, i: int, talking: bool, silhouette: bool = False) -> Image.Image:
+    def crowd_key(self, side: int, i: int, color: str) -> str:
+        """File stem of a background extra (a small figure in a side's colour); made once, never counted as a figure."""
+        stem = f"ext_{side}_{i % 4}"
+        if stem not in self.look:
+            head = ("helmet", "cap", "fur_hat", "hood")[i % 4]
+            (self.dir / f"{stem}.svg").write_text(cast.build_svg(color, head, "none", ""), encoding="utf-8")
+            self.bank._svg.pop(stem, None)  # noqa: SLF001
+            self.look[stem] = (color, head, "none", "")
+        return stem
+
+    def extra(self, side: int, i: int, color: str, px: int, t: float, talking: bool = False) -> Image.Image:
+        """A crowd member (same blink and mouth contract as the main cast)."""
+        stem = self.crowd_key(side, i, color)
+        img = self.bank.get(stem, px, eyes_closed=blink(t, i + 7 * side), mouth_open=talking) if self.ok else None
+        if img is None:
+            img = pil_character(color, self.look[stem][1], "none", "", px, blink(t, i), talking)
+        return img
+
+    def described(self, who: str) -> dict | None:
+        """The script's own description of this character; only the host (Quill) always stays the recurring cast.
+
+        A name that is not in the script's list (or not one of the recurring cast) is drawn from its own words,
+        never mapped to a fixed cast member: "Mir Jafar" or "the mapmaker" get a person of their own."""
+        low = (who or "").strip().lower()
+        if low in ("quill", cast.ROSTER["quill"]["name"].lower()):
+            return None
+        found = self.chars.get(low)
+        if found is None and low:  # "mapmaker" <-> "Mapmaker Odo": one name contains the other
+            found = next((c for k, c in self.chars.items() if low in k or k in low), None)
+        if found is None:
+            for cid, c in cast.ROSTER.items():  # an undescribed recurring character keeps its own art
+                if low == cid or low == c["name"].lower():
+                    return None
+            found = {"name": who, "role": who}
+        return found
+
+    def _from_spec(self, spec: dict, px: int, closed: bool, talking: bool, era: str) -> Image.Image:
+        key = (str(spec.get("name", "")).lower(), px, closed, talking, era)
+        if key not in self._cs:
+            self._cs[key] = figures.draw(spec, px, closed, talking, figures.ERA_STYLE.get(era))
+        return self._cs[key]
+
+    def sprite(self, who: str, px: int, t: float, i: int, talking: bool, silhouette: bool = False,
+               era: str = wardrobe.DEFAULT) -> Image.Image:
         """The character as an RGBA picture `px` wide; eyes blink, the mouth follows `talking`."""
-        img = self.bank.get(self.key(who), px, eyes_closed=blink(t, i), mouth_open=talking) if self.ok else None
-        if img is None:  # no cairosvg: a simple round fallback so the scene still reads
-            img = Image.new("RGBA", (px, px), (0, 0, 0, 0))
-            d = ImageDraw.Draw(img)
-            d.ellipse([px * 0.2, px * 0.1, px * 0.8, px * 0.7], fill=(242, 210, 177, 255))
-            d.rounded_rectangle([px * 0.3, px * 0.55, px * 0.7, px * 0.95], 20, fill=(46, 125, 135, 255))
+        spec = self.described(who)
+        if spec is not None:
+            img = self._from_spec(spec, px, blink(t, i), talking, era)
+            if silhouette:
+                solid = Image.new("RGBA", img.size, (18, 14, 28, 255))
+                img = Image.composite(solid, Image.new("RGBA", img.size, (0, 0, 0, 0)), img.getchannel("A"))
+            return img
+        img = self.bank.get(self.key(who, era), px, eyes_closed=blink(t, i), mouth_open=talking) if self.ok else None
+        if img is None:  # no cairosvg/cairo (common on Windows): draw the same character with Pillow instead
+            stem = self.key(who)
+            c = cast.ROSTER.get(stem)
+            body, head, prop, badge = (c["body"], c["headwear"], c["prop"], c["badge"]) if c else self.look.get(
+                stem, ("#2E7D87", "none", "none", who[:1]))
+            img = pil_character(body, head, prop, badge, px, blink(t, i), talking)
         if silhouette:
             solid = Image.new("RGBA", img.size, (18, 14, 28, 255))
             img = Image.composite(solid, Image.new("RGBA", img.size, (0, 0, 0, 0)), img.getchannel("A"))
         return img
+
+
+_HAT = {"fur_hat": (122, 82, 51), "helmet": (140, 150, 163), "crown": (224, 180, 58), "turban": (241, 236, 224),
+        "cap": (74, 85, 104), "hood": (61, 42, 82), "laurel": (79, 138, 60), "bicorn": (31, 45, 77),
+        "deerstalker": (138, 122, 90), "pointed": (224, 123, 57), "goggles": (89, 97, 107)}
+_PROPC = {"sword": (184, 192, 204), "scroll": (241, 228, 196), "shield": (140, 59, 59), "staff": (122, 82, 51),
+          "coin": (224, 180, 58), "banner": (192, 57, 43), "telescope": (184, 137, 43), "magnifier": (207, 233, 242),
+          "hammer": (89, 97, 107), "hourglass": (241, 228, 196)}
+
+
+def pil_character(body: str, headwear: str, prop: str, badge: str, px: int, eyes_closed: bool = False,
+                  mouth_open: bool = False) -> Image.Image:
+    """A flat cartoon figure drawn with Pillow (same canvas as the SVG sprites: px wide and high, feet at 84%).
+
+    Used when cairosvg or the cairo library is missing, so the cast never turns into blank circles."""
+    k = 4
+    s = px * k / 400.0
+    im = Image.new("RGBA", (px * k, px * k), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    col, ink, skin = hex_rgb(body), INK, (242, 210, 177)
+
+    def box(x0, y0, x1, y1):
+        return [x0 * s, y0 * s, x1 * s, y1 * s]
+
+    d.line([(180 * s, 300 * s), (176 * s, 336 * s)], fill=ink, width=int(9 * s))  # legs
+    d.line([(220 * s, 300 * s), (224 * s, 336 * s)], fill=ink, width=int(9 * s))
+    d.rounded_rectangle(box(138, 322, 190, 340), int(8 * s), fill=ink)  # shoes
+    d.rounded_rectangle(box(210, 322, 262, 340), int(8 * s), fill=ink)
+    d.line([(150 * s, 225 * s), (118 * s, 285 * s)], fill=col, width=int(20 * s))  # arms
+    d.line([(250 * s, 225 * s), (292 * s, 262 * s)], fill=col, width=int(20 * s))
+    d.ellipse(box(104, 276, 130, 300), fill=skin, outline=ink, width=int(3 * s))
+    d.ellipse(box(282, 252, 308, 276), fill=skin, outline=ink, width=int(3 * s))
+    if prop != "none":  # one prop in the right hand
+        pc = _PROPC.get(prop, (224, 180, 58))
+        if prop in ("sword", "staff", "banner", "hammer"):
+            d.rectangle(box(304, 150, 314, 300), fill=pc, outline=ink, width=int(2 * s))
+            if prop == "banner":
+                d.rectangle(box(314, 156, 366, 206), fill=hex_rgb(cast.faction_color(0)), outline=ink, width=int(2 * s))
+            if prop == "hammer":
+                d.rectangle(box(290, 140, 330, 166), fill=(89, 97, 107), outline=ink, width=int(2 * s))
+        else:
+            d.ellipse(box(296, 232, 344, 280), fill=pc, outline=ink, width=int(3 * s))
+    d.polygon([(138 * s, 214 * s), (262 * s, 214 * s), (276 * s, 320 * s), (124 * s, 320 * s)], fill=col, outline=ink)
+    d.line([(138 * s, 214 * s), (124 * s, 320 * s), (276 * s, 320 * s), (262 * s, 214 * s)], fill=ink, width=int(4 * s))
+    d.ellipse(box(176, 244, 224, 292), fill=(252, 244, 222), outline=ink, width=int(3 * s))  # badge
+    d.text((200 * s, 268 * s), (badge or "?")[:1], font=font(int(36 * s), False), fill=ink, anchor="mm")
+    d.ellipse(box(132, 84, 268, 222), fill=skin, outline=ink, width=int(5 * s))  # head
+    if headwear in _HAT:
+        hc = _HAT[headwear]
+        if headwear == "laurel":
+            d.arc(box(136, 88, 264, 160), 190, 350, fill=hc, width=int(14 * s))
+        elif headwear in ("turban", "fur_hat"):
+            d.ellipse(box(124, 66, 276, 138), fill=hc, outline=ink, width=int(4 * s))
+        elif headwear == "hood":
+            d.pieslice(box(118, 56, 282, 236), 180, 360, fill=hc, outline=ink, width=int(4 * s))
+            d.ellipse(box(146, 104, 254, 222), fill=skin)
+        elif headwear == "pointed":
+            d.polygon([(140 * s, 112 * s), (204 * s, 18 * s), (262 * s, 112 * s)], fill=hc, outline=ink)
+        elif headwear == "goggles":
+            d.rectangle(box(134, 98, 266, 116), fill=hc)
+            d.ellipse(box(152, 86, 190, 124), fill=(159, 211, 230), outline=ink, width=int(4 * s))
+            d.ellipse(box(210, 86, 248, 124), fill=(159, 211, 230), outline=ink, width=int(4 * s))
+        elif headwear == "crown":
+            d.polygon([(140 * s, 118 * s), (150 * s, 62 * s), (176 * s, 100 * s), (200 * s, 52 * s), (224 * s, 100 * s),
+                       (250 * s, 62 * s), (260 * s, 118 * s)], fill=hc, outline=ink)
+        else:
+            d.pieslice(box(128, 52, 272, 190), 180, 360, fill=hc, outline=ink, width=int(4 * s))
+    ey = 152 * s
+    for cx in (176, 224):  # eyes
+        if eyes_closed:
+            d.line([((cx - 9) * s, ey), ((cx + 9) * s, ey)], fill=ink, width=int(4 * s))
+        else:
+            d.ellipse(box(cx - 9, 142, cx + 9, 166), fill=(255, 255, 255), outline=ink, width=int(3 * s))
+            d.ellipse(box(cx - 4, 148, cx + 4, 162), fill=ink)
+    if mouth_open:
+        d.ellipse(box(184, 182, 216, 208), fill=(120, 30, 40), outline=ink, width=int(3 * s))
+    else:
+        d.arc(box(180, 176, 220, 200), 20, 160, fill=ink, width=int(4 * s))
+    return im.resize((px, px), Image.LANCZOS)
 
 
 def paste(img: Image.Image, sprite: Image.Image, cx: float, bottom: float) -> None:
@@ -297,6 +515,25 @@ def banner(img: Image.Image, text: str, cy: int, sub: str = "", width: int = 880
 
 
 # ---------------------------------------------------------------- the scene drawers
+_BACK_WORDS = [("snow", ("snow", "alps", "blizzard", "winter", "frozen", "pass")),
+               ("sea", ("ship", "fleet", "sail", "harbour", "harbor", "naval", "sea ", "ocean", "island")),
+               ("field", ("battle", "plain", "river", "field", "march", "army", "legion", "camp", "valley", "elephant")),
+               ("market", ("tax", "silver", "coin", "market", "trade", "merchant", "pay", "debt", "mercenar", "wage",
+                           "city", "square", "carthage", "desert", "africa")),
+               ("mountains", ("mountain", "cliff", "peak")),
+               ("night", ("night", "dark", "torch", "assassin", "secret", "plot")),
+               ("plain", ("contract", "treaty", "gag", "paper", "list", "number"))]
+
+
+def guess_backdrop(text: str) -> str | None:
+    """A backdrop that fits the words around a skit (first matching group wins), or None for the default hall."""
+    low = text.lower()
+    for name, words in _BACK_WORDS:
+        if any(w in low for w in words):
+            return name
+    return None
+
+
 class Scene:
     """One segment's scene. `frame(t)` returns the picture at second t of `dur`."""
 
@@ -306,10 +543,49 @@ class Scene:
         self.data = seg.get("scene_data") or {}
         self.who = list(seg.get("cast") or ["quill"])
         self.speech = [s for s in (seg.get("speech") or []) if isinstance(s, dict)]
-        kw = " ".join(str(k).lower() for k in seg.get("visual_keywords") or [])
-        guess = "mountains" if self.kind == "skit" and any(w in kw for w in ("alps", "mountain", "snow")) else None
+        kw = " ".join(str(k).lower() for k in [*(seg.get("visual_keywords") or []), seg.get("narration", "")])
+        guess = guess_backdrop(kw) if self.kind == "skit" else None
         self.back = self.data.get("backdrop") or guess or DEFAULT_BACKDROP.get(self.kind, "parchment")
         self.faction0 = faction0
+        self.starts = speech_audio.line_times(self.speech, dur)
+        self.line_env: list[list[float] | None] = []
+        for sp in self.speech:  # a voiced line moves its speaker's mouth with its own audio
+            a = sp.get("audio")
+            self.line_env.append(envelope(Path(a), max(1, round(float(sp.get("seconds") or 1) * FPS)))
+                                 if a and Path(a).exists() else None)
+        words = " ".join([str(seg.get("narration", "")), kw]).lower()
+        self.crowd = bool(self.data.get("crowd")) or (self.kind == "skit" and any(
+            w in words for w in ("army", "armies", "soldiers", "crowd", "mercenar", "legion", "troops", "citizens",
+                                 "revolt", "people", "mob", "rebels", "elephants", "tribes")))
+        e = str(seg.get("era") or "").lower()
+        self.era = e if e in wardrobe.OUTFITS else wardrobe.DEFAULT
+
+    def camera(self, t: float) -> tuple[float, float, float]:
+        """(zoom, focus x, focus y) at second t: a wide shot with a slow push, then hard cuts to a close-up of whoever
+        is speaking (the reference videos cut between wide and close angles every few seconds)."""
+        wide = (1.0 + 0.04 * (t / max(self.dur, 0.1)), 0.5, 0.5)
+        if self.kind != "skit" or self.dur < 5.5:
+            return wide
+        shot = 4.5
+        k = int(t // shot)
+        if k % 2 == 0:
+            return wide
+        who = self.who[:4] or ["dusty"]
+        n = len(who)
+        act = next((k for k in range(len(self.speech) - 1, -1, -1) if self._line_start(k) <= t), None)
+        idx = 0
+        if self.kind == "skit":
+            if act is not None:
+                sp = str(self.speech[act].get("who", "")).lower()
+                idx = next((i for i, w in enumerate(who) if w.lower() == sp
+                            or cast.ROSTER.get(w, {}).get("name", "").lower() == sp), k // 2 % n)
+            else:
+                idx = (k // 2) % n
+            fx = (idx + 1) / (n + 1)
+        else:
+            fx = 0.75
+        local = (t - k * shot) / shot
+        return 1.3 + 0.05 * local, fx, 0.44
 
     def mouth(self, t: float, speaking: bool = True) -> bool:
         i = min(len(self.env) - 1, int(t * FPS))
@@ -321,7 +597,7 @@ class Scene:
         bob = math.sin((t + i * 0.6) * 2.4) * 4 if t > enter + 0.5 else 0
         if talking and t > enter + 0.5:  # a little hop on every syllable-ish burst
             bob -= 5 * abs(math.sin(t * 11 + i))
-        spr = self.cast.sprite(who, px, t, i, talking, silhouette)
+        spr = self.cast.sprite(who, px, t, i, talking, silhouette, self.era)
         paste(img, spr, cx, bottom + rise + bob)
 
     def frame(self, t: float) -> Image.Image:
@@ -350,15 +626,30 @@ class Scene:
         d.rectangle([760, 632, 1160, 644], fill=(92, 60, 36))
 
     # -- skit: two to four characters with speech bubbles
+    def _crowd(self, img: Image.Image, t: float) -> None:
+        """Two rows of small extras behind the speakers: our side on the left, the other side on the right."""
+        rng = random.Random(len(str(self.seg.get("narration", ""))) + 11)
+        count = int(self.data.get("crowd") or 14)
+        for row, (bottom, px) in enumerate(((600, 150), (630, 190))):
+            for i in range(count // 2):
+                side = 0 if i % 2 == 0 else 1
+                x = (W * (i + 0.5) / (count // 2)) + rng.randint(-26, 26)
+                col = cast.faction_color(self.faction0 + side)
+                bob = math.sin(t * 2.2 + i * 1.3 + row) * 3
+                spr = self.cast.extra(side, i + row * 3, col, px, t, int(t * 6 + i) % 5 == 0)
+                paste(img, spr, x, bottom + bob)
+
     def _skit(self, img: Image.Image, t: float) -> None:
         who = self.who[:4] or ["dusty"]
         n = len(who)
+        if self.crowd:
+            self._crowd(img, t)
         for i, w in enumerate(who):
             cx = W * (i + 1) / (n + 1)
             lines = [k for k, s in enumerate(self.speech) if str(s.get("who", "")).lower() == w.lower()
                      or cast.ROSTER.get(w, {}).get("name", "").lower() == str(s.get("who", "")).lower()]
             active = self._active_line(t)
-            talk = active is not None and active in lines and int(t * 7 + i) % 2 == 0
+            talk = active is not None and active in lines and self._line_mouth(active, t)
             self.actor(img, w, cx, 640, 430 if n <= 2 else 340, t, i, talk or (not self.speech and self.mouth(t)),
                        enter=0.1 * i)
         act = self._active_line(t)
@@ -377,20 +668,31 @@ class Scene:
         _ = act
 
     def _line_start(self, k: int) -> float:
-        n = max(1, len(self.speech))
-        return 0.5 + k * (self.dur - 1.2) / n
+        if k < len(self.starts):
+            return self.starts[k]
+        return self.dur + 1
+
+    def _line_end(self, k: int) -> float:
+        sec = float(self.speech[k].get("seconds") or 0)
+        return self._line_start(k) + (sec if sec else 2.4)
 
     def _active_line(self, t: float) -> int | None:
         for k in range(len(self.speech)):
-            end = self._line_start(k + 1) if k + 1 < len(self.speech) else self.dur
-            if self._line_start(k) <= t < min(end, self._line_start(k) + 2.4):
+            if self._line_start(k) <= t < self._line_end(k):
                 return k
         return None
 
+    def _line_mouth(self, k: int, t: float) -> bool:
+        """Is the speaker of line k mid-syllable at second t (audio loudness when the line is voiced)?"""
+        env = self.line_env[k] if k < len(self.line_env) else None
+        if env is None:
+            return int(t * 7 + k) % 2 == 0
+        i = int((t - self._line_start(k)) * FPS)
+        return 0 <= i < len(env) and env[i] > 0.28
+
     # -- map: a schematic western-Mediterranean map with a growing route
     def _map(self, img: Image.Image, t: float) -> None:
-        base = _map_base()
-        img.paste(base)
+        img.paste(_territories(self.faction0))
         d = ImageDraw.Draw(img)
         pts = self.data.get("points") or []
         n = len(pts)
@@ -418,6 +720,22 @@ class Scene:
                              outline=WOOD, radius=14, width=4)
                 d = ImageDraw.Draw(img)
                 centered(d, (x, y - 66), label, f)
+            if n > 1:  # an army marches at the head of the route, with a troop counter that counts up
+                k0 = min(n - 2, int(prog))
+                fr = min(1.0, prog - k0)
+                hx = xy[k0][0] + (xy[k0 + 1][0] - xy[k0][0]) * fr
+                hy = xy[k0][1] + (xy[k0 + 1][1] - xy[k0][1]) * fr
+                col = cast.faction_color(self.faction0)
+                for j in range(4):
+                    bob = abs(math.sin(t * 7 + j)) * 6
+                    paste(img, self.cast.extra(0, j, col, 96, t), hx + (j - 1.5) * 26, hy + 34 + (j % 2) * 10 - bob)
+                troops = int(self.data.get("troops") or 0)
+                if troops:
+                    label = f"{int(troops * ease(min(1.0, prog / max(1, n - 1)))):,}"
+                    shadowed_box(img, (int(hx - 86), int(hy + 46), int(hx + 86), int(hy + 92)), (252, 244, 222),
+                                 outline=WOOD, radius=12, width=4)
+                    centered(ImageDraw.Draw(img), (hx, hy + 69), label, font(30, False))
+                d = ImageDraw.Draw(img)
             ff_, ft = self.data.get("flag_from"), self.data.get("flag_to")
             if ff_ and prog >= 0:
                 _flag(d, xy[0][0] - 70, xy[0][1] + 40, cast.faction_color(self.faction0), str(ff_))
@@ -519,7 +837,9 @@ class Scene:
 
     def _silhouette(self, img: Image.Image, t: float) -> None:
         self.actor(img, self.who[0] if self.who else "dusty", 640, 700, 520, t, 0, False, silhouette=True)
-        centered(ImageDraw.Draw(img), (640, 110), str(self.data.get("title") or ""), font(48), fill=(255, 246, 214))
+        d = ImageDraw.Draw(img)
+        for k, ln in enumerate(wrap(str(self.data.get("title") or ""), font(48), 1100)[:3]):
+            centered(d, (640, 100 + k * 62), ln, font(48), fill=(255, 246, 214))
 
     def _title(self, img: Image.Image, t: float) -> None:
         d = ImageDraw.Draw(img)
@@ -544,32 +864,89 @@ def _smooth(pts: list[tuple[float, float]], k: int = 3) -> list[tuple[float, flo
     return pts
 
 
+_REGIONS: dict[str, list[tuple[float, float]]] = {
+    "iberia": [(0.03, 0.55), (0.06, 0.44), (0.16, 0.42), (0.26, 0.45), (0.27, 0.56), (0.22, 0.72), (0.12, 0.78), (0.05, 0.72)],
+    "gaul": [(0.20, 0.44), (0.24, 0.20), (0.40, 0.08), (0.62, 0.10), (0.70, 0.30), (0.52, 0.36), (0.36, 0.50), (0.27, 0.54)],
+    "italy": [(0.56, 0.34), (0.74, 0.28), (0.86, 0.42), (0.88, 0.58), (0.96, 0.70), (0.90, 0.80), (0.82, 0.66), (0.70, 0.54), (0.60, 0.42)],
+    "africa": [(0.04, 0.92), (0.22, 0.84), (0.50, 0.86), (0.70, 0.88), (0.90, 0.90), (0.96, 1.02), (0.02, 1.02)],
+    "sardinia": [(0.42, 0.62), (0.47, 0.60), (0.48, 0.68), (0.44, 0.72)],
+}
+_TERRITORY_SIDE = {"italy": 0, "iberia": 1, "africa": 1}  # which faction holds a region (others stay neutral)
+_noise_cache: dict[int, np.ndarray] = {}
+
+
+def _fractal(seed: int, w: int, h: int) -> np.ndarray:
+    """Soft 0..1 noise (three octaves of smoothed random grids) for terrain texture."""
+    rng = np.random.default_rng(seed)
+    total = np.zeros((h, w), dtype=np.float32)
+    amp, norm = 1.0, 0.0
+    for cells in (6, 14, 34):
+        g = (rng.random((cells, max(2, cells * w // h))) * 255).astype("uint8")
+        total += amp * np.asarray(Image.fromarray(g).resize((w, h), Image.BICUBIC), dtype=np.float32) / 255.0
+        norm += amp
+        amp *= 0.5
+    return total / norm
+
+
+def _region_mask(names: list[str], S: int) -> Image.Image:
+    m = Image.new("L", (W * S, H * S), 0)
+    d = ImageDraw.Draw(m)
+    for n in names:
+        d.polygon(_smooth([(x * W * S, y * H * S) for x, y in _REGIONS[n]]), fill=255)
+    return m
+
+
 def _map_base() -> Image.Image:
-    """Western Mediterranean as a hand-drawn schematic (Iberia, Gaul, Italy, North Africa, an Alps range)."""
+    """Western Mediterranean drawn like a satellite map: textured sea and land, coast lines, snow-capped Alps."""
     global _MAP
     if _MAP is not None:
         return _MAP
     S = 2
-    img = _gradient(SEA, (156, 188, 196), W * S, H * S)
+    w, h = W * S, H * S
+    land = _region_mask(list(_REGIONS), S)
+    n1, n2 = _fractal(5, w, h), _fractal(9, w, h)
+    sea = np.stack([18 + 26 * n1, 52 + 40 * n1, 96 + 52 * n1], axis=-1)
+    t = n2[..., None]
+    low, mid, high = np.array([86, 124, 66]), np.array([150, 138, 88]), np.array([118, 96, 72])
+    ground = np.where(t < 0.5, low + (mid - low) * (t / 0.5), mid + (high - mid) * ((t - 0.5) / 0.5))
+    ground = ground * (0.86 + 0.28 * n1[..., None])
+    mask = np.asarray(land, dtype=np.float32)[..., None] / 255.0
+    img = Image.fromarray(np.clip(sea * (1 - mask) + ground * mask, 0, 255).astype("uint8"), "RGB")
     d = ImageDraw.Draw(img)
-
-    def land(norm: list[tuple[float, float]]) -> None:
-        pts = _smooth([(x * W * S, y * H * S) for x, y in norm])
-        d.polygon(pts, fill=LAND, outline=LAND_EDGE)
-        d.line([*pts, pts[0]], fill=LAND_EDGE, width=5 * S // 2)
-
-    land([(0.03, 0.55), (0.06, 0.44), (0.16, 0.42), (0.26, 0.45), (0.27, 0.56), (0.22, 0.72), (0.12, 0.78), (0.05, 0.72)])
-    land([(0.20, 0.44), (0.24, 0.20), (0.40, 0.08), (0.62, 0.10), (0.70, 0.30), (0.52, 0.36), (0.36, 0.50), (0.27, 0.54)])
-    land([(0.56, 0.34), (0.74, 0.28), (0.86, 0.42), (0.88, 0.58), (0.96, 0.70), (0.90, 0.80), (0.82, 0.66), (0.70, 0.54), (0.60, 0.42)])
-    land([(0.04, 0.92), (0.22, 0.84), (0.50, 0.86), (0.70, 0.88), (0.90, 0.90), (0.96, 1.02), (0.02, 1.02)])
-    land([(0.42, 0.62), (0.47, 0.60), (0.48, 0.68), (0.44, 0.72)])  # Sardinia
-    for k in range(7):  # the Alps: a row of little snow-capped peaks
-        x, y = (0.5 + k * 0.022) * W * S, (0.285 + math.sin(k * 0.9) * 0.012 + k * 0.008) * H * S
+    for name in _REGIONS:  # a pale shoreline
+        pts = _smooth([(x * w, y * h) for x, y in _REGIONS[name]])
+        d.line([*pts, pts[0]], fill=(196, 214, 204), width=4 * S)
+    for k in range(7):  # the Alps: a row of snow-capped peaks
+        x, y = (0.5 + k * 0.022) * w, (0.285 + math.sin(k * 0.9) * 0.012 + k * 0.008) * h
         s = 46 * S // 2 + (k % 3) * 6
-        d.polygon([(x - s, y + s), (x, y - s), (x + s, y + s)], fill=(150, 130, 108), outline=LAND_EDGE)
+        d.polygon([(x - s, y + s), (x, y - s), (x + s, y + s)], fill=(132, 118, 104), outline=(70, 60, 50))
         d.polygon([(x - s * 0.36, y - s * 0.28), (x, y - s), (x + s * 0.36, y - s * 0.28)], fill=(248, 250, 255))
-    _MAP = _vignette(img.resize((W, H), Image.LANCZOS), 0.35)
+    _MAP = _vignette(img.resize((W, H), Image.LANCZOS), 0.3)
     return _MAP
+
+
+_terr_cache: dict[int, Image.Image] = {}
+
+
+def _territories(faction0: int) -> Image.Image:
+    """Base map with each side's territory tinted in its faction colour and outlined in white (like the references)."""
+    if faction0 in _terr_cache:
+        return _terr_cache[faction0]
+    S = 2
+    base = _map_base().resize((W * S, H * S), Image.LANCZOS).convert("RGBA")
+    for name, side in _TERRITORY_SIDE.items():
+        col = hex_rgb(cast.faction_color(faction0 + side))
+        m = _region_mask([name], S)
+        tint = Image.new("RGBA", base.size, (*col, 0))
+        tint.putalpha(m.point(lambda v: 118 if v else 0))
+        base = Image.alpha_composite(base, tint)
+        edge = ImageChops.subtract(m.filter(ImageFilter.MaxFilter(5)), m.filter(ImageFilter.MinFilter(5)))
+        white = Image.new("RGBA", base.size, (255, 255, 255, 0))
+        white.putalpha(edge)
+        base = Image.alpha_composite(base, white)
+    out = base.convert("RGB").resize((W, H), Image.LANCZOS)
+    _terr_cache[faction0] = out
+    return out
 
 
 def _dashed(d: ImageDraw.ImageDraw, a: tuple, b: tuple, col: tuple, width: int) -> None:
@@ -602,36 +979,44 @@ def _flag(d: ImageDraw.ImageDraw, x: float, y: float, color: str, text: str) -> 
 _CODE_STAMP = hashlib.sha1(Path(__file__).read_bytes()).hexdigest()[:8]  # drawing code changed -> redraw
 
 
-def fingerprint(seg: dict, dur: float, audio: Path | None) -> str:
+def fingerprint(seg: dict, dur: float, audio: Path | None, characters: list[dict] | None = None) -> str:
     """Hash of everything that decides how a scene looks (re-render only when it changes)."""
-    keys = {k: seg.get(k) for k in ("scene", "scene_data", "cast", "speech", "chapter")}
-    keys.update(dur=round(dur, 2), audio=audio.stat().st_size if audio and Path(audio).exists() else 0, code=_CODE_STAMP)
+    keys = {k: seg.get(k) for k in ("scene", "scene_data", "cast", "speech", "chapter", "era")}
+    names = {str(n).lower() for n in seg.get("cast") or []} | {str(x.get("who", "")).lower()
+                                                               for x in seg.get("speech") or [] if isinstance(x, dict)}
+    keys["characters"] = [c for c in characters or [] if str(c.get("name", "")).lower() in names]
+    pf = ff.profile()
+    keys.update(size=[pf.w, pf.h, pf.fps], dur=round(dur, 2),
+                audio=audio.stat().st_size if audio and Path(audio).exists() else 0, code=_CODE_STAMP)
     return hashlib.sha1(json.dumps(keys, sort_keys=True, default=str).encode()).hexdigest()[:12]
 
 
 def render_scene(seg: dict, dur: float, out: Path, work: Path, audio: Path | None = None, faction0: int = 0,
-                 cst: Cast | None = None) -> Path:
-    """Render one cast scene to `out` (silent H.264, 1280x720, 24 fps, `dur` seconds). Reuses an identical earlier clip."""
+                 cst: Cast | None = None, characters: list[dict] | None = None) -> Path:
+    """Render one cast scene to `out` (silent H.264 at the video profile size and frame rate, `dur` seconds). Reuses an identical earlier clip."""
     ff.ensure_ffmpeg()
     stamp = out.with_suffix(".stamp")
-    fp = fingerprint(seg, dur, audio)
+    fp = fingerprint(seg, dur, audio, characters)
     if out.exists() and stamp.exists() and stamp.read_text() == fp:
         return out
-    n = max(1, round(dur * FPS))
-    cst = cst or Cast(work)
-    scene = Scene(seg, dur, cst, envelope(audio, n), faction0)
-    cmd = ["ffmpeg", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-", "-an",
-           "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(out)]
+    pf = ff.profile()
+    ow, oh, fps = pf.w, pf.h, pf.fps  # drawn once, then resampled once straight to the video size and frame rate
+    n = max(1, round(dur * fps))
+    cst = cst or Cast(work, characters)
+    scene = Scene(seg, dur, cst, envelope(audio, round(dur * FPS) + 1), faction0)
+    cmd = ["ffmpeg", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{ow}x{oh}", "-r", str(fps), "-i", "-", "-an",
+           "-c:v", "libx264", "-preset", "veryfast", "-crf", "16", "-pix_fmt", "yuv420p", "-movflags", "+faststart",
+           str(out)]
     proc = subprocess.Popen(ff.low_memory_cmd(cmd), stdin=subprocess.PIPE, stderr=subprocess.PIPE)
     try:
         for f in range(n):
-            t = f / FPS
+            t = f / fps
             img = scene.frame(t)
-            z = 1.0 + 0.035 * (t / max(dur, 0.1))  # slow push-in keeps every shot alive
-            if z > 1.0005 and scene.kind not in ("map",):
-                cw, ch = W / z, H / z
-                x0, y0 = (W - cw) / 2, (H - ch) / 2
-                img = img.resize((W, H), Image.BILINEAR, box=(x0, y0, x0 + cw, y0 + ch))
+            z, fx, fy = scene.camera(t) if scene.kind != "map" else (1.0, 0.5, 0.5)
+            cw, ch = W / max(z, 1.0), H / max(z, 1.0)
+            x0 = min(max(fx * W - cw / 2, 0), W - cw)
+            y0 = min(max(fy * H - ch / 2, 0), H - ch)
+            img = img.resize((ow, oh), Image.LANCZOS, box=(x0, y0, x0 + cw, y0 + ch))
             proc.stdin.write(img.tobytes())
         proc.stdin.close()
         err = proc.stderr.read().decode(errors="replace")

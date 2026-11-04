@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from studio.errors import StudioError
@@ -56,6 +57,11 @@ def _cast_block(prof: dict) -> str:
     return cast.prompt_block(prof)
 
 
+def _narration_block(prof: dict) -> str:
+    from studio.story import narration_styles as narration
+    return narration.prompt_block(prof["narration"]) if prof.get("narration") in narration.STYLES else ""
+
+
 def compose(name: str, prof: dict, **values) -> str:
     """Fill a pack prompt. Unknown placeholders become empty; profile-derived blocks are added automatically."""
     vals = _Safe(
@@ -63,7 +69,7 @@ def compose(name: str, prof: dict, **values) -> str:
         max_minutes=prof["max_minutes"], compliance=" ".join(prof["compliance"]), ending_style=prof["ending_style"],
         writing_rules=writing_rules(prof), exemplar=exemplar(prof["pack"]), shape=shape(prof),
         hooks=read("hooks", prof["pack"]), photo_rule=photo.prompt_rule(prof["pack"]),
-        cast_block=_cast_block(prof), tone=prof.get("tone", ""),
+        cast_block=_cast_block(prof), narration_block=_narration_block(prof), tone=prof.get("tone", ""),
         recent="(no earlier videos on this channel yet)", facts_block="(none)")
     vals.update(values)
     from studio.story import style
@@ -71,6 +77,26 @@ def compose(name: str, prof: dict, **values) -> str:
         style.check_no_placeholders(str(vals.get(key, "")), f"channel {key}")
     from studio.story.profile import short_form_note
     return read(name, prof["pack"]).format_map(vals) + short_form_note(prof)
+
+
+SOURCE_ASK = re.compile(
+    r"\bsources?\b|\bcit(?:e|es|ed|ation|ations)\b|fact[_ ]?ids?\b|source_(?:ids?|url)|quote_snippet|url_or_note", re.I)
+
+
+# Field names only an old prompt template asked for. Plain words like "source" can appear in a topic or in facts
+# ("sources of revenue"), so they must never make a saved prompt look stale.
+OLD_SOURCE_FIELDS = re.compile(
+    r"source_(?:ids?|url)|fact[_ ]?ids\b|quote_snippet|url_or_note|`sources?`|public source", re.I)
+
+
+def is_old_source_prompt(text: str) -> bool:
+    """True if a saved prompt was written by an older version that asked for source fields."""
+    return bool(OLD_SOURCE_FIELDS.search(text or ""))
+
+
+def asks_for_sources(text: str) -> bool:
+    """True if a prompt still asks for sources, citations or fact ids (owner decision: scripts carry none)."""
+    return bool(SOURCE_ASK.search(text or ""))
 
 
 def j(obj: object) -> str:

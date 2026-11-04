@@ -179,7 +179,7 @@ def ideas_prompt(ctx: Ctx, count: int = 10) -> str:
     about = custom or ("a faceless YouTube channel that explains business models and economics in English "
                        "with charts and diagrams")
     return f"""You are the topic researcher for this YouTube channel: {about}.
-Every figure in a video needs a public source.
+Use real figures; word estimates as estimates.
 
 Suggest {count} NEW video topics. Stay inside the channel's niche. For the default business channel, mix Indian and
 global

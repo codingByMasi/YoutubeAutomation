@@ -208,6 +208,9 @@ def render(ctx_for, show, show_player, production_box=None) -> None:
     if blockers:
         st.warning("Before you start: " + "; ".join(c.message for c in blockers[:2]))
         st.button("Open Setup to fix this", on_click=handoff_ui.goto, args=("Setup",), key="wz_setup")
+    if st.session_state.get("wiz_root") != str(ctx.settings.root):  # another channel: forget the old video
+        st.session_state.pop("wiz_vid", None)
+        st.session_state["wiz_root"] = str(ctx.settings.root)
     if "wiz_vid" not in st.session_state:
         st.session_state["wiz_vid"] = getattr(wiz.resume_video(ctx), "id", None)
     vids = {x.id: x for x in svc.list_videos(ctx)}

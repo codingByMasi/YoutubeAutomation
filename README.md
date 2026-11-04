@@ -112,6 +112,11 @@ Kids scenes can be rendered as soft 3D instead of the flat 2D drawings. It is op
 hosted app (no GPU there). Without Blender everything keeps working with the 2D renderer; if you ask for Blender and
 it is missing or too old, the build prints a note and uses 2D.
 
+**Voices page (in the app):** the sidebar's **🎙️ Voices** page lets you hear each narration voice and pick one (saved to
+`.env` and the active channel), and lists the approved voicebanks with licence, monetisation status and warnings. AyaLuna
+bans AI-generated content, so it needs a ticked confirmation before it can be selected. Voicebank previews are clips you
+export from OpenUtau (CPU only, no GPU) and upload on that page; OpenUtau is found at `C:\Tools\OpenUtau` automatically.
+
 Windows setup (one time):
 1. Install Blender 4.2 LTS or newer from blender.org (free, GPL; videos you render are yours). The default folder
    `C:\Program Files\Blender Foundation\Blender <version>\` is found automatically. Otherwise set
@@ -164,9 +169,10 @@ Windows setup (one time):
 1. Download OpenUtau from github.com/stakira/OpenUtau/releases (the Windows x64 zip; unzip it anywhere, for example
    `C:\Tools\OpenUtau`, and run `OpenUtau.exe`). Put the path in `.env` as `OPENUTAU_PATH=C:\Tools\OpenUtau\OpenUtau.exe`
    if you want `--open` to launch it.
-2. Install a free English singing voicebank: in OpenUtau use Singers > Install Singer (or Singers > Get more) and pick a
-   DiffSinger or classic English voicebank. **Read that voicebank's licence yourself before monetising**; each one has
-   its own terms (commercial use, credit line, no use for kids content, and so on). Save the licence text beside the video.
+2. Pick a voicebank from the approved list (only banks whose licence allows monetised videos): run
+   `python -m studio.cli kids voicebanks`, download the one you want, install it in OpenUtau (Singers > Install Singer),
+   and set `SING_VOICEBANK=<key>` in `.env`. `kids sing` then saves `sung/VOICEBANK_LICENCE.txt` with the licence,
+   the credit line for your video description and any warnings. Re-read the creator's page before publishing.
 3. Run `python -m studio.cli kids sing "counting five little ducks" --open` (or open `sung\song.ustx` in OpenUtau).
 4. In OpenUtau choose your singer for the track. If the words sound wrong, change the track's Phonemizer (the file
    asks for "English Arpasing+"; a DiffSinger voicebank may need its own phonemizer). Press play to check it.
@@ -185,7 +191,7 @@ per channel, per video and per scene; the more specific choice wins (scene > vid
 | Style | What you get |
 |---|---|
 | `2d` | Scenes are 2D motion graphics (steps appear one by one). Bar/line charts stay normal 2D charts. |
-| `3d` | Scenes are 3D, and every bar/line chart becomes a 3D chart too (source line kept on screen). |
+| `3d` | Scenes are 3D, and every bar/line chart becomes a 3D chart too (no source line). |
 | `mixed` | Scenes are 3D, plain charts stay 2D. |
 
 Defaults by channel type: history and business `mixed`, general and kids `2d`. If Blender is missing or a render fails,
@@ -195,7 +201,7 @@ turns the type's 3D default off.
 Scene kinds (an optional `scene` on any script segment; the script prompt explains it to Claude): `timeline`
 (milestones along a line, the camera flies along it), `map` (schematic route between places, not real geography),
 `artifact` (one object turning on a pedestal: coin, column, vase, box) and `chart3d` (bars rising in 3D).
-Timelines and 3D charts need `source_ids`.
+Scripts carry no sources or `source_ids`.
 
 Where to choose:
 - App: **Channels** page ("Scenes: 3D or 2D"), and on page 3 the "Look and sound for this video" box, which also lists
@@ -465,21 +471,27 @@ All external APIs are mocked, so tests need no keys or network. Tests that rende
 - Every video needs original commentary, structure, or analysis. Do not copy other creators' content.
 - Avoid mass-producing near-identical videos; YouTube can demote or demonetize repetitive, low-effort content.
 - Disclose realistic AI-generated or altered content when YouTube requires it. The review step shows this flag.
-- Add sources and a disclaimer to finance, health, legal, and news videos.
+- Add a disclaimer to finance, health, legal, and news videos.
 
 ## Host character in 3D scenes
 With a 3D scene style (`3d` or `mixed`), the channel's mascot acts out script beats in a small Blender set: it points,
 celebrates, reacts, thinks or shrugs, with props (money stacks, bars, generic logo blocks), camera cuts every few
 seconds and a mouth that opens with the narration's loudness. Segments without a chart or scene of their own get a
 host scene automatically (the first, then every other one); set `host_scenes` to `off` in the channel profile to
-stop that. Add one yourself in `script.json`:
+stop that. With a good graphics card, set `STUDIO_3D_QUALITY=gpu` in `.env` for 1080p scenes with smoother
+edges; it is optional and the default stays light for any PC. Add one yourself in `script.json`:
 `"scene": {"kind": "host", "action": "point", "set": "vault", "props": ["money_stack", "bars_up"]}`
 (actions: present, point, celebrate, shock, think, shrug, walk_in, fall, wave; sets: studio, vault, street,
 boardroom, stage). The character is the mascot `kind`: `coin`, `owl`, `robot`, `piggy`, `bull` or `analyst`
 (a stylised person with glasses, rolled sleeves and a tablet; mascot fields `color` = shirt, `skin`, `hair`,
-`hair_style` short or curly). Without Blender the scene is drawn in 2D with the mascot picture. Rendering stays
+`hair_style` short or curly). Without Blender the scene is drawn in 2D with the mascot picture.
+For a real character, put a free CC0 `.glb` model (for example from Kenney's animated characters) in
+`assets/characters/` and set the mascot's `model` to its file name (optional `model_scale`, and `clips` to choose a clip
+per action, e.g. `{"point": "Interact"}`). The model is sized to the set, stands on the floor, and plays the clip whose
+name matches the action (idle, walk, jump, die ...); with no match it plays its first clip. If the file is missing or
+cannot load, the built-in shapes are used. A model needs no GPU: it renders with the same light settings. Rendering stays
 local: Eevee, 720p, 15 fps, about the same cost as the other 3D scenes. Real logos are never drawn; a prop that
-shows a figure needs `source_ids`.
+shows a figure uses real numbers.
 
 ## Channel identity (mascot, theme, niche, playlists)
 `python -m studio.cli channels identity --preset finance-stories --preview out/` gives the active channel a niche

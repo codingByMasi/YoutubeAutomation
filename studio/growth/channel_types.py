@@ -6,6 +6,7 @@ A type only changes defaults and guidance; the owner can still edit every profil
 from __future__ import annotations
 
 from studio.errors import StudioError
+from studio.story.narration_styles import IDS as NARRATION_IDS
 
 DEFAULT_TYPE = "business"
 
@@ -15,6 +16,7 @@ CHOICES: dict[str, tuple[str, ...]] = {
     "music": ("", "generated", "none"),  # generated royalty-free bed (or your own track in assets/music), or none
     "music_mood": ("", "minor", "major"),
     "tts_provider": ("", "edge", "eleven", "silent"),
+    "narration": ("", *NARRATION_IDS),  # script voice and narrator delivery (studio/story/narration_styles.py)
     # narrated scenes: 2d motion graphics, 3d (Blender) or mixed (3d for timelines/maps/artifacts, 2d charts)
     "scene_style": ("", "2d", "3d", "mixed"),
 }
@@ -25,7 +27,7 @@ TYPES: dict[str, dict] = {
         "mode": "narrated", "made_for_kids": False,
         "niche": "Business-model and economics explainers",
         "audience": "Curious adults 18-44 who want to understand how companies make money",
-        "guidance": "Narrated explainer with charts and diagrams. Every figure needs a public source.",
+        "guidance": "Narrated explainer with charts and diagrams. Use real figures; word estimates as estimates.",
         "seeds": ["how it makes money", "the economics of", "why it failed", "unit economics of"],
         "music_mood": "minor", "palette": None, "scene_style": "mixed",
         "analytics_hint": "Watch average view duration and retention; long explainers win on depth.",
@@ -36,7 +38,7 @@ TYPES: dict[str, dict] = {
         "niche": "History and education explainers",
         "audience": "Curious learners 16-55 who enjoy clear stories about the past and how things work",
         "guidance": "Narrated story told with a recurring cartoon cast, maps and timelines; archive images only "
-                    "for things, on demand. Cite primary or reputable sources for dates and claims; mark disputed "
+                    "for things, on demand. Keep dates and claims accurate; mark disputed "
                     "points as disputed.",
         "seeds": ["the rise and fall of", "what really happened", "how it worked", "history of"],
         "music_mood": "minor", "palette": ("#2B1B12", "#E0A458"), "scene_style": "mixed",
@@ -58,7 +60,7 @@ TYPES: dict[str, dict] = {
         "mode": "narrated", "made_for_kids": False,
         "niche": "General explainers",
         "audience": "General audience",
-        "guidance": "Narrated explainer. Be accurate, original and cite sources for facts.",
+        "guidance": "Narrated explainer. Be accurate and original.",
         "seeds": ["explained", "how it works", "why does"],
         "music_mood": "minor", "palette": None, "scene_style": "2d",
         "analytics_hint": "Compare views per day across videos of the same length.",

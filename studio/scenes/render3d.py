@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -14,13 +15,15 @@ from studio.util import ffmpeg as ff
 FPS_3D = 15        # slow camera moves look fine at 15 fps and cost half the render time of 24
 MAX_SECONDS = 30   # longer segments loop the clip (build trims or loops it to the narration)
 MAX_SIZE = (1280, 720)  # light on a 4 GB GPU; ffmpeg scales the clip up to the video size
+GPU_MAX_SIZE = (1920, 1080)
+QUALITIES = ("light", "gpu")  # STUDIO_3D_QUALITY: "light" (default, any PC) or "gpu" (opt-in: 1080p, smoother edges)
 
 
 class Blender3D:
     """Finds a usable Blender once per run; `.exe` is None (with one printed note) when 3D is not possible."""
 
-    def __init__(self, configured: str = "") -> None:
-        self.configured, self._done, self._exe = configured, False, None
+    def __init__(self, configured: str = "", assets_dir: Path | None = None) -> None:
+        self.configured, self._done, self._exe, self.assets_dir = configured, False, None, assets_dir
 
     @property
     def exe(self) -> Path | None:
@@ -32,21 +35,33 @@ class Blender3D:
         return self._exe
 
 
+def quality() -> str:
+    """The 3D quality preset: "light" unless STUDIO_3D_QUALITY=gpu. Opt-in only; nothing requires a GPU."""
+    q = os.getenv("STUDIO_3D_QUALITY", "light").strip().lower()
+    return q if q in QUALITIES else "light"
+
+
 def size_for(profile) -> tuple[int, int]:
-    """Render size: the video size, but never more than 1280x720."""
-    return min(profile.w, MAX_SIZE[0]), min(profile.h, MAX_SIZE[1])
+    """Render size: the video size, but never more than 1280x720 (1920x1080 with STUDIO_3D_QUALITY=gpu)."""
+    cap = GPU_MAX_SIZE if quality() == "gpu" else MAX_SIZE
+    return min(profile.w, cap[0]), min(profile.h, cap[1])
 
 
 def scene_config(scene: dict, seconds: float, size: tuple[int, int], footnote: str = "",
                  mouth: list | None = None) -> dict:
     """The JSON handed to Blender (see scene_script.build_scene) with the current channel colours."""
-    host = {"action": scene.get("action", "present"), "set": scene.get("set", "studio"),
-            "props": scene.get("props", []), "mascot": scene.get("mascot") or {}, "mouth": mouth or []}
+    from studio.scenes import host as hostmod
+
+    action, mascot = scene.get("action", "present"), scene.get("mascot") or {}
+    host = {"action": action, "set": scene.get("set", "studio"), "props": scene.get("props", []), "mascot": mascot,
+            "mouth": mouth or [], "clip_words": list(hostmod.CLIP_WORDS.get(action, ("idle",))),
+            "clip": (mascot.get("clips") or {}).get(action, "")}
     return {**(host if scene["kind"] == "host" else {}),
             "kind": "scene", "scene": scene["kind"], "title": scene.get("title", ""), "items": scene.get("items", []),
             "footnote": footnote, "bg": brand.BG, "fg": brand.FG, "muted": brand.MUTED, "accent": brand.ACCENT,
             "panel": "#1E293B" if brand.BG.lower() == "#0f172a" else brand.BG, "series": list(brand.SERIES),
-            "duration": min(max(seconds, 2.0), MAX_SECONDS), "fps": FPS_3D, "width": size[0], "height": size[1]}
+            "duration": min(max(seconds, 2.0), MAX_SECONDS), "fps": FPS_3D, "width": size[0], "height": size[1],
+            "samples": 64 if quality() == "gpu" else 16}
 
 
 def encode_cmd(frames_dir: Path, out: Path) -> list[str]:

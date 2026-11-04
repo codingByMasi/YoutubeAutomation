@@ -48,6 +48,7 @@ class Settings:
     renderer: str = "2d"  # kids mode picture renderer: 2d (default, works anywhere) or blender (PC only)
     blender_path: str = ""
     openutau_path: str = ""
+    sing_voicebank: str = ""  # key from studio.kids.voicebanks; empty = none chosen
     tts_voice: str = "en-US-AndrewNeural"
     daily_quota_limit: int = 10000
     quota_safety_margin: int = 500
@@ -172,6 +173,7 @@ def load_settings(root: Path | None = None) -> Settings:
         renderer=(os.getenv("RENDERER") or "2d").strip().lower(),
         blender_path=os.getenv("BLENDER_PATH", "").strip(),
         openutau_path=os.getenv("OPENUTAU_PATH", "").strip(),
+        sing_voicebank=os.getenv("SING_VOICEBANK", "").strip().lower(),
         tts_voice=(os.getenv("TTS_VOICE") or "en-US-AndrewNeural").strip(),
         daily_quota_limit=_int("DAILY_QUOTA_LIMIT", 10000),
         quota_safety_margin=_int("QUOTA_SAFETY_MARGIN", 500),

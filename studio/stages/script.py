@@ -15,6 +15,9 @@ from studio.models import Idea, Script, Segment, Title, Video
 from studio.stages.base import run_stage
 from studio.story.banned import BANNED_PHRASES  # noqa: E402,F401  (re-exported: other modules import it here)
 from studio.story.banned import banned_in as _banned_in  # noqa: E402
+from studio.util.logging import get_logger
+
+log = get_logger("script")
 
 CHART_TYPES = {"bar", "pie", "line", "flow", "number"}
 BEATS = {"question", "reveal", "example", "pattern_break"}
@@ -73,8 +76,8 @@ def validate_title(text: str) -> list[str]:
 
 def validate_titles(titles: list[dict]) -> list[str]:
     problems = []
-    if not TITLE_MIN <= len(titles) <= TITLE_COUNT:
-        problems.append(f"need {TITLE_COUNT} titles (at least {TITLE_MIN}), got {len(titles)}")
+    if not titles:
+        problems.append("the reply has no titles; add at least one")
     for t in titles:
         problems += validate_title(str(t.get("text", "")))
     picks = sum(bool(t.get("is_pick")) for t in titles)
@@ -239,8 +242,9 @@ def validate_package(d: dict, profile: dict | None = None, facts: list[dict] | N
         if seg.get("scene"):
             from studio.scenes import validate_scene
             problems += validate_scene(seg["scene"], where, seg, source_ids)
+    hook_wps = max(2.5, float((profile or {}).get("wps", 2.5)))
     if segs and isinstance(segs[0].get("est_seconds"), (int, float)) and max(
-            segs[0]["est_seconds"], len(str(segs[0].get("narration", "")).split()) / 2.5) > HOOK_MAX_SECONDS:
+            segs[0]["est_seconds"], len(str(segs[0].get("narration", "")).split()) / hook_wps) > HOOK_MAX_SECONDS:
         problems.append(f"segment 1 is the hook and must be at most {HOOK_MAX_SECONDS}s")
     if not str(d.get("originality_note", "")).strip():
         problems.append("originality_note is empty: say what this video adds")
@@ -251,7 +255,6 @@ def validate_package(d: dict, profile: dict | None = None, facts: list[dict] | N
         problems.append("thumbnail_texts must be 3 strings of 1-5 words")
     if profile is not None and segs:
         from studio.story import checks, loops
-        from studio.story import facts as facts_mod
         from studio.story.profile import enabled
         problems += checks.profile_problems(d, profile)
         from studio.story import photo as story_photo
@@ -261,9 +264,18 @@ def validate_package(d: dict, profile: dict | None = None, facts: list[dict] | N
             problems += story_visuals.shot_problems(segs)
         if enabled(profile, "loop_ids"):
             problems += loops.loop_problems(d, profile)
-        if facts is not None and enabled(profile, "fact_ledger"):
-            problems += facts_mod.trace_problems(d, facts)
     return problems
+
+
+def soft_warnings(d: dict, facts: list[dict] | None = None) -> list[str]:
+    """Advice that never blocks a script (today: fewer than 15 titles).
+
+    Scripts carry no sources or fact ids, so nothing is traced to facts.json; old fields are simply ignored."""
+    out = []
+    n = len(d.get("titles") or [])
+    if 0 < n < TITLE_COUNT:
+        out.append(f"only {n} titles (15 are recommended); the best one is used")
+    return out
 
 
 def timeline(segs: list[dict], key: str = "est_seconds") -> list[tuple[float, float]]:
@@ -330,15 +342,13 @@ def prompt_text(name: str, pack: str = "explainer") -> str:
 
 def build_prompt(root: Path, topic: str, outline: dict | None = None, facts: list[dict] | None = None) -> str:
     """Script prompt for the active channel's pack. `outline` is the plan (outline + chosen hook) when given."""
-    from studio.story import facts as facts_mod
     from studio.story import ledger, prompts
     from studio.story import profile as sp
     prof = sp.for_channel(root)
     return prompts.compose(
         "script", prof, topic=topic, brief=_brief(root), style=_style(root, prof),
         outline=prompts.j(outline) if outline else NO_OUTLINE,
-        facts_block=prompts.j(facts_mod.prompt_view(facts)) if facts else "(no facts list for this video)",
-        facts=prompts.j(facts_mod.prompt_view(facts)) if facts else "(no facts list for this video)",
+        facts_block="(not used)", facts="(not used)",
         recent=ledger.prompt_text(root) if sp.enabled(prof, "repetition_ledger") else "(not tracked)",
         plan=prompts.j(outline) if outline else NO_OUTLINE)
 
@@ -358,9 +368,11 @@ def render_markdown(d: dict) -> str:
         lines += ["", seg["narration"], "", f"Visuals: {', '.join(seg['visual_keywords'])}"]
         if seg.get("chart_data"):
             c = seg["chart_data"]
-            lines.append(f"Chart ({c['type']}): {c.get('title', '')} [{', '.join(c.get('source_ids') or [])}]")
+            lines.append(f"Chart ({c['type']}): {c.get('title', '')}")
         lines.append("")
-    lines += ["## Sources", ""] + [f"- [{s['id']}] {s.get('title', '')}: {s['url_or_note']}" for s in d["sources"]]
+    if d.get("sources"):  # old scripts only; new ones carry no sources
+        lines += ["## Sources", ""] + [f"- [{s.get('id', '')}] {s.get('title', '')}: {s.get('url_or_note', '')}"
+                                      for s in d["sources"]]
     return "\n".join(lines) + "\n"
 
 
@@ -415,7 +427,42 @@ def load_package(ctx: Ctx, video_id: int) -> dict:
     p = ctx.settings.project_dir(video_id) / "script.json"
     if not p.exists():
         raise StudioError(f"{p} not found.", "The script stage has not produced it.", "Run `script <idea_id>` first.")
-    return json.loads(p.read_text(encoding="utf-8"))
+    return tolerant_package(json.loads(p.read_text(encoding="utf-8")))
+
+
+def tolerant_package(pkg: dict) -> dict:
+    """Make an old or hand-pasted script.json safe to use without losing anything.
+
+    Segments become dicts (bare text becomes its narration); a segment missing `est_seconds` or `visual_keywords`
+    gets them from its words and chapter; chart_data/visual must be dicts and scene a dict or a cast-scene name.
+    A value of the wrong type is moved to the segment's `_unreadable` map (kept in the file, a warning is logged)
+    instead of being deleted, so saving the package back never destroys what the owner pasted."""
+    if not isinstance(pkg, dict):
+        return {"segments": []}
+    segs = pkg.get("segments")
+    out = []
+    for i, g in enumerate(segs if isinstance(segs, list) else [], 1):
+        if isinstance(g, str):
+            g = {"narration": g}
+        if not isinstance(g, dict):
+            log.warning("script.json: segment %d is not text or an object; it was ignored", i)
+            continue
+        g = dict(g)
+        for k in ("chart_data", "visual", "scene"):
+            ok = (dict, str) if k == "scene" else dict
+            if k in g and g[k] is not None and not isinstance(g[k], ok):
+                g.setdefault("_unreadable", {})[k] = g.pop(k)
+                log.warning("script.json: segment %d has an unreadable %s; kept aside under _unreadable", i, k)
+            elif k in g and g[k] is None and k != "scene":
+                g.pop(k)
+        words = str(g.get("narration", "")).split()
+        if not isinstance(g.get("est_seconds"), (int, float)) or g["est_seconds"] <= 0:
+            if words:
+                g["est_seconds"] = round(max(len(words) / 2.5, 1.0), 1)
+        if not g.get("visual_keywords") and (g.get("chapter") or words):
+            g["visual_keywords"] = [str(g.get("chapter") or " ".join(words[:3]))]
+        out.append(g)
+    return {**pkg, "segments": out}
 
 
 def write_package(ctx: Ctx, video_id: int, d: dict) -> None:
@@ -477,7 +524,7 @@ def run_engine_script(ctx: Ctx, video: Video, outline: dict, force: bool = False
             typer.secho(f"auto-fixed: {n}", fg=typer.colors.YELLOW)
         save_package(ctx, video, d)
         from studio.story import checks as story_checks
-        for w in story_checks.style_notes(d, prof) + quality_report(d)["warnings"]:
+        for w in soft_warnings(d, facts) + story_checks.style_notes(d, prof) + quality_report(d)["warnings"]:
             typer.secho(f"warning: {w}", fg=typer.colors.YELLOW)
 
     r = run_stage(ctx.session, video, "scripted", work, force)

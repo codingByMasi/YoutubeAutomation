@@ -14,8 +14,7 @@ the retention outline: the shape of the story, the hook, the curiosity gaps and 
 {hooks}
 
 # Research first
-Use web search to find the real figures (annual reports, filings, reputable articles). Any figure in the beat
-sheet may name a source if you have one. Mark estimates as estimates. Do not copy or closely paraphrase any other creator's video
+Use web search to find the real figures (annual reports, filings, reputable articles). Mark estimates as estimates. Do not copy or closely paraphrase any other creator's video
 or article; the angle, structure and examples must be original.
 
 # What to design
@@ -28,14 +27,13 @@ or article; the angle, structure and examples must be original.
   At least two are planted in the first 60 seconds. Payoffs must be spread out, not bunched at the end.
 - `beats`: 10-18 beats in story order. Each beat has `n`, `chapter` (viewer-facing, short), `purpose` (what changes
   in the viewer's head), `seconds` (8-30; hook at most 15), `device` (question | reveal | example | pattern_break |
-  explain), `key_fact` (the number or concrete example, with its source id) and `emotion` (curiosity, surprise,
+  explain), `key_fact` (the number or concrete example) and `emotion` (curiosity, surprise,
   fear of being fooled, satisfaction, etc.). Never more than two `explain` beats in a row. A non-`explain`
   device at least every 20-40 seconds of cumulative time.
 - `arc`: one line each for setup, escalation, twist (the weak point or hidden mechanism), payoff.
 - `ending`: `callback` (how the last line echoes the hook), `takeaway` (one sentence), `cta_question` (a specific
   question to answer in the comments) and `next_video` (what the next video covers).
 - `title_promise` and 3 `thumbnail_ideas` (1-5 words each) that match the pick hook without overclaiming.
-- `sources`: same shape as in the script package (`id`, `title`, `url_or_note`).
 - `risks`: claims that need care (legal, finance, health) and how you will word them.
 
 # Output: one JSON object with exactly these keys
@@ -51,6 +49,5 @@ or article; the angle, structure and examples must be original.
   "ending": {{"callback": "string", "takeaway": "string", "cta_question": "string", "next_video": "string"}},
   "title_promise": "string",
   "thumbnail_ideas": ["string", "string", "string"],
-  "sources": [{{"id": "s1", "title": "string", "url_or_note": "https://..."}}],
   "risks": ["string"]
 }}

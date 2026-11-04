@@ -26,8 +26,8 @@ Code computes the timestamp from the segment and checks that the quote existed a
 
 # Rewrite
 Return the complete rewritten package in `revised`: same JSON shape and field names as the draft (including
-`fact_ids`, `plants_loop`, `pays_loop`, `visual_intent`), every swipe-away moment fixed, every true figure and
-source kept, no new figure without a fact id from the facts list. Hold length to {min_minutes}-{max_minutes}
+`plants_loop`, `pays_loop`, `visual_intent`), every swipe-away moment fixed, every true figure
+kept, no new figure that is not in the facts list. Hold length to {min_minutes}-{max_minutes}
 minutes; `est_seconds` = words / {wps}. {compliance}
 {deterministic}
 

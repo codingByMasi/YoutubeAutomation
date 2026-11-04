@@ -22,6 +22,7 @@ KEEP = 60
 
 # (regex on the error text, plain cause, fix id). First match wins. Fix ids with ':' carry an argument.
 RULES: list[tuple[str, str, str | None]] = [
+    (r"no scenes assigned", "The script has no scene types yet.", "assign_scenes"),
     (r"youtube sign-in|invalid_grant|expired or revoked|google sign-in failed|token\.json",
      "The YouTube sign-in is missing, expired or revoked for a channel.", "youtube_signin"),
     (r"ffmpeg.*(not found|no such file)|ensure_ffmpeg", "ffmpeg is not installed or not on PATH.", "help:ffmpeg"),
@@ -83,7 +84,8 @@ def fix_label(fix: str | None) -> str:
             "pip": f"Install {arg}", "pip_from_error": "Install the missing package",
             "stock_fallback": "Switch stock footage source", "unlock_db": "Clear leftover database files",
             "renderer_2d": "Use the 2D renderer", "help": "Show me how",
-            "youtube_signin": "Sign in to YouTube again"}.get(kind, fix)
+            "youtube_signin": "Sign in to YouTube again",
+            "assign_scenes": "Assign scenes with Claude"}.get(kind, fix)
 
 
 def record(root: Path, component: str, error: BaseException | str, context: str = "") -> dict | None:
@@ -157,6 +159,8 @@ def run_fix(root: Path, issue_id: str) -> str:
         if st["state"] != "connected":
             ma.sign_in(s, cid)  # opens a browser on this computer; raises a clear error if it cannot
         msg = f"YouTube sign-in for '{cid}' is working."
+    elif kind == "assign_scenes":
+        msg = "Run Visuals again: it asks Claude once to assign scenes, saves them in the script and continues."
     elif kind == "unlock_db":
         from studio.config import load_settings
         from studio.util import dblock

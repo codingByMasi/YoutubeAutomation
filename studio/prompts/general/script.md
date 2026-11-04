@@ -9,10 +9,12 @@ You are writing a complete YouTube video package for a faceless, narrated channe
 # Style guide
 {style}
 
+{narration_block}
+
 # Hook formula library
 {hooks}
 
-# Verified facts and story plan (follow the plan; use ONLY fact ids from the facts list)
+# Story plan (follow it)
 {outline}
 
 # Recent videos on this channel (differ from them in hook, opening sentence shape, chapters, visuals)
@@ -20,9 +22,8 @@ You are writing a complete YouTube video package for a faceless, narrated channe
 
 # Rules
 - Original analysis only; never copy or closely paraphrase another creator's work.
-- Figures: every number in the narration and every chart value comes from a fact in the list; cite it in the
-  segment's `fact_ids`. Facts marked unverified may only be used if `is_estimate` is true, and then the narration
-  must say "about", "roughly" or "an estimated". Do not invent figures.
+- Figures: use real, well-known numbers; say "about" or "roughly" when a figure is an estimate. Do not invent
+  figures. Keep the script plain narration: no references, footnotes or ids.
 - Open loops: use the plan's loop ids. `plants_loop` where the loop is teased (at least two in the first 60
   seconds), `pays_loop` where it is paid off (1-3 minutes later, spread through the video, not all at the end).
 - Segment 1 is the hook: use the chosen hook line from the plan (you may tighten it), no greeting.

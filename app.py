@@ -10,13 +10,14 @@ import streamlit as st
 from studio.errors import LOCKED_HELP, StudioError, is_locked_error
 from studio.stages import research
 from studio.stages.base import STAGES
-from studio.web import handoff_ui, publish_ui, remedy_ui, setup_ui, wizard_ui
+from studio.web import handoff_ui, publish_ui, remedy_ui, setup_ui, voices_ui, wizard_ui
 from studio.web import service as svc
 from studio.web.growth_ui import page_grow_factory
 
 ROOT = Path(os.getenv("STUDIO_HOME") or Path(__file__).parent).resolve()
-PAGES = ["🎬 Make a video", "Setup", "Home", "1. Topics", "2. Script", "3. Make the video", "4. Review and download",
-         "5. Grow the channel", "📊 Analytics", "Channels", "Settings", "Data", "🧸 Kids mode"]
+PAGES = ["🎬 Make a video", "Setup", "🎙️ Voices", "Home", "1. Topics", "2. Script", "3. Make the video",
+         "4. Review and download", "5. Grow the channel", "📊 Analytics", "Channels", "Settings", "Data",
+         "🧸 Kids mode"]
 
 st.set_page_config(page_title="YouTube Channel Studio", page_icon="🎬", layout="wide")
 
@@ -263,11 +264,10 @@ def _segment_style_inputs(ctx, video_id: int) -> dict[int, str]:
     except Exception:
         return {}
     cur, out = production.segment_styles(ctx.settings, video_id), {}
-    rows = [(i, g) for i, g in enumerate(segs, 1) if g.get("scene") or scenes.chart_items(g)]
+    rows = [(i, g, kind) for i, g in enumerate(segs, 1) if (ok := scenes.style_pickable(g))[0] for kind in [ok[1]]]
     if rows:
         st.caption("Per scene: 2D or 3D for just that part of the video (blank follows the video's setting).")
-    for pos, g in rows:
-        kind = (g.get("scene") or {}).get("kind", "chart3d")
+    for pos, g, kind in rows:
         out[pos] = st.selectbox(f"Segment {pos}: {kind} ({g.get('chapter') or 'no chapter'})", ["", "2d", "3d"],
                                 index=["", "2d", "3d"].index(cur.get(pos, "")), key=f"seg_style_{video_id}_{pos}",
                                 format_func=lambda x: x.upper() if x else "(follow video)")
@@ -506,6 +506,7 @@ def page_analytics() -> None:
 
 def page_channels() -> None:
     from studio.growth import channel_types, channels
+    from studio.story import narration_styles
 
     st.header("Channels")
     st.write("Add as many channels as you like and switch any time. Everything (prompts, voice, posting plan) "
@@ -529,6 +530,14 @@ def page_channels() -> None:
                     "posts_per_week": b.number_input("Posting frequency (long videos per week)", 1, 14,
                                                      int(c["posts_per_week"])),
                     "voice": b.text_input("Voice (blank = default from settings)", c["voice"]),
+                    "narration": b.selectbox(
+                        "Narration style", channel_types.CHOICES["narration"],
+                        index=channel_types.CHOICES["narration"].index(c.get("narration", "")),
+                        format_func=lambda x: narration_styles.STYLES[x]["label"] if x else "(type default)",
+                        key=f"nar_{c['id']}",
+                        help="How scripts are written and how the narrator sounds. History defaults to Comic "
+                             "storyteller, business to Calm explainer, kids to Warm sing-song.\n\n"
+                             + narration_styles.guide_table()),
                     "youtube_channel_id": b.text_input("YouTube channel ID (optional)", c["youtube_channel_id"]),
                     "renderer": b.selectbox("Picture renderer", channel_types.CHOICES["renderer"],
                                             index=channel_types.CHOICES["renderer"].index(c["renderer"]),
@@ -617,6 +626,10 @@ def page_setup() -> None:
     setup_ui.render(ctx_for, show)
 
 
+def page_voices() -> None:
+    voices_ui.render(ctx_for, show)
+
+
 def page_kids() -> None:
     from studio.kids import page
 
@@ -657,7 +670,7 @@ def main() -> None:
             _fix_buttons()
     handoff_ui.show_flash()
     try:
-        {"🎬 Make a video": page_wizard, "Setup": page_setup,
+        {"🎬 Make a video": page_wizard, "Setup": page_setup, "🎙️ Voices": page_voices,
          "Home": page_home, "1. Topics": page_topics, "2. Script": page_script, "3. Make the video": page_make,
          "4. Review and download": page_review, "5. Grow the channel": page_grow,
          "📊 Analytics": page_analytics,
