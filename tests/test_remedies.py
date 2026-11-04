@@ -47,3 +47,27 @@ def test_release_lock_ok_and_still_locked(tmp_path):
 def test_report_masks_secrets():
     out = rem.report("boom PIXABAY_API_KEY=abc123", "token: xyz")
     assert "abc123" not in out and "xyz" not in out and "boom" in out
+
+
+def test_plain_message_hides_raw_error():
+    raw = ("Something unexpected went wrong: KeyError: 'visual'\n"
+           "Why: the answer is in the wrong shape.\nNext: try again.")
+    dx = rem.diagnose(raw)
+    msg = rem.plain_message(raw, dx.kind)
+    assert "KeyError" not in msg and "visual" not in msg and "wrong shape" in msg
+    assert "memory" in rem.plain_message("x", "out_of_memory")
+
+
+def test_fix_this_unknown_error_saves_report(tmp_path):
+    res = rem.fix_this(tmp_path, "brand new problem PIXABAY_API_KEY=abc123", "log")
+    saved = list((tmp_path / "logs" / "error_reports").glob("*.txt"))
+    assert len(saved) == 1 and "abc123" not in saved[0].read_text()
+    assert res.retry and "brand new problem" in res.data[0]
+
+
+def test_fix_this_runs_known_logged_fix(tmp_path):
+    from studio import health
+
+    health.record(tmp_path, "voice", "edge-tts could not reach speech.platform.bing.com")
+    res = rem.fix_this(tmp_path, "edge-tts could not reach speech.platform.bing.com")
+    assert res.ok and res.retry

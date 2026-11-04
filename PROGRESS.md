@@ -539,6 +539,7 @@ Decisions: OpenUtau has no CLI renderer, so a voicebank "preview" is a clip expo
 - Taste rules (total length, sentence length/rhythm, reading grade, words vs seconds) are warnings now (`checks.style_notes`); the quality gate still flags them. Banned phrases, sources, facts and loop rules still block.
 - Sources are optional for every channel type (decision, 2026-11-02): no script/outline/chart/scene/fact check blocks on missing sources any more, charts draw no footnote without one, and the prompts say sources are optional ("never invent a source"). A source given with a bad link or unknown id is no longer an error. Facts that have a `source_url` are still verified; unsourced facts are not.
 
+- Failed steps show a plain-language message (what happened, what happens next) with the raw error under a collapsed "Technical details" expander, plus a primary "Fix this" button (2026-11-04). Known logged errors run their existing in-app fix then retry; unknown errors save a masked report to `logs/error_reports/`, show it with a copy button, and retry. Nothing for the owner to configure.
 ## 2026-11-03: scripts no longer need facts or sources
 - Decision: a pasted script is never blocked by fact ids, figures-in-facts, chart-vs-fact, sources, or title count (fewer than 15 is a warning). Script prompts no longer ask for `sources`, `source_ids` or `fact_ids`; old saved scripts that still carry them load fine. Step 0 facts are only used by the story plan, not the script check.
 
