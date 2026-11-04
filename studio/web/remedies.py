@@ -128,3 +128,59 @@ def report(error: str, log: str = "") -> str:
 
     text = f"Error:\n{error.strip()}\n\nLog (end):\n{(log or '').strip()[-1500:]}"
     return re.sub(r"(?i)((?:key|token|secret)[\w\-]*\s*[=:]\s*)\S+", r"\1***", text)
+
+
+# Plain-language explanation per error kind: what it means and what happens next. Shown instead of raw text.
+_PLAIN = {
+    "db_locked": "Another window or step is using the studio's database at the same moment. Nothing was lost. "
+                 "Pressing Fix this clears the lock and runs the step again.",
+    "out_of_memory": "This computer ran out of memory while making the video. Nothing was lost. "
+                     "Fix this retries it as a quick, lighter draft.",
+    "key_rejected": "A service refused one of your keys, so it is wrong, expired or out of allowance. "
+                    "Fix this tests your keys and shows which one needs replacing.",
+    "missing_tool": "A free program the studio needs is not installed on this computer. "
+                    "Fix this opens Setup, which shows how to add it.",
+    "not_signed_in": "The studio is not signed in to Google yet. Fix this opens Setup so you can sign in.",
+    "network": "The internet connection dropped or was too slow. Nothing was lost. Fix this tries again.",
+}
+_GENERIC = ("This step stopped before it finished. Your finished work is kept, so nothing needs redoing. "
+            "Fix this tries the step again and, if it still fails, makes a short report you can send to Claude.")
+
+
+def plain_message(error: str, kind: str) -> str:
+    """The error in words a non-technical owner can act on. The raw text belongs under 'Technical details'."""
+    if kind in _PLAIN:
+        return _PLAIN[kind]
+    why = [ln.strip() for ln in (error or "").splitlines() if ln.strip().startswith(("Why:", "Next:"))]
+    return f"{_GENERIC}\n\n" + "\n".join(why) if why else _GENERIC
+
+
+def save_report(root: Path, error: str, log: str = "") -> tuple[Path, str]:
+    """Save a masked error report under logs/error_reports/ so the owner can copy it later. Returns (path, text)."""
+    from datetime import datetime
+
+    text = report(error, log)
+    folder = Path(root) / "logs" / "error_reports"
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / f"error-{datetime.now().strftime('%Y%m%d-%H%M%S')}.txt"
+    path.write_text(text, encoding="utf-8")
+    return path, text
+
+
+def fix_this(root: Path, error: str, log: str = "") -> RemedyResult:
+    """The 'Fix this' button for errors the studio can fix with no UI: a known logged fix, else a saved report.
+
+    `retry` on the result says the failed step should now run again. For an unknown error the report text is in `data`.
+    """
+    from studio import health
+
+    hit = health.issue_for_text(root, error)
+    fix = (hit or {}).get("fix") or ""
+    if hit and fix.partition(":")[0] not in ("retry", "help", "youtube_signin"):
+        try:
+            return RemedyResult(True, health.run_fix(root, hit["id"]), retry=True)
+        except Exception as exc:  # noqa: BLE001 - a failed fix must say so, not crash the page
+            return RemedyResult(False, f"The automatic fix did not work: {exc}")
+    _, text = save_report(root, error, log)
+    return RemedyResult(False, "No automatic fix is known for this one. A report was saved in the app. "
+                        "Copy it with the button on the box below and send it to Claude.", retry=True, data=[text])

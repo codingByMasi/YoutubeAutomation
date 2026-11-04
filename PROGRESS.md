@@ -528,3 +528,5 @@ finished minute, from e2e-test/quality-report.md) plus estimated owner minutes a
 - Titles: 10-15 accepted (was exactly 15).
 - Taste rules (total length, sentence length/rhythm, reading grade, words vs seconds) are warnings now (`checks.style_notes`); the quality gate still flags them. Banned phrases, sources, facts and loop rules still block.
 - Sources are optional for every channel type (decision, 2026-11-02): no script/outline/chart/scene/fact check blocks on missing sources any more, charts draw no footnote without one, and the prompts say sources are optional ("never invent a source"). A source given with a bad link or unknown id is no longer an error. Facts that have a `source_url` are still verified; unsourced facts are not.
+
+- Failed steps show a plain-language message (what happened, what happens next) with the raw error under a collapsed "Technical details" expander, plus a primary "Fix this" button (2026-11-04). Known logged errors run their existing in-app fix then retry; unknown errors save a masked report to `logs/error_reports/`, show it with a copy button, and retry. Nothing for the owner to configure.
