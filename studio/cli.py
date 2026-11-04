@@ -26,6 +26,8 @@ def _ctx() -> Ctx:
 @app.callback()
 def main(verbose: bool = typer.Option(False, "--verbose", "-v", help="Show debug logs.")) -> None:
     _state["verbose"] = verbose
+    from studio.manage import environment
+    environment.set_runtime_defaults()
 
 
 # ---------------- Topics ----------------
@@ -65,6 +67,26 @@ def doctor() -> None:
     """Go/no-go readiness check before your first real video (tools, keys, YouTube sign-in)."""
     from studio.manage import doctor as m
     if not m.run(_ctx().settings):
+        raise typer.Exit(1)
+
+
+@app.command()
+def preflight(fix: bool = typer.Option(False, "--fix", help="Install/download what is missing, then check again."),
+              offline: bool = typer.Option(False, "--offline", help="Skip the internet check.")) -> None:
+    """Check this computer for everything a video needs (packages, ffmpeg, models, fonts, disk) and fix it."""
+    from studio.manage import doctor, environment
+    settings = _ctx().settings
+    checks = environment.run_checks(settings, network=not offline)
+    if fix:
+        for c in [c for c in checks if c.action and c.level != doctor.OK]:
+            try:
+                print(f"Fixing: {c.message}")
+                print(f"  {environment.apply_fix(c.action, settings)}")
+            except StudioError as exc:
+                print(f"  could not fix: {exc}")
+        checks = environment.run_checks(settings, network=not offline)
+    print(environment.render(checks))
+    if any(c.level == doctor.FAIL for c in checks):
         raise typer.Exit(1)
 
 

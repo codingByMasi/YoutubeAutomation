@@ -19,6 +19,9 @@ PAGES = ["🎬 Make a video", "Setup", "🎙️ Voices", "Home", "1. Topics", "2
          "4. Review and download", "5. Grow the channel", "📊 Analytics", "Channels", "Settings", "Data",
          "🧸 Kids mode"]
 
+from studio.manage import environment  # noqa: E402
+
+environment.set_runtime_defaults()
 st.set_page_config(page_title="YouTube Channel Studio", page_icon="🎬", layout="wide")
 
 

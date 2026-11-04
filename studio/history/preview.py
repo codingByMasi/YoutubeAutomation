@@ -20,16 +20,16 @@ def sheet(char_id: str = "quill") -> Image.Image:
     if char_id not in cast.ROSTER:
         raise StudioError(f"No recurring character called {char_id!r}.", f"Known: {', '.join(cast.ROSTER)}.",
                           "Pick one of the ids above.")
-    try:
-        import cairosvg
-    except (ImportError, OSError) as exc:
-        raise StudioError("The wardrobe preview needs cairosvg.", str(exc), "Run `pip install cairosvg`.") from exc
+    from studio.util import svg
+    if not svg.available():
+        raise StudioError("The wardrobe preview needs an SVG renderer.", "Neither cairosvg nor resvg-py can draw.",
+                          "Run `python -m studio.cli preflight --fix`.")
     outfits = [(wardrobe.DEFAULT, "Default"), *((e, wardrobe.OUTFITS[e]["name"]) for e in wardrobe.ERAS)]
     rows = -(-len(outfits) // COLS)
     img = Image.new("RGB", (COLS * CELL, rows * (CELL + LABEL)), (250, 244, 230))
     d = ImageDraw.Draw(img)
     for i, (eid, label) in enumerate(outfits):
-        png = cairosvg.svg2png(bytestring=cast.roster_svg(char_id, eid).encode(), output_width=CELL - 20)
+        png = svg.svg_to_png(cast.roster_svg(char_id, eid), CELL - 20)
         spr = Image.open(io.BytesIO(png)).convert("RGBA")
         x, y = (i % COLS) * CELL, (i // COLS) * (CELL + LABEL)
         img.paste(spr, (x + 10, y + 4), spr)

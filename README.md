@@ -33,6 +33,11 @@ The older numbered pages stay available for finer control. Everything below also
 Everything above also runs from a browser app built with Streamlit: pick a topic, copy the script request into
 Claude and paste the answer back, click once to make the video, then watch and download it.
 
+**One-command setup (Windows):** `powershell -ExecutionPolicy Bypass -File setup.ps1` builds the `.venv`, installs the
+pinned packages, creates `.env`, downloads the caption model, installs ffmpeg with winget if missing, and ends with the
+preflight check. The same check lives on the **Setup** page ("This computer") with a **Fix this** button per problem,
+and in the terminal as `python -m studio.cli preflight --fix`.
+
 **Run on Windows** (PowerShell in this folder; needs Python 3.11 to 3.13 (3.12 best; 3.14+ not supported yet) and ffmpeg on PATH):
 
 ```
