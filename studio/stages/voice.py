@@ -61,6 +61,8 @@ def _voice_chapters(engine, prof: dict, pkg: dict, rows: list[Segment], out: Pat
             return gi, {"key": key, "words": cached["words"], "reused": True}
         tmp = out / f"chap_{gi:02d}.mp3"
         words = engine.synth_timed(" ".join(texts), tmp, pro)
+        if words:
+            words = nar.align_words(words, " ".join(texts))  # keep the script's punctuation; split merged words
         cuts = nar.split_points(words, texts, 0) if words else None
         if cuts is None:  # no usable word timing: one call per segment (still prosody, still cached)
             sw = []
