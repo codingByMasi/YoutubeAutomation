@@ -320,6 +320,26 @@ def test_loudness_target_is_configurable():
     assert "I=-14" in ffmpeg.loudnorm() and "I=-16:TP=-1.5" in ffmpeg.loudnorm(-16, -1.5)
 
 
+def test_final_mix_filter_limits_peaks_below_ceiling(tmp_path):
+    """The mix filter must keep the sample peak under the -1 dB ceiling even for a hot, clipped-ish input."""
+    import re
+    import shutil
+    import subprocess
+
+    import pytest
+
+    from studio.util import ffmpeg
+    if not shutil.which("ffmpeg"):
+        pytest.skip("ffmpeg not installed")
+    out = tmp_path / "o.wav"
+    subprocess.run(["ffmpeg", "-y", "-f", "lavfi", "-i", "sine=f=440:d=4", "-af", "volume=6dB," + ffmpeg.loudnorm(),
+                    str(out)], check=True, capture_output=True)
+    r = subprocess.run(["ffmpeg", "-i", str(out), "-af", "volumedetect", "-f", "null", "-"], capture_output=True,
+                       text=True)
+    peak = float(re.search(r"max_volume: (-?[\d.]+) dB", r.stderr).group(1))
+    assert peak <= -1.0
+
+
 def test_feedback_loop_needs_three_real_videos(root):
     from studio.growth import store
     from studio.story import feedback_loop as fl
