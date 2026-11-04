@@ -22,7 +22,7 @@ from studio.web.service import Outcome, capture
 # Only these names may be written to .env from the browser.
 ENV_KEYS = ("PEXELS_API_KEY", "PIXABAY_API_KEY", "ELEVENLABS_API_KEY", "CHANNEL_ID", "TTS_PROVIDER", "TTS_VOICE",
             "FOOTAGE_PROVIDER", "RENDERER", "BLENDER_PATH", "LLM_PROVIDER", "LLM_API_KEY", "LLM_MODEL",
-            "SING_VOICEBANK")
+            "SING_VOICEBANK", "STUDIO_GPU")
 
 # Free Microsoft Edge voices that read well for explainers (edge-tts names).
 VOICES = {
@@ -117,6 +117,8 @@ def save_env(root: Path, updates: dict[str, str]) -> list[str]:
         clean["SING_VOICEBANK"] = voicebanks.get(clean["SING_VOICEBANK"]).key  # refuses anything not vetted
     if "RENDERER" in clean and clean["RENDERER"] not in RENDERERS:
         raise StudioError("Unknown picture renderer.", f"Got {clean['RENDERER']!r}.", "Choose 2d or blender.")
+    if "STUDIO_GPU" in clean and clean["STUDIO_GPU"] not in ("auto", "off"):
+        raise StudioError("Unknown graphics card setting.", f"Got {clean['STUDIO_GPU']!r}.", "Choose auto or off.")
     if any("\n" in v or "\r" in v for v in clean.values()):
         raise StudioError("A value contains a line break.", "Keys and names are single-line.",
                           "Paste only the value itself.")
@@ -211,6 +213,13 @@ def renderer_info(settings: Settings) -> dict:
     exe, why = blender.usable(settings.blender_path)
     return {"blender_ok": exe is not None, "blender_path": str(exe) if exe else "",
             "note": "Blender 3D is ready." if exe else why}
+
+
+def gpu_info() -> dict:
+    """Graphics-card status in plain words: {video: gpu.status(), captions: whisper.cuda_status()}."""
+    from studio.providers import whisper
+    from studio.util import gpu
+    return {"video": gpu.status(), "captions": whisper.cuda_status()}
 
 
 def signed_in_for(root: Path, channel_id: str) -> bool:

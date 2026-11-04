@@ -155,6 +155,35 @@ def _renderer(ctx) -> None:
         _save(s.root, {"RENDERER": choice, "BLENDER_PATH": path})
 
 
+def _speed(ctx) -> None:
+    from studio import health
+    from studio.providers import whisper
+    from studio.util import gpu
+
+    root = ctx.settings.root
+    info = setup.gpu_info()
+    st.caption("Optional. If this computer has an NVIDIA graphics card the studio uses it by itself; "
+               "without one everything still works on the CPU.")
+    st.write(("✅ " if info["video"]["on"] else "ℹ️ ") + "**Video:** " + info["video"]["message"])
+    st.write(("✅ " if info["captions"]["on_gpu"] else "🟡 " if info["captions"]["problem"] else "ℹ️ ")
+             + "**Captions:** " + info["captions"]["message"])
+    cur = "off" if gpu.switched_off() else "auto"
+    choice = st.radio("Graphics card for video", ["auto", "off"], index=0 if cur == "auto" else 1, horizontal=True,
+                      format_func={"auto": "Automatic (use it if it works)", "off": "Off (always use the CPU)"}.get,
+                      key="set_gpu")
+    if choice != cur:
+        _save(root, {"STUDIO_GPU": choice})
+        st.rerun()
+    if info["captions"]["problem"] and st.button("🔧 Fix this", key="fix_gpu_captions", type="primary"):
+        issue = health.record(root, "captions (gpu)", info["captions"]["message"])
+        with st.spinner("Installing NVIDIA's helper files (a large download, this can take a few minutes)..."):
+            st.info(health.run_fix(root, issue["id"]) if issue else "Nothing to fix.")
+    if st.button("Check again", key="recheck_gpu"):
+        gpu.reset()
+        whisper.cuda_status(refresh=True)
+        st.rerun()
+
+
 def _computer(ctx, show) -> None:
     """Environment preflight with a Fix button per problem, so nothing needs the terminal."""
     checks = setup.computer_checks(ctx.settings, network=bool(st.session_state.get("pf_net")))
@@ -211,6 +240,8 @@ def render(ctx_for, show) -> None:
     _computer(ctx, show)
     with st.expander("🎨 Picture style (2D or 3D)"):
         _renderer(ctx)
+    with st.expander("⚡ Speed (graphics card)"):
+        _speed(ctx)
     st.caption("Back up or restore your channels and videos on the **Data** page.")
     st.button("Open the Data page", on_click=handoff_ui.goto, args=("Data",), key="setup_data")
     with st.expander("Plain-text report"):

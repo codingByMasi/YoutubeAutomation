@@ -30,6 +30,8 @@ RULES: list[tuple[str, str, str | None]] = [
      "(offline, blocked, or the service changed).", "tts_fallback"),
     (r"no module named '?(faster_whisper|faster-whisper)", "faster-whisper (word-accurate captions) is not installed.",
      "pip:faster-whisper"),
+    (r"cublas|cudnn|nvidia helper files", "The graphics card cannot make captions because NVIDIA's helper files "
+     "are missing, so the CPU is used (slower).", "gpu_libs"),
     (r"no module named '?(trafilatura|rapidfuzz|textstat|pyloudnorm|sentence_transformers|open_clip)",
      "An optional helper package is not installed; the studio uses a built-in fallback until it is.", "pip_from_error"),
     (r"pexels.*(401|403)|pixabay.*(401|403)|api key.*(invalid|rejected)", "A stock-footage API key was rejected.",
@@ -81,7 +83,8 @@ def fix_label(fix: str | None) -> str:
         return ""
     kind, _, arg = fix.partition(":")
     return {"retry": "Retry the step", "tts_fallback": "Use the offline voice fallback",
-            "pip": f"Install {arg}", "pip_from_error": "Install the missing package",
+            "pip": f"Install {arg}", "gpu_libs": "Install the NVIDIA helper files",
+            "pip_from_error": "Install the missing package",
             "stock_fallback": "Switch stock footage source", "unlock_db": "Clear leftover database files",
             "renderer_2d": "Use the 2D renderer", "help": "Show me how",
             "youtube_signin": "Sign in to YouTube again",
@@ -142,6 +145,15 @@ def run_fix(root: Path, issue_id: str) -> str:
             return f"Install of {arg} failed: {r.stderr.strip().splitlines()[-1] if r.stderr else 'unknown'}. " \
                    "The studio keeps using its built-in fallback."
         msg = f"Installed {arg}. Run the step again."
+    elif kind == "gpu_libs":
+        r = subprocess.run([sys.executable, "-m", "pip", "install", "nvidia-cublas-cu12", "nvidia-cudnn-cu12"],
+                           capture_output=True, text=True, timeout=1800)
+        if r.returncode != 0:
+            return "Install of the NVIDIA helper files failed: " \
+                   f"{r.stderr.strip().splitlines()[-1] if r.stderr else 'unknown'}. Captions keep using the CPU."
+        from studio.providers import whisper
+        whisper.cuda_status(refresh=True)
+        msg = "Installed the NVIDIA helper files. Restart the app once so captions use your graphics card."
     elif kind == "tts_fallback":
         msg = _set_channel(root, {"tts_provider": ""}) + " Voice now tries Kokoro, Edge, then Piper in that order."
     elif kind == "renderer_2d":

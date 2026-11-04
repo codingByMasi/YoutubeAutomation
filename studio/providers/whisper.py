@@ -82,9 +82,78 @@ def whisper_words(audio: Path, model_size: str = "small") -> list[tuple[float, f
         from faster_whisper import WhisperModel
     except ImportError:
         return None
-    model = WhisperModel(model_size, device="auto", compute_type="int8")
-    segments, _ = model.transcribe(_decode_16k(audio), word_timestamps=True, language="en")
-    return [(w.start, w.end, w.word.strip()) for s in segments for w in (s.words or []) if w.word.strip()]
+
+    def run(device: str, compute: str) -> list[tuple[float, float, str]]:
+        model = WhisperModel(model_size, device=device, compute_type=compute)
+        segments, _ = model.transcribe(_decode_16k(audio), word_timestamps=True, language="en")
+        return [(w.start, w.end, w.word.strip()) for s in segments for w in (s.words or []) if w.word.strip()]
+
+    if cuda_status()["on_gpu"]:
+        try:
+            return run("cuda", "float16")
+        except RuntimeError as exc:  # missing/odd CUDA libraries show up only at the first real transcribe
+            log.warning("Whisper on the GPU failed (%s); using the CPU.", exc)
+    return run("cpu", "int8")
+
+
+_CUDA_LIBS = {"nt": ("cublas64_12.dll", "cudnn64_9.dll"), "posix": ("libcublas.so.12", "libcudnn.so.9")}
+
+
+def _load_cuda_libs() -> str | None:
+    """Try to load the NVIDIA libraries Whisper needs on a GPU. Returns the first one missing, else None."""
+    import ctypes
+    import importlib.util
+    import os
+
+    spec = importlib.util.find_spec("nvidia")  # the pip packages nvidia-cublas-cu12 / nvidia-cudnn-cu12
+    for base in (list(spec.submodule_search_locations or []) if spec else []):
+        for sub in Path(base).glob("*/bin" if os.name == "nt" else "*/lib"):
+            if os.name == "nt":
+                os.add_dll_directory(str(sub))
+                os.environ["PATH"] = f"{sub}{os.pathsep}{os.environ.get('PATH', '')}"
+            else:
+                for so in sub.glob("*.so*"):
+                    try:
+                        ctypes.CDLL(str(so), mode=ctypes.RTLD_GLOBAL)
+                    except OSError:
+                        pass
+    for name in _CUDA_LIBS.get(os.name, ()):
+        try:
+            ctypes.CDLL(name)
+        except OSError:
+            return name
+    return None
+
+
+_cuda_cache: dict | None = None
+
+
+def cuda_status(refresh: bool = False) -> dict:
+    """Does Whisper really run on the graphics card here? {gpu, on_gpu, problem, message}.
+
+    `gpu` = an NVIDIA card is visible; `on_gpu` = captions will use it; `problem` = a card is there but cannot be used
+    (the studio then uses the CPU, which is slower but works). Never raises.
+    """
+    global _cuda_cache
+    if _cuda_cache is not None and not refresh:
+        return _cuda_cache
+    try:
+        import ctranslate2
+        gpu = ctranslate2.get_cuda_device_count() > 0
+    except Exception:  # noqa: BLE001 - not installed or no CUDA build: simply no GPU path
+        gpu = False
+    if not gpu:
+        res = {"gpu": False, "on_gpu": False, "problem": False,
+               "message": "Captions are made on the CPU (no NVIDIA graphics card was found for it)."}
+    elif (missing := _load_cuda_libs()) is not None:
+        res = {"gpu": True, "on_gpu": False, "problem": True,
+               "message": "Your graphics card could make captions much faster, but NVIDIA's helper files "
+                          f"({missing} and friends) are not installed, so the CPU is being used instead. "
+                          "Fix this installs them (a large one-time download, about 1 GB)."}
+    else:
+        res = {"gpu": True, "on_gpu": True, "problem": False, "message": "Captions are made on your graphics card."}
+    _cuda_cache = res
+    return res
 
 
 def ts(seconds: float) -> str:
