@@ -20,7 +20,7 @@ import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
 from studio.errors import StudioError
-from studio.history import cast, figures, speech_audio, wardrobe
+from studio.history import autoscene, cast, figures, speech_audio, wardrobe
 from studio.kids.sprites import SpriteBank, blink
 from studio.util import ffmpeg as ff
 from studio.util import fonts
@@ -749,7 +749,8 @@ class Scene:
 
     # -- diagram: numbered steps appear one after another
     def _diagram(self, img: Image.Image, t: float) -> None:
-        steps = [str(s) for s in (self.data.get("steps") or ["Step one", "Step two", "Step three"])][:5]
+        steps = autoscene.steps_for(str(self.seg.get("narration", "")), self.data.get("steps")) \
+            or [str(self.data.get("title") or self.seg.get("chapter") or "How it worked")]
         n = len(steps)
         banner(img, str(self.data.get("title") or self.seg.get("chapter", "")), 90, width=760)
         cw = min(300, (W - 200 - (n - 1) * 60) // n)

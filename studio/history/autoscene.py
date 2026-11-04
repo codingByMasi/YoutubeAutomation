@@ -169,6 +169,25 @@ def _steps(text: str) -> list[str]:
     return [_trim_line(s, 7) for s in sents[:4]] if len(sents) >= 3 else []
 
 
+_PLACEHOLDER = re.compile(r"^\s*(step\s*(\d+|one|two|three|four|five)|\.*)\s*$", re.I)
+
+
+def steps_for(text: str, given: object = None) -> list[str]:
+    """The steps a diagram scene shows: the script's own, else taken from the narration (never "Step one").
+
+    Placeholder or empty entries are dropped. With fewer than two real steps the narration is split into sentences,
+    then into clauses at "then / next / finally / and", each trimmed to a short line (at most 5 steps)."""
+    real = [str(x).strip() for x in (given if isinstance(given, list) else []) if not _PLACEHOLDER.match(str(x))]
+    if len(real) >= 2:
+        return real[:5]
+    parts = [_trim_line(s, 7) for s in _sentences(text)]
+    if len(parts) < 3:
+        clauses = re.split(r"[;:]|,?\s+(?:and then|then|next|after that|finally)\s+|,\s+(?=and\b)", text.strip())
+        parts = [_trim_line(c, 7) for c in clauses if len(c.split()) >= 3]
+    parts = [p for p in parts if p]
+    return (parts or real)[:5]
+
+
 def choose(seg: dict, idx: int, prev_chapter: str | None, figs: list[str], recent: list[str],
            lectern_ok: bool) -> str:
     """The scene type for one segment (see the module docstring for the rules)."""
@@ -222,7 +241,7 @@ def assign(segments: list[dict], force: bool = False) -> int:
                     "title": str(seg.get("chapter") or "")}
             who = [who[0]]
         elif scene == "diagram":
-            data = {"steps": _steps(text), "title": str(seg.get("chapter") or "How it worked")}
+            data = {"steps": steps_for(text), "title": str(seg.get("chapter") or "How it worked")}
             who = [who[0]]
         elif scene == "calendar":
             m = _DAYS.search(text)
