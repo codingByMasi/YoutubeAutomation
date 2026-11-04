@@ -48,7 +48,7 @@ Or double-click `run_app.bat`. It opens http://localhost:8501. On macOS/Linux: `
 1. Push this repo to GitHub, then go to share.streamlit.io, click **Create app**, pick the repo and branch,
    and set **Main file path** to `app.py`. `requirements.txt` and `packages.txt` (installs ffmpeg) are picked up.
 2. Under **Advanced settings -> Secrets** paste the lines from `.streamlit/secrets.toml.example`. Set `APP_PASSWORD`
-   so strangers cannot use your keys. Add `PIXABAY_API_KEY` for stock footage and photos (optional; without keys the
+   so strangers cannot use your keys. Add `PIXABAY_API_KEY` for stock footage and photos (hosted app only; on your PC use the Setup page; optional; without keys the
    studio uses Wikimedia Commons photos and generated cards).
 3. Deploy. Free hosting has about 1 GB RAM and temporary disk, so **download each video from step 4 before the app
    sleeps**. Long videos build slowly there; for long videos run the app locally.
@@ -119,14 +119,14 @@ export from OpenUtau (CPU only, no GPU) and upload on that page; OpenUtau is fou
 
 Windows setup (one time):
 1. Install Blender 4.2 LTS or newer from blender.org (free, GPL; videos you render are yours). The default folder
-   `C:\Program Files\Blender Foundation\Blender <version>\` is found automatically. Otherwise set
-   `BLENDER_PATH=C:\path\to\blender.exe` in `.env`.
+   `C:\Program Files\Blender Foundation\Blender <version>\` is found automatically. Otherwise fill in
+   **Blender location** under Pictures on the **Setup** page and save.
 2. Your normal Python (3.11 or 3.12) is fine: Blender runs the 3D script in its own bundled Python, and the script
    only uses Blender's own modules. A 4 GB graphics card is enough for these simple flat-colour scenes.
-3. Try it: `python -m studio.cli kids demo --renderer blender --force` (or set `RENDERER=blender` in `.env` to make it
-   the default, and `RENDERER=2d` to switch back). Output: `projects/kids_demo/final.mp4`.
-4. If it fails, run again with `--renderer 2d` and send the error text. Updating the graphics driver fixes most
-   Blender start-up problems.
+3. Try it: `python -m studio.cli kids demo --renderer blender --force`. To make 3D the default, open **Setup** and
+   choose 3D under "Pictures" (choose 2D to switch back). Output: `projects/kids_demo/final.mp4`.
+4. If it fails, the app shows what went wrong; run again with `--renderer 2d` to carry on. Updating the graphics
+   driver fixes most Blender start-up problems.
 
 Scenes are 24 fps, 1280x720, flat colours (no image textures) and use the same script, narration and captions as 2D.
 Blender is used for the pictures only; the Pexels/Pixabay stages and the main (non-kids) pipeline are unchanged.
@@ -145,9 +145,10 @@ or a script with nothing to draw in 3D). `projects/<id>/render_report.json` reco
 
 Plain steps:
 1. Download Blender 4.2 LTS or newer from blender.org and install it with the defaults (Windows installer).
-2. Restart `run_app.bat`. The box should say "Blender found". If not, add `BLENDER_PATH=C:\Program Files\Blender Foundation\Blender 4.2\blender.exe`
-   to `.env` (use your real folder).
-3. In the same box set **Scenes: 3D or 2D** to *Mixed* or *3D* (business and history channels default to Mixed) and save.
+2. Restart `run_app.bat`. The box should say "Blender found". If not, fill in **Blender location** under Pictures
+   on the **Setup** page and save.
+3. In the same box set **Scenes: 3D or 2D** to *Mixed* or *3D* (the business channel defaults to Mixed; history
+   defaults to the 2D cartoon cast, which has no 3D mode) and save.
 4. Run the picture step again with "force" (CLI: `python -m studio.cli visuals <id> --force`). Bar and line charts become 3D charts;
    timelines, maps and artifacts need the script to contain a `scene`.
 Without Blender, charts still animate (bars rise, lines draw, key numbers count up), photos get camera moves, and the opening
@@ -167,11 +168,11 @@ What is automatic and what is by hand:
 
 Windows setup (one time):
 1. Download OpenUtau from github.com/stakira/OpenUtau/releases (the Windows x64 zip; unzip it anywhere, for example
-   `C:\Tools\OpenUtau`, and run `OpenUtau.exe`). Put the path in `.env` as `OPENUTAU_PATH=C:\Tools\OpenUtau\OpenUtau.exe`
-   if you want `--open` to launch it.
+   `C:\Tools\OpenUtau`, and run `OpenUtau.exe`). `--open` launches it when it is in `C:\Tools\OpenUtau` or a usual install folder.
+   Gap: the app has no setting yet for another OpenUtau location (it is only configurable with `OPENUTAU_PATH`).
 2. Pick a voicebank from the approved list (only banks whose licence allows monetised videos): run
-   `python -m studio.cli kids voicebanks`, download the one you want, install it in OpenUtau (Singers > Install Singer),
-   and set `SING_VOICEBANK=<key>` in `.env`. `kids sing` then saves `sung/VOICEBANK_LICENCE.txt` with the licence,
+   `python -m studio.cli kids voicebanks` (or the **Voices** page), download the one you want, install it in OpenUtau
+   (Singers > Install Singer), and pick it on the **Voices** page. `kids sing` then saves `sung/VOICEBANK_LICENCE.txt` with the licence,
    the credit line for your video description and any warnings. Re-read the creator's page before publishing.
 3. Run `python -m studio.cli kids sing "counting five little ducks" --open` (or open `sung\song.ustx` in OpenUtau).
 4. In OpenUtau choose your singer for the track. If the words sound wrong, change the track's Phonemizer (the file
@@ -191,10 +192,11 @@ per channel, per video and per scene; the more specific choice wins (scene > vid
 | Style | What you get |
 |---|---|
 | `2d` | Scenes are 2D motion graphics (steps appear one by one). Bar/line charts stay normal 2D charts. |
-| `3d` | Scenes are 3D, and every bar/line chart becomes a 3D chart too (no source line). |
+| `3d` | Scenes are 3D, and every bar/line chart becomes a 3D chart too. |
 | `mixed` | Scenes are 3D, plain charts stay 2D. |
 
-Defaults by channel type: history and business `mixed`, general and kids `2d`. If Blender is missing or a render fails,
+Defaults by channel type: business `mixed`, general and kids `2d`. History channels draw every scene with the 2D
+cartoon cast renderer (characters come from the script); 3D needs Blender and has no history cast mode. If Blender is missing or a render fails,
 that scene is drawn in 2D and a note says so (nothing breaks). An explicit `renderer 2d` on a channel or video also
 turns the type's 3D default off.
 
@@ -214,7 +216,7 @@ Where to choose:
 ### Growing the channel (page 5)
 The **5. Grow the channel** page has tabs for: channel profile, series/playlists (each video points to the next), a
 content calendar, 5 titles + 3 thumbnail concepts per video (scored by a checklist), description/tags/chapters with
-sources and photo credits, a Shorts plan, a fact and source checklist (must be complete before approval on page 4),
+photo credits, a Shorts plan, a fact checklist (must be complete before approval on page 4),
 pasting YouTube Studio numbers for next-script advice, and a Partner Program tracker with a monetization checklist.
 Where Claude's writing helps, copy the shown prompt into Claude and paste the JSON answer back. No API key needed.
 
@@ -267,7 +269,7 @@ cd yt-studio
 python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-pip install faster-whisper   # optional: word-accurate captions (otherwise timed from the script)
+pip install faster-whisper   # optional: word-accurate captions (otherwise timed from the voice or the script)
 ```
 
 Use Python 3.11 to 3.13 (3.12 is best). On Python 3.14+ `pip` fails with an `onnxruntime` / `ResolutionImpossible`
@@ -290,13 +292,14 @@ Note on uploads: YouTube may force videos uploaded through API projects that hav
 ## 4. Other keys
 
 1. **LLM provider (optional):** not needed. By default Claude Code answers prompt files. Only if you want fully hands-off runs, set `LLM_PROVIDER` to `anthropic`, `openai` or `gemini`, add `LLM_API_KEY` and `LLM_MODEL`, and `pip install` that provider's package.
-2. **Stock footage (optional):** Pexels has paused new API keys, so use **Pixabay**: sign up (free) at pixabay.com, open https://pixabay.com/api/docs/ while logged in, copy your key and put it in `.env` as `PIXABAY_API_KEY=...`. Pixabay's content licence allows commercial use (including monetized YouTube) with no attribution required; the licence is still recorded per clip. With no key, `visuals` still works: it uses generated cards, charts and number cards and says so. `FOOTAGE_PROVIDER` picks the source: `auto` (default: Pexels key if set, else Pixabay key, else none), `pexels`, `pixabay` or `none`. Existing Pexels keys keep working.
+2. **Stock footage (optional):** Pexels has paused new API keys, so use **Pixabay**: sign up (free) at pixabay.com, open https://pixabay.com/api/docs/ while logged in, copy your key and paste it into the **Footage** box on the **Setup** page. Pixabay's content licence allows commercial use (including monetized YouTube) with no attribution required; the licence is still recorded per clip. With no key, `visuals` still works: it uses generated cards, charts and number cards and says so. `FOOTAGE_PROVIDER` picks the source: `auto` (default: Pexels key if set, else Pixabay key, else none), `pexels`, `pixabay` or `none`. Existing Pexels keys keep working.
    **Photos:** `visuals` also searches still images (Pixabay photos if keyed, plus Wikimedia Commons with no key) and mixes them with clips, slowly zooming each photo. `IMAGE_PROVIDER=auto|pixabay|commons|none` controls this. Commons files are used only under public domain, CC0, CC BY or CC BY-SA, and the required credits go into the video description automatically.
 3. **ElevenLabs (optional):** only if you want higher-quality voices than the free edge-tts default.
 
-## 5. Configure `.env`
+## 5. Settings (`.env`, advanced)
 
-Copy the example and fill it in:
+On your PC the **Setup** page fills these in for you; you do not have to edit this file. This section lists what the
+page saves, and is the only way to set options the app does not expose yet. Setup writes `.env` when you save. To create it by hand instead:
 
 ```bash
 cp .env.example .env
@@ -478,8 +481,9 @@ With a 3D scene style (`3d` or `mixed`), the channel's mascot acts out script be
 celebrates, reacts, thinks or shrugs, with props (money stacks, bars, generic logo blocks), camera cuts every few
 seconds and a mouth that opens with the narration's loudness. Segments without a chart or scene of their own get a
 host scene automatically (the first, then every other one); set `host_scenes` to `off` in the channel profile to
-stop that. With a good graphics card, set `STUDIO_3D_QUALITY=gpu` in `.env` for 1080p scenes with smoother
-edges; it is optional and the default stays light for any PC. Add one yourself in `script.json`:
+stop that. With a good graphics card, `STUDIO_3D_QUALITY=gpu` gives 1080p scenes with smoother
+edges; it is optional and the default stays light for any PC. Gap: there is no in-app setting for it yet (it is only
+set in `.env`). Add one yourself in `script.json`:
 `"scene": {"kind": "host", "action": "point", "set": "vault", "props": ["money_stack", "bars_up"]}`
 (actions: present, point, celebrate, shock, think, shrug, walk_in, fall, wave; sets: studio, vault, street,
 boardroom, stage). The character is the mascot `kind`: `coin`, `owl`, `robot`, `piggy`, `bull` or `analyst`

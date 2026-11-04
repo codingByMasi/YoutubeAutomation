@@ -13,6 +13,7 @@ import hashlib
 import json
 import math
 import random
+import re
 import subprocess
 from pathlib import Path
 
@@ -235,6 +236,16 @@ def backdrop(kind: str) -> Image.Image:
 
 
 # ---------------------------------------------------------------- characters
+def card_question(narration: str, title: str = "", limit: int = 70) -> str:
+    """Line for a chapter card that has no `question`: the narration's last question, else its last sentence.
+    Returns "" if that would only repeat the title."""
+    parts = [p.strip() for p in re.split(r"(?<=[.!?])\s+", narration.strip()) if p.strip()]
+    pick = next((p for p in reversed(parts) if p.endswith("?")), parts[-1] if parts else "")
+    if len(pick) > limit or pick.lower().rstrip(".!? ") == title.lower().rstrip(".!? "):
+        return ""
+    return pick
+
+
 class Cast:
     """Sprites for the recurring roster plus the video's own historical figures (same faction colour all video)."""
 
@@ -609,7 +620,8 @@ class Scene:
     # -- lectern: host at a wooden lectern, chapter card on the left
     def _lectern(self, img: Image.Image, t: float) -> None:
         d = ImageDraw.Draw(img)
-        title, q = str(self.data.get("title") or self.seg.get("chapter", "")), str(self.data.get("question") or "")
+        title = str(self.data.get("title") or self.seg.get("chapter", ""))
+        q = str(self.data.get("question") or card_question(str(self.seg.get("narration", "")), title))
         a = ease(t / 0.6)
         shadowed_box(img, (60, 170, 700, 470), (252, 244, 222), outline=WOOD, radius=20, width=6)
         d = ImageDraw.Draw(img)

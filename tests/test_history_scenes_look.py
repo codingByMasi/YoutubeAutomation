@@ -51,3 +51,11 @@ def test_map_scene_draws_territories_and_a_marching_army(tmp_path):
     early, late = sc.frame(1.0), sc.frame(9.0)
     assert early.size == (r.W, r.H) and early.tobytes() != late.tobytes()
     assert r._territories(0).tobytes() != r._map_base().tobytes()  # the sides are tinted
+
+
+def test_lectern_card_gets_a_line_from_the_narration_when_it_has_no_question():
+    q = r.card_question("Back at the ledger. Page one says 125 shareholders. Who pays for the next volume?", "What Comes Next")
+    assert q == "Who pays for the next volume?"
+    assert r.card_question("It is 1600. A charter is signed.", "Rewind") == "A charter is signed."
+    assert r.card_question("What Comes Next.", "What Comes Next") == ""  # never repeats the title
+    assert r.card_question("A sentence far too long to fit on a chapter card " * 3, "T") == ""

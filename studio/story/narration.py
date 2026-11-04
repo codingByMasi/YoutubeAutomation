@@ -103,6 +103,33 @@ def _tokens(text: str) -> list[str]:
     return text.split()
 
 
+def align_words(words: list[Word], text: str) -> list[Word]:
+    """Word times with the script's own words and punctuation (the engine drops punctuation and may merge words
+    such as "£68,373 end" into one timed word; a merged word's time is shared by its parts in proportion to
+    length). Returns `words` unchanged if they do not line up with `text`."""
+    def norm(s: str) -> str:
+        return re.sub(r"\W+", "", s.lower())
+
+    tokens, out, i = _tokens(text), [], 0
+    for s, e, w in words:
+        target, got, group = norm(w), "", []
+        if not target:
+            continue
+        while i < len(tokens) and len(got) < len(target):
+            group.append(tokens[i])
+            got += norm(tokens[i])
+            i += 1
+        if got != target:
+            return words
+        total = sum(max(1, len(norm(t))) for t in group)
+        at = s
+        for t in group:
+            end = at + (e - s) * max(1, len(norm(t))) / total
+            out.append((round(at, 3), round(end, 3), t))
+            at = end
+    return out if all(not norm(t) for t in tokens[i:]) else words
+
+
 def split_points(words: list[Word], texts: list[str], total: float) -> list[float] | None:
     """Cut times between segments from word timings, or None if the word counts do not line up.
 

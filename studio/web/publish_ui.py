@@ -25,7 +25,7 @@ def render(ctx, root: Path, v, show, key: str = "") -> None:
         return
     fc_ok = v.stage == "reviewed" or gsvc.fact_check_passed(ctx, v.id)
     if not fc_ok:
-        st.warning("Finish the **fact and source checklist** first (page *5. Grow the channel*, Fact check tab). "
+        st.warning("Finish the **fact checklist** first (page *5. Grow the channel*, Fact check tab). "
                    "It must be complete before you can approve.")
     thumb = st.radio("Thumbnail", [1, 2, 3], horizontal=True, key=f"thumb{key}{v.id}")
     typed = st.text_input("Type yes to approve this video for publishing", key=f"yes1{key}{v.id}")

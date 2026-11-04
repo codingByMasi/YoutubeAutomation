@@ -2,9 +2,9 @@
 
 Claude Code: update this file at the end of every milestone and whenever you make a decision. Read it first in every new session.
 
-**Last updated:** 2026-11-02
-**Current milestone:** M8 done; next is the owner's setup and the first real video
-**Overall status:** Build complete. 93 tests pass (`pytest -q`), `ruff check .` is clean, and `demo` builds a playable 1080p MP4
+**Last updated:** 2026-11-04
+**Current milestone:** M0-M8 done; since then the app grew three channel types (business, history, kids), narration styles, the history cartoon cast renderer and a Voices page. Next is the owner's first real video
+**Overall status:** `pytest -q` passes (752 passed, 15 skipped on 2026-11-04), `ruff check .` is clean. There is no CI, so run the full suite before every merge. Entries below run oldest to newest; the milestone checklists M0-M8 are the original build record.
 
 Status values: `todo`, `in progress`, `blocked`, `done`
 
@@ -602,3 +602,20 @@ Decisions: OpenUtau has no CLI renderer, so a voicebank "preview" is a clip expo
 - `studio/quality/visual_mix.py`: at most 3 charts per video, never within 3 segments of each other (extras dropped, noted in the log); pie charts are drawn as bar charts so they animate. Still stock photos are a fallback only (clips first, at most 2 per video). With `cast_scenes` on, a segment with no scene and no chart gets the default animated `lectern` cast scene.
 - Removed the "no chart for 90 s" warnings (script pacing, `chart_gaps`) and the "chart every 60-90 s" prompt rule; the script prompt now asks for charts only when a number needs to be seen.
 - Not changed: `flow` charts stay static (diagram work is in another thread); script-requested photo scenes (max 3) already have a camera move.
+## 2026-11-04 Docs catch-up for PRs #55 to #69 (docs-only PR)
+Short entries for merged PRs that had none or only a partial one above. Behaviour was not changed by this entry.
+- #55 Voices page: hear and pick narration voices and vetted voicebanks in the app (entry 2026-11-03 above).
+- #57 Make a video no longer crashes on scripts whose `scene` is a plain string; old script shapes load.
+- #58 Small fixes: portable fonts (history cast text was tiny on non-Windows), lossless script loader, a real check of the output size, sources dropped from the docs.
+- #59 Story-era costumes for the history cast (entry above).
+- #61 Source, citation and fact-id asks removed from every prompt; old saved prompts regenerate. #64 fixed the Script step that then showed no prompt.
+- #62 Lint line lengths. #65 Fast history cast flow test (voice, visuals, build) with heavy tools stubbed.
+- #66 Failed steps show a plain-language message with a "Fix this" button and collapsed technical details.
+- #68 The narrator is now muted (not just ducked) while a character line plays, so two voices never overlap (`studio/history/speech_audio.py`, `DUCK = 0.0`). The older "narrator ducked" note in the 2026-11-03 history entry is superseded.
+- #69 Only people the script names are cast; no recurring ids are picked by keyword (entry above).
+- Captions today: word times come from the TTS timings, or from optional local `faster-whisper` when installed, otherwise estimated from the script. The code does not run Whisper through ffmpeg.
+
+### Decisions (2026-11-04, docs PR)
+- Docs now describe three channels, narration styles, "characters come from the script", the history 2D cartoon cast (3D needs Blender and has no history cast mode), no sources or fact ids, minimal diffs, disclose-every-change and "no CI, run full pytest before merge" (see `CLAUDE.md`).
+- The fact checklist no longer blocks a script for having no sources (`studio/growth/factcheck.py`); photo credits stay.
+- Gaps (no in-app setting yet, so docs say so plainly): OpenUtau location other than `C:\Tools\OpenUtau` or a usual folder (`OPENUTAU_PATH`), and `STUDIO_3D_QUALITY=gpu`. Also, a few in-app messages still say "set ... in .env" (`studio/web/setup_ui.py`, `studio/cli.py`, `studio/web/voices_service.py`, `studio/blender/provider.py`, `studio/manage/doctor.py`); not changed here because this PR is docs-only.
