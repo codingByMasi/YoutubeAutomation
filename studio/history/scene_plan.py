@@ -49,7 +49,8 @@ the whole video. Per character return:
   goatee), "clothing" {{"type": e.g. tunic, robe, dress, gown, toga, coat, apron, kimono, kilt, "color": "...",
   "trim": "..."}}, "armour" (none, chainmail, breastplate, plate), "headwear" (e.g. helmet, crown, hood, turban, veil,
   hat, cap, laurel, none), "props" (up to 2: sword, spear, shield, staff, bow, scroll, book, torch, purse, hammer,
-  banner, or any object), "accent_color", optional "cape_color", optional "pitch" (low, mid, high) for the voice.
+  banner, or any object), optional "face" {{"shape", "eyes", "brows", "nose", "mouth", "marks"}} (make faces
+  differ), optional "posture", "accent_color", optional "cape_color", optional "pitch" (low, mid, high) for the voice.
 Dress them for the story's era and place (what people there and then wore).
 Use the recurring cast below only for the host (`quill`, at the lectern); every other character is one from the
 list above, described from this script, never a recurring-cast id.
@@ -173,7 +174,8 @@ def describe(settings: Settings, work_dir: Path, segments: list[dict], character
 never pick from a fixed type list; dress them for the story's era and place. Characters: {', '.join(names)}.
 Per character return "name" (exactly as listed), "role", "gender" (female, male or neutral: only what the script
 says; never guess from a name), "age" (child, young, adult, elder), "build", "skin", "hair" {{"style", "color"}},
-"facial_hair", "clothing" {{"type", "color", "trim"}}, "armour", "headwear", "props" (up to 2), "accent_color",
+"facial_hair", "clothing" {{"type", "color", "trim"}}, "armour", "headwear", "props" (up to 2), optional "face"
+{{"shape", "eyes", "brows", "nose", "mouth", "marks"}} (make faces differ), optional "posture", "accent_color",
 optional "pitch" (low, mid, high). Write ONLY {{"characters": [...]}}.
 
 Script:
