@@ -598,6 +598,10 @@ Decisions: OpenUtau has no CLI renderer, so a voicebank "preview" is a clip expo
 - Not done: a script-chosen 3D style. Blender path only knows kids cast and chart scenes; it would need a style field in the script and a Blender builder for `figures` specs.
 - Also: the rule-based scene fallback (`autoscene._pick_cast`) no longer picks recurring cast ids by keyword; it casts the people the script names, else the host. The scene prompt tells Claude to use only `quill` from the recurring cast.
 
+## 2026-11-04 Charts and stills are rare, everything moves
+- `studio/quality/visual_mix.py`: at most 3 charts per video, never within 3 segments of each other (extras dropped, noted in the log); pie charts are drawn as bar charts so they animate. Still stock photos are a fallback only (clips first, at most 2 per video). With `cast_scenes` on, a segment with no scene and no chart gets the default animated `lectern` cast scene.
+- Removed the "no chart for 90 s" warnings (script pacing, `chart_gaps`) and the "chart every 60-90 s" prompt rule; the script prompt now asks for charts only when a number needs to be seen.
+- Not changed: `flow` charts stay static (diagram work is in another thread); script-requested photo scenes (max 3) already have a camera move.
 ## 2026-11-04 Docs catch-up for PRs #55 to #69 (docs-only PR)
 Short entries for merged PRs that had none or only a partial one above. Behaviour was not changed by this entry.
 - #55 Voices page: hear and pick narration voices and vetted voicebanks in the app (entry 2026-11-03 above).
