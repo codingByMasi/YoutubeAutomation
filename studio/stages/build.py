@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -259,6 +260,9 @@ def run(ctx: Ctx, video_id: int, force: bool = False) -> None:
         voices = [out / "voice" / f"seg_{i:03d}.mp3" for i in range(1, len(segs) + 1)]
         ff.run(ff.audio_concat_cmd(ff.concat_list(voices, tmp / "voice.txt"), tmp / "narration.wav"),
                "joining narration")
+        from studio.history import speech_audio  # characters' own voices over the narrator (cast channels only)
+        narr_track = speech_audio.mix_into_narration(tmp / "narration.wav", segs, timeline(segs),
+                                                     tmp / "narration_mix.wav")  # captions still use the pure narration
 
         # 3. captions: word-timed (whisper if installed, else estimated from segment timings)
         spans = timeline(segs)
@@ -321,14 +325,18 @@ def run(ctx: Ctx, video_id: int, force: bool = False) -> None:
         clean = out / "clean.mp4"  # no burned captions; Shorts are cut from this
         from studio.story import profile as story_profile
         sprof = story_profile.for_channel(ctx.settings.root)
-        ff.run(ff.mix_cmd(tmp / "picture.mp4", tmp / "narration.wav", clean, music, MUSIC_DB,
+        ff.run(ff.mix_cmd(tmp / "picture.mp4", narr_track, clean, music, MUSIC_DB,
                           sfx={k: snd[k] for k in sound.SFX}, sfx_events=events, total=total,
                           lufs=sprof["lufs_target"], true_peak=sprof["true_peak"]), "mixing audio")
         main = tmp / "main.mp4"
-        ff.run(["ffmpeg", "-y", "-i", str(clean), "-vf", ff._sub_filter(main_ass),
-                "-c:v", "libx264", "-preset", ff.profile().preset, "-crf", str(ff.profile().crf), "-pix_fmt", "yuv420p",
-                "-c:a", "copy",
-                "-movflags", "+faststart", str(main)], "burning captions")
+        if not sprofile.enabled(sprof_c, "burn_captions"):
+            # cast channels: the text on screen is the speech lines; captions.srt is still written for upload
+            shutil.copyfile(clean, main)
+        else:
+            ff.run(["ffmpeg", "-y", "-i", str(clean), "-vf", ff._sub_filter(main_ass),
+                    "-c:v", "libx264", "-preset", ff.profile().preset, "-crf", str(ff.profile().crf),
+                    "-pix_fmt", "yuv420p", "-c:a", "copy",
+                    "-movflags", "+faststart", str(main)], "burning captions")
 
         # 5. intro / outro
         pieces, intro_s = [], 0.0
@@ -373,14 +381,17 @@ def run(ctx: Ctx, video_id: int, force: bool = False) -> None:
         duration = ff.probe_duration(final)
         pkg["build"] = {"final": str(final), "clean": str(clean), "intro_seconds": round(intro_s, 3),
                         "duration": round(duration, 3), "music": str(music) if music else None,
-                        "captions": caption_source}
+                        "captions": caption_source, "video": ff.video_facts(final), "draft": ff.profile().draft}
         report = quality_report(pkg, _story_profile(ctx))
         write_report(out, report)
         for line in report["warnings"][:8]:
             typer.secho(f"quality: {line}", fg=typer.colors.YELLOW)
         write_package(ctx, video_id, pkg)
         p = ff.profile()
-        typer.echo(f"Built {final} ({duration / 60:.1f} min, {p.w}x{p.h}{', DRAFT quality' if p.draft else ''}).")
+        real = pkg["build"]["video"]
+        size = (f"{real['width']}x{real['height']} at {real['fps']:g} fps, {real['kbps']} kbps"
+                if real else f"{p.w}x{p.h}")
+        typer.echo(f"Built {final} ({duration / 60:.1f} min, {size}{', DRAFT quality' if p.draft else ''}).")
 
     r = run_stage(s, video, "built", work, force)
     typer.echo(r.message + (f" Next: thumbnail {video_id} (optional: shorts {video_id})" if r.ran else ""))

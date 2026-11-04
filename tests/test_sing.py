@@ -156,3 +156,12 @@ def test_cli_sing_writes_files_and_reports_missing_vocal(make_ctx, monkeypatch) 
     _sine(wav, 1.0)
     res = CliRunner().invoke(cli.app, ["kids", "sing", "ducks", "--use", str(wav)])
     assert "Vocal ready" in res.output and (d / "sung" / "vocal.wav").exists()
+
+
+def test_voicebank_allowlist(tmp_path: Path) -> None:
+    from studio.kids import voicebanks
+    vb = voicebanks.get("AyaLuna-English")
+    note = voicebanks.write_licence(vb, tmp_path).read_text(encoding="utf-8")
+    assert vb.credit in note and "WARNING" in note
+    with pytest.raises(StudioError):
+        voicebanks.get("some-random-bank")

@@ -173,6 +173,17 @@ def build(video_id: int, force: bool = FORCE) -> None:
     m.run(_ctx(), video_id, force=force)
 
 
+@app.command("wardrobe")
+def wardrobe_cmd(character: str = typer.Argument("quill", help="History character id, e.g. quill, vex."),
+                 out: str = typer.Option("", help="PNG to write (default wardrobe-<id>.png).")) -> None:
+    """Preview one history character in every era outfit (the same face and voice, a costume per story)."""
+    from pathlib import Path
+
+    from studio.history import preview
+    path = preview.write_sheet(character, Path(out or f"wardrobe-{character}.png"))
+    print(f"Wrote {path}. Set `era` on a script (or let the studio guess from the title) to use an outfit.")
+
+
 @app.command()
 def qa(video_id: int) -> None:
     """Flag weak hooks, flat pacing, repeated or missing pictures and a weak ending (read-only)."""
@@ -389,6 +400,7 @@ def channels_add(name: str = typer.Argument(..., help="Channel name."),
                  music: str = typer.Option(None, help="generated or none."),
                  music_mood: str = typer.Option(None, "--music-mood", help="minor or major."),
                  tts_provider: str = typer.Option(None, "--tts-provider", help="edge, eleven or silent."),
+                  narration: str = typer.Option(None, "--narration", help="Narration style id; blank = type default."),
                  publish_days: str = typer.Option(None, "--publish-days", help="Weekdays 0=Mon..6=Sun, e.g. 1,4."),
                  publish_time: str = typer.Option(None, "--publish-time", help="HH:MM local time, e.g. 16:00."),
                  activate: bool = typer.Option(True, help="Switch to the new channel.")) -> None:
@@ -396,7 +408,8 @@ def channels_add(name: str = typer.Argument(..., help="Channel name."),
     from studio.growth import channels
     fields = _fields(None, niche, description, posts_per_week, voice, language, audience, youtube_channel_id,
                      type_, renderer=renderer, scene_style=scene_style, music=music, music_mood=music_mood,
-                     tts_provider=tts_provider, publish_days=publish_days, publish_time=publish_time)
+                     tts_provider=tts_provider, narration=narration,
+                     publish_days=publish_days, publish_time=publish_time)
     cid = channels.add(_channels_root(), name, activate=activate, **fields)
     typer.echo(f"Added channel '{cid}'" + (" and made it active." if activate else "."))
 
@@ -414,6 +427,7 @@ def channels_edit(channel_id: str = typer.Argument(None, help="Channel id (defau
                   music: str = typer.Option(None, help="generated or none."),
                   music_mood: str = typer.Option(None, "--music-mood", help="minor or major."),
                   tts_provider: str = typer.Option(None, "--tts-provider", help="edge, eleven or silent."),
+                  narration: str = typer.Option(None, "--narration", help="Narration style id; blank = type default."),
                   publish_days: str = typer.Option(None, "--publish-days", help="Weekdays 0=Mon..6=Sun, e.g. 1,4."),
                   publish_time: str = typer.Option(None, "--publish-time", help="HH:MM local time, e.g. 16:00."),
                   story: str = typer.Option(None, "--story", help='Story-profile overrides as JSON, e.g. '
@@ -424,7 +438,8 @@ def channels_edit(channel_id: str = typer.Argument(None, help="Channel id (defau
     from studio.growth import channels
     fields = _fields(name, niche, description, posts_per_week, voice, language, audience, youtube_channel_id,
                      type_, renderer=renderer, scene_style=scene_style, music=music, music_mood=music_mood,
-                     tts_provider=tts_provider, publish_days=publish_days, publish_time=publish_time)
+                     tts_provider=tts_provider, narration=narration,
+                     publish_days=publish_days, publish_time=publish_time)
     if story is not None:
         try:
             fields["story"] = _json.loads(story)
@@ -724,7 +739,31 @@ def kids_sing(topic: str, force: bool = FORCE,
             typer.echo("OpenUtau not found. Set OPENUTAU_PATH in .env or open song.ustx yourself (README).")
         else:
             openutau.open_project(exe, files["ustx"])
+    if ctx.settings.sing_voicebank:
+        from studio.kids import voicebanks
+        vb = voicebanks.get(ctx.settings.sing_voicebank)
+        typer.echo(f"Voicebank: {vb.name}. Licence note: {voicebanks.write_licence(vb, sung)}")
+        for w in vb.warnings:
+            typer.echo(f"  Check before monetising: {w}")
+    else:
+        typer.echo("No voicebank chosen. Set SING_VOICEBANK in .env (see `kids voicebanks`).")
     typer.echo(sing_step.status(ctx, slug))
+
+
+@kids_app.command("voicebanks")
+def kids_voicebanks() -> None:
+    """List the voicebanks approved for monetised use, with their licence summary and credit line."""
+    from studio.kids import voicebanks
+    chosen = _ctx().settings.sing_voicebank
+    for vb in voicebanks.VOICEBANKS.values():
+        mark = "  (selected)" if vb.key == chosen else ""
+        typer.echo(f"{vb.key}{mark}: {vb.name}")
+        typer.echo(f"  {vb.licence}")
+        typer.echo(f"  Terms: {vb.source}")
+        typer.echo(f"  Download: {vb.download}")
+        typer.echo(f"  Credit: {vb.credit}")
+        for w in vb.warnings:
+            typer.echo(f"  Check: {w}")
 
 
 @kids_app.command("checklist")

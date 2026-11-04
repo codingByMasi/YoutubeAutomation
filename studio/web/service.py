@@ -20,6 +20,7 @@ from studio.errors import LOCKED_HELP, InvalidAnswer, PendingLLMResponse, Studio
 from studio.llm import prompt_paths
 from studio.models import Idea, Title, Video
 from studio.stages.base import STAGES
+from studio.story import prompts
 from studio.util import progress
 from studio.util.answer_json import normalize_answer
 
@@ -322,12 +323,18 @@ def list_videos(ctx: Ctx) -> list[Video]:
     return scope.videos(ctx.session).order_by(Video.id.desc()).all()
 
 
-def read_prompt(ctx: Ctx, video_id: int, task: str = "script") -> str:
-    """The prompt text to paste into Claude (the file-path footer meant for Claude Code is removed)."""
-    pf, _ = prompt_paths(ctx.settings.project_dir(video_id), task)
+def read_prompt(ctx: Ctx, video_id: int, task: str = "script", fresh: bool = False) -> str:
+    """The prompt text to paste into Claude (the file-path footer meant for Claude Code is removed).
+
+    `fresh=True` means the prompt was just written by this version, so it is never dropped as old."""
+    pf, rf = prompt_paths(ctx.settings.project_dir(video_id), task)
     if not pf.exists():
         return ""
     text = pf.read_text(encoding="utf-8")
+    if not fresh and not rf.exists() and prompts.is_old_source_prompt(text.split(_ANSWER_MARK)[0]):
+        # Saved by an older version that asked for sources: drop it so the stage writes a fresh one.
+        pf.unlink(missing_ok=True)
+        return ""
     text = text.split(_ANSWER_MARK)[0].rstrip()
     return text + "\n\n---\nReply with ONLY the JSON object described above, no other text."
 
@@ -377,9 +384,8 @@ def fix_request(problems: list[str], task: str = "script") -> str:
     bullets = "\n".join(f"- {p}" for p in problems)
     return (f"Your {task} JSON answer failed the studio's validation. Please send back the full corrected JSON "
             f"object (only the JSON, no other text), changing only what is needed to fix these errors:\n\n{bullets}\n\n"
-            "Allowed `beat` values: question, reveal, example, pattern_break, or null. Charts with real figures need "
-            "`source_ids` that exist in `sources`; a flow diagram with empty `values`, or a chart titled "
-            "'made-up example', needs no source.")
+            "Allowed `beat` values: question, reveal, example, pattern_break, or null. Sources and fact ids are not "
+            "used; leave them out.")
 
 
 _TERMINAL_HINT = re.compile(r"(In Claude Code|Prompt written to|re-run|Re-run|LLM_PROVIDER)[^\n]*", re.I)

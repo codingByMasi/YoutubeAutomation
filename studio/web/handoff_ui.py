@@ -74,6 +74,19 @@ def apply_answer(ctx, video_id: int, task: str, pasted: str, fn, args: tuple, id
     return False
 
 
+def no_request_panel(ctx, video_id: int, task: str, run_fn, key: str, error: str = "") -> None:
+    """Shown when a step is pending but its request file is missing. Never says 'nothing to answer'."""
+    st.warning("The request for Claude is not written yet. Press the button to write it.")
+    if error:
+        st.caption(svc.plain_pending(error))
+    if st.button("Write the request for Claude", type="primary", key=f"{key}_mk_{task}{video_id}"):
+        res = svc.capture(run_fn, ctx)
+        if res.error and not res.pending:
+            st.error(svc.plain_pending(res.error))
+        else:
+            st.rerun()
+
+
 def task_panel(ctx, video, task: str, run_fn, key: str, idea_id: int | None = None,
                primary_label: str = "Apply answer", plain_script: bool = False) -> None:
     """One LLM step fully in the app: Copy prompt, paste box, Apply button and status.
@@ -84,9 +97,9 @@ def task_panel(ctx, video, task: str, run_fn, key: str, idea_id: int | None = No
         res = svc.capture(run_fn, ctx)
         if res.error and not res.pending:
             st.error(svc.plain_pending(res.error))
-        prompt = svc.read_prompt(ctx, video.id, task)
+        prompt = svc.read_prompt(ctx, video.id, task, fresh=True)
     if not prompt:
-        st.info("Nothing to answer right now.")
+        no_request_panel(ctx, video.id, task, run_fn, key)
         return
     st.markdown("**1.** Copy this request (copy icon, top right of the box) into Claude.")
     st.code(prompt, language="markdown", wrap_lines=True)

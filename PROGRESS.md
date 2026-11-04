@@ -84,6 +84,7 @@ Status values: `todo`, `in progress`, `blocked`, `done`
 ---
 
 ## Decisions
+- 2026-11-03: every prompt template (all packs, outline, plan, review, critique), the style/compliance text and channel guidance no longer ask for sources, citations or fact ids; a test guards it. The app drops a saved prompt file that still asks for them so it is rewritten.
 Record any choice made without asking the owner, with date and reason.
 
 | Date | Decision | Reason |
@@ -523,6 +524,15 @@ finished minute, from e2e-test/quality-report.md) plus estimated owner minutes a
 - `2. Script` and the wizard's Script step share `studio/web/script_ui.py`: progress bar (Plan story, Write script, Review), one instruction, a Copy button (request collapsed), one paste box, one Apply button, auto-advance, then one "Continue to voice" button. The plan always comes first, so a script is never requested without facts and open loops. Nothing was removed: the extra outline, the older scored review, writing a script without a plan, file upload, "run next step" and reading the script live under one "Advanced" expander. Logic in `wizard_service.script_flow`.
 - Prompt audit (finance, history, kids, rendered end to end): kids plan no longer asks for filings, "billion USD" or two loops in 60 s and facts are optional; history plan asks for museum/archive sources; example hook types match each channel's allowed formulas; cold open is 15 s everywhere (was 20 in the history beat sheet); "12-8 words" typo and "Child safety: Child safety:" duplicate fixed; "chart" wording no longer forced on kids.
 
+
+## 2026-11-03 Voices page (hear and pick voices in the app)
+Status: done. New sidebar page `🎙️ Voices` (`studio/web/voices_ui.py`, logic in `voices_service.py`, tests in `tests/test_voices.py`).
+Narration: Hear it (edge-tts sample) and Use this voice, saved to `.env` (TTS_VOICE) and the active channel so the pipeline uses it.
+Singing: lists only vetted voicebanks (PR 54 list) with licence, monetisation status, credit and warnings; AyaLuna shows a red
+AI-content warning and needs a ticked confirmation. Selection saves `SING_VOICEBANK` (only vetted keys accepted by `save_env`).
+Decisions: OpenUtau has no CLI renderer, so a voicebank "preview" is a clip exported from OpenUtau and uploaded to
+`voicebank_previews/<key>.wav`; installed state is detected from OpenUtau's Singers folders; `C:\Tools\OpenUtau` is searched by default. No GPU needed.
+
 ## 2026-11-02 Script paste tolerance
 - Pasting Claude's script reply no longer fails on near-misses. Auto-fixed (and noted): hook_type spelling/missing (set to the plan's), est_seconds far from the word count, extra or missing-pick titles, thumbnail texts over 3 / over 5 words, beat names.
 - Titles: 10-15 accepted (was exactly 15).
@@ -530,3 +540,54 @@ finished minute, from e2e-test/quality-report.md) plus estimated owner minutes a
 - Sources are optional for every channel type (decision, 2026-11-02): no script/outline/chart/scene/fact check blocks on missing sources any more, charts draw no footnote without one, and the prompts say sources are optional ("never invent a source"). A source given with a bad link or unknown id is no longer an error. Facts that have a `source_url` are still verified; unsourced facts are not.
 
 - Failed steps show a plain-language message (what happened, what happens next) with the raw error under a collapsed "Technical details" expander, plus a primary "Fix this" button (2026-11-04). Known logged errors run their existing in-app fix then retry; unknown errors save a masked report to `logs/error_reports/`, show it with a copy button, and retry. Nothing for the owner to configure.
+## 2026-11-03: scripts no longer need facts or sources
+- Decision: a pasted script is never blocked by fact ids, figures-in-facts, chart-vs-fact, sources, or title count (fewer than 15 is a warning). Script prompts no longer ask for `sources`, `source_ids` or `fact_ids`; old saved scripts that still carry them load fine. Step 0 facts are only used by the story plan, not the script check.
+
+## Optional real character models (2026-11-03)
+- Mascot fields `model` (.glb/.gltf in `assets/characters/`), `model_scale`, `clips`. `scene_script._build_model` imports
+  it, sizes it to 2 units, loops the clip chosen by `host.CLIP_WORDS` (or the channel's `clips` override) with an NLA
+  strip. Missing or unreadable model: one note and the built-in shapes. No GPU needed.
+- Decision: no mouth flaps for imported models (they have no mouth shapes); gestures come from the clip.
+- Not verified: a real Kenney pack (kenney.nl is blocked from the build sandbox). Tested with a generated .glb.
+  Owner: download the Kenney "Animated Characters" CC0 pack, copy a .glb into `assets/characters/`, set `model`.
+
+## 2026-11-03: history videos match the reference format (PR 1 of the series)
+- Cause of the "chart slides, stock stills, blank circles" render: a pasted script has no `scene` keys, so `visuals`
+  fell back to stock, alternating photos, text cards and charts; fonts were Linux-only paths (tiny bitmap text on
+  Windows) and characters became blank circles when cairosvg/cairo was missing.
+- Now: on a cast channel (history) a script without scene types prints one line, `No scenes assigned for this script.`,
+  and Claude assigns scene, cast, speech and map/diagram data once (`studio/history/scene_plan.py`, prompt task
+  `scenes`, saved into script.json). If the provider fails, `studio/history/autoscene.py` word rules fill in.
+  Issues panel offers "Assign scenes with Claude". Stock, photos and 3D chart scenes are never used on cast
+  channels; a chart only appears on an explicit `easel` scene; a photo only where the segment has a `photo` request.
+- Fonts come from matplotlib's bundled DejaVu (fails loudly, never Pillow's bitmap font); `render.pil_character`
+  draws the cast with Pillow when cairo is missing.
+- Next (PR 2): richer skits, terrain maps, more backdrops, internal cuts, true 1080p; (PR 3): per-character voices,
+  speech-only captions, end card. Gap list: `youtube-studio/audit/reference-gap-list.md`.
+- Look (same branch): five new backdrops (snow, field, market, plain, sea) picked from the skit's words; crowds of
+  extras on army/crowd scenes; wide <-> close-up cuts every 4.5 s on skits; history no longer burns word captions
+  (`burn_captions` flag, `captions.srt` still written). Sample: `youtube-studio/e2e-test/history-v2-sample-hannibal.mp4`.
+- Character voices: skit speech lines are spoken in each character's own voice (`history/speech_audio.py`, synthesised
+  in `visuals`, mixed into the narration in `build` with the narrator ducked); mouths follow that audio.
+- Cast scenes are resampled once to the video size and frame rate (1080p/30 by default; draft 720p/24).
+- Maps: textured satellite-style terrain, tinted territories with white borders, a marching army and a troop
+  counter (`scene_data.troops`). Still a western-Mediterranean schematic only.
+- Still open: a title card at ~40 s, a Part 2 end card scene, maps outside the western Mediterranean, static long
+  lectern shots, richer art/props/gags, Whisper-synced captions for non-cast channels.
+
+## Story-based costumes (2026-11-03)
+- `studio/history/wardrobe.py`: 10 era outfits (roman, greek, viking, medieval, desert, egyptian, samurai, renaissance, sail, modern). Same face, body shape, badge letter, colour and voice; only headwear, garment, cape, collar and (non-signature) prop change. Code-drawn SVG, no GPU, no extra files.
+- Choose with `era` on the script (top level, or per segment when the story jumps period). Missing `era` is guessed from the title; no match keeps the default outfit, so old scripts render as before.
+- Planner/script prompt lists the eras; `scene_problems` rejects unknown eras. Thumbnails use the same era.
+- Preview: `python -m studio.cli wardrobe <character> --out sheet.png`.
+- Decision: kids cast not included in this change (separate 2D/3D sprite pipeline); named historical figures keep their own headwear/prop.
+
+## 2026-11-03 Narration styles (comic storyteller for history)
+- Compared the new history sample with transcripts of the three references (first 3 min each): the references run 2.5-3.2 words/s with jokes and character lines every 5-15 s; our sample ran 2.1 words/s with 4 lines in 58 s and one flat narrator.
+- New `studio/story/narration_styles.py`: 7 selectable styles (comic_storyteller, calm_explainer, warm_singsong, dramatic_documentary, hushed_suspense, high_energy_hype, motivational_coach). Each has script rules, Kokoro narrator voice and speed, per-emotion prosody and pace. Channel field `narration` (Channels page picker, `channels add/edit --narration`); blank = history comic, business/general calm, kids sing-song. `{narration_block}` is in every script prompt; the history prompt now asks for skits with 3-6 in-character lines. `get_tts` uses the style's Kokoro voice unless `KOKORO_VOICE` is set.
+- Decisions: history `tone` default is `comedic`; cast speech limit raised to 6 lines of 12 words so skits can carry banter; history pace 2.8 words/s. Per-character voices stay in `providers/voices.py` (renderer thread).
+- Guide per niche: `docs/narration-and-presentation-guide.md`. Audio comparison: project files `youtube-studio/narration/`.
+
+## 2026-11-04 Script screen stuck on "Nothing to answer"
+- Cause: `read_prompt` (PR #61) deleted any saved prompt that matched the word "source" anywhere, including data embedded in the prompt (an older outline with source or fact-id fields). The step then wrote a fresh prompt and the next read deleted it again, so the main panel was empty while the real request sat in Advanced.
+- Fix: the old-prompt check matches only old field names; a prompt just written is never dropped (`fresh=True`); an empty panel now shows a "Write the request for Claude" button instead of "Nothing to answer". Removed the "Pending: ... answer file" caption. The wizard forgets the selected video when the channel changes.

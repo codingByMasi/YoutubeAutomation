@@ -82,6 +82,14 @@ def chart_items(seg: dict) -> list[dict]:
             for lab, v in zip(chart.get("labels", []), chart.get("values", []), strict=False)][:MAX_ITEMS]
 
 
+def style_pickable(seg: dict) -> tuple[bool, str]:
+    """(has a 2D/3D choice, label): a dict scene or a bar/line/pie chart; a cast scene is a plain string."""
+    scene = seg.get("scene")
+    if isinstance(scene, dict):
+        return True, str(scene.get("kind") or "chart3d")
+    return bool(chart_items(seg)), "chart3d"
+
+
 def plan_for(seg: dict, pos: int, prod: dict) -> dict | None:
     """`plan` for segment `pos` with the video's resolved settings, including automatic host-character scenes.
 

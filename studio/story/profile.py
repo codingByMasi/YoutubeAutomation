@@ -17,7 +17,7 @@ PACK_FOR_TYPE = {"business": "explainer", "general": "general", "history": "hist
 DEFAULT_FLAGS: dict[str, bool] = {
     "word_count_check": True,    # words vs est_seconds and total length range
     "sentence_rules": True,      # sentence cap + rhythm variance + banned phrases (profile list)
-    "fact_ledger": True,         # facts.json from story_plan, verified in code, numbers must trace to a fact id
+    "fact_ledger": True,         # facts.json from story_plan, verified in code, figures checked for plausibility
     "loop_ids": True,            # plants_loop / pays_loop with id, spread and distance checks
     "hook_rotation": True,       # never reuse the hook_type of the last 3 videos
     "repetition_ledger": True,   # cross-video structure memory and similarity checks
@@ -31,6 +31,7 @@ DEFAULT_FLAGS: dict[str, bool] = {
     "mood_music": True,          # per-chapter mood, stingers, drop before the twist
     "title_judge": True,         # deterministic title ranking + promise check
     "cast_scenes": False,        # history: scene/cast/speech keys per segment are validated (studio/history/cast.py)
+    "burn_captions": True,       # burn word captions in (off for cast channels)
     "feedback_loop": True,       # auto learn after analytics and feed top/bottom hooks into prompts
 }
 
@@ -54,7 +55,7 @@ PACKS: dict[str, dict] = {
         "audience": "Curious adults 18-44 who want to understand how companies make money",
         "region": "India + US",
         "regions": {"IN": "Use rupees (₹) first with a dollar comparison; Indian companies by their listed names.",
-                    "US": "Use dollars first; mention SEC filings (10-K) as sources."},
+                    "US": "Use dollars first."},
         "beat_sheet": ["hook: number or contradiction", "problem: why the viewer cares", "myth: what people assume",
                        "numbers: where the money really goes", "twist: the part nobody prices in",
                        "running example: one concrete business or person", "actionable takeaway",
@@ -64,7 +65,7 @@ PACKS: dict[str, dict] = {
         "min_minutes": 8, "max_minutes": 12, "shot_interval": (4, 7), "sentence_max_words": 18,
         "loop_distance": (60, 180), "min_loops_first_60s": 2, "analogy_every_seconds": 120,
         "compliance": ["Not financial advice: say so once, near the start or the end, in plain words.",
-                       "Every figure has a fact id; estimates are worded as estimates.",
+                       "Use real figures; estimates are worded as estimates.",
                        "No guaranteed returns, no 'buy this' calls."],
         "ending_style": "callback to the hook, one-sentence takeaway, a specific comment question, next video",
         "needs_disclaimer": True, "number_first_hooks": True, "kids": False,
@@ -74,8 +75,8 @@ PACKS: dict[str, dict] = {
         "label": "History / animated storytelling", "gate_type": "story", "pack": "history",
         "audience": "Curious learners 16-55 who like clear, funny or gripping animated stories about the past",
         "region": "global",
-        # tone: "blend" = dramatic story with light comic asides; "comedic" or "dramatic" push one way.
-        "tone": "blend",
+        # tone (default comedic = comic storyteller): "blend" = dramatic with light comic asides; "dramatic" = earnest.
+        "tone": "comedic",
         "beat_sheet": ["cold open: one scene that states the problem or promise (15 seconds at most)",
                        "title card, then rewind to the person or cause that explains it",
                        "chapter 1: who wants what, and the first decision with a cost",
@@ -101,13 +102,13 @@ PACKS: dict[str, dict] = {
                 "things (places, documents, objects) and at most one per chapter.",
                 "Atrocity, death and torture are never shown: cut to a map, a silhouette or the host at the "
                 "lectern and state the human cost in one plain sentence.",
-                "Invented dialogue is for tone only. Real quotes go in the narration with a source; disputed "
+                "Invented dialogue is for tone only. Real quotes go in the narration; disputed "
                 "claims are staged with a question mark above the speaker.",
                 "Anachronism is allowed in the narrator's tone and skit jokes, never in a stated fact, date or "
                 "number.",
             ],
         },
-        "compliance": ["Fact accuracy: dates and numbers carry fact ids; mark disputed points as disputed.",
+        "compliance": ["Fact accuracy: use real dates and numbers; mark disputed points as disputed.",
                        "Demonetization-safe wording for graphic events: describe consequences, not gore; "
                        "no graphic violence detail, no slurs, no glorifying perpetrators.",
                        "Learn structure and style from references only: never reuse another creator's jokes, "
@@ -116,7 +117,7 @@ PACKS: dict[str, dict] = {
         "ending_style": "land the emotional beat, name the next threat, point to the next part",
         "needs_disclaimer": False, "number_first_hooks": False, "kids": False,
         "music_default": "tense", "drop_before_twist": True,
-        "flag_overrides": {"cast_scenes": True},
+        "flag_overrides": {"cast_scenes": True, "burn_captions": False},
         "extra_banned": ["little did they know", "and the rest is history", "history would never be the same"],
     },
     "kids": {
@@ -149,7 +150,7 @@ PACKS: dict[str, dict] = {
         "hook_formulas": ["hidden_answer", "contradiction", "cold_open", "number_stakes", "challenge_guess"],
         "min_minutes": 6, "max_minutes": 12, "shot_interval": (4, 7), "sentence_max_words": 18,
         "loop_distance": (60, 180), "min_loops_first_60s": 2, "analogy_every_seconds": 120,
-        "compliance": ["Cite a source when you have one (optional); label estimates."],
+        "compliance": ["Label estimates as estimates."],
         "ending_style": "callback, takeaway, a question, next video",
         "needs_disclaimer": False, "number_first_hooks": False, "kids": False,
         "music_default": "neutral", "extra_banned": [],
@@ -179,7 +180,7 @@ def short_form_note(prof: dict) -> str:
             f"most 8 seconds), {prof['fact_count']} facts, {prof['min_loops']} open loops with the first planted "
             f"inside "
             f"the first {prof['loop_distance'][0] + 10:g} seconds, and ONE chapter turn. Segments are "
-            f"{lo:g}-{hi:g} seconds. Keep every fact exact; cut context before you cut a source.\n")
+            f"{lo:g}-{hi:g} seconds. Keep every fact exact; cut context before you cut a figure.\n")
 
 
 def pack_name(channel_type: str | None) -> str:
@@ -187,13 +188,20 @@ def pack_name(channel_type: str | None) -> str:
     return PACK_FOR_TYPE.get((channel_type or "business").strip().lower(), "general")
 
 
-def get(pack: str, overrides: dict | None = None) -> dict:
-    """Full profile for a pack: shared defaults < pack values < owner overrides. Includes merged `flags`."""
+def get(pack: str, overrides: dict | None = None, narration: str = "") -> dict:
+    """Full profile: shared defaults < pack < narration style < owner overrides. Includes merged `flags`.
+
+    `narration` is a narration-style id from `studio.story.narration_styles` (blank = the pack's default style)."""
     base = copy.deepcopy(_SHARED)
     pk = copy.deepcopy(PACKS.get(pack, PACKS["general"]))
     base.update({k: v for k, v in pk.items() if k != "voice"})
     if "voice" in pk:
         base["voice"] = pk["voice"]
+    from studio.story import narration_styles as nar
+    nid = nar.resolve(pk.get("pack", pack), narration)
+    style = nar.STYLES[nid]
+    base["voice"], base["wps"], base["narration"] = copy.deepcopy(style["voice"]), style["wps"], nid
+    base["narration_voice"] = {"kokoro": style["kokoro"], "speed": style["speed"]}
     flags = dict(DEFAULT_FLAGS)
     flags.update(pk.get("flag_overrides") or {})
     ov = copy.deepcopy(overrides or {})
@@ -219,7 +227,8 @@ def for_channel(root: Path) -> dict:
     """Profile of the active channel (its type's pack plus the channel's `story` overrides)."""
     from studio.growth import channels
     p = channels.get(root)
-    return get(pack_name(p.get("type")), p.get("story") if isinstance(p.get("story"), dict) else None)
+    return get(pack_name(p.get("type")), p.get("story") if isinstance(p.get("story"), dict) else None,
+               p.get("narration", ""))
 
 
 def enabled(profile: dict, flag: str) -> bool:

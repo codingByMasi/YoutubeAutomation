@@ -21,7 +21,8 @@ MOODS = ("happy", "surprised", "thinking")
 CARD_STYLES = ("none", "card")  # intro / outro: nothing, or a short branded title/sign-off card
 MASCOT_FIELDS = {"name": "", "kind": "coin", "color": "", "look": "", "personality": "", "catchphrase": "",
                  "intro_line": "", "outro_line": "", "on_thumbnail": True,
-                 "skin": "", "hair": "", "hair_style": "short"}  # skin/hair/hair_style: analyst only
+                 "skin": "", "hair": "", "hair_style": "short",  # skin/hair/hair_style: analyst only
+                 "model": "", "model_scale": 1.0, "clips": {}}  # optional .glb model; clips: action -> clip
 THEME_FIELDS = {"bg": "", "accent": "", "accent2": "", "text": "", "heading_font": "", "intro_style": "none",
                 "outro_style": "card", "thumbnail_style": "", "motion": ""}
 PLAYLIST_FIELDS = {"name": "", "description": "", "title_pattern": "", "topics": [], "youtube_id": ""}
@@ -108,6 +109,18 @@ def clean_mascot(values: dict | None) -> dict:
                           "Change mascot kind.")
     out["color"] = _color(out["color"], "mascot colour")
     out["skin"], out["hair"] = _color(out["skin"], "mascot skin colour"), _color(out["hair"], "mascot hair colour")
+    out["model"] = str(out["model"] or "").strip()
+    if out["model"] and not out["model"].lower().endswith((".glb", ".gltf")):
+        raise StudioError(f"The mascot model '{out['model']}' is not a .glb or .gltf file.",
+                          "3D character models are loaded from glTF files (Kenney, Quaternius and KayKit ship them).",
+                          "Use a .glb file in assets/characters, or clear the model field.")
+    try:
+        out["model_scale"] = min(max(float(out["model_scale"] or 1.0), 0.2), 5.0)
+    except (TypeError, ValueError) as exc:
+        raise StudioError("The mascot model_scale is not a number.", "It must be like 1.0 or 1.3.",
+                          "Fix model_scale.") from exc
+    clips = out["clips"] if isinstance(out["clips"], dict) else {}
+    out["clips"] = {str(k): str(v) for k, v in clips.items() if str(v).strip()}
     out["hair_style"] = str(out["hair_style"] or "short").strip().lower()
     if out["hair_style"] not in ("short", "curly"):
         raise StudioError(f"'{out['hair_style']}' is not a hair style.", "Choose short or curly.", "Change hair_style.")
@@ -198,7 +211,7 @@ def brief(profile: dict) -> str:
         lines.append(
             f"Mascot/host persona: {m['name']} ({m['look'] or 'a friendly character'}). Personality: "
             f"{m['personality'] or 'friendly'}. {m['name']} is a recurring character who reacts and asks the "
-            f"viewer's questions; they never state facts or figures (the narration and sources do)."
+            f"viewer's questions; they never state facts or figures (the narration does)."
             + (f" Signature line, used at most once per video, usually at the end: \"{m['catchphrase']}\"."
                if m["catchphrase"] else ""))
     if profile.get("playlists"):

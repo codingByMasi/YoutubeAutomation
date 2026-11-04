@@ -119,6 +119,23 @@ def stream_info(path: Path) -> dict:
     return out
 
 
+def video_facts(path: Path) -> dict:
+    """Real size, frame rate, codec and overall bitrate of a finished file (ffprobe); {} if unreadable."""
+    p = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
+                        "stream=codec_name,width,height,r_frame_rate:format=bit_rate", "-of", "json", str(path)],
+                       capture_output=True, text=True)
+    try:
+        data = json.loads(p.stdout)
+        st = data["streams"][0]
+        num, _, den = str(st.get("r_frame_rate", "0/1")).partition("/")
+        fps = float(num) / float(den or 1) if float(den or 1) else 0.0
+        return {"width": int(st["width"]), "height": int(st["height"]), "fps": round(fps, 2),
+                "codec": st.get("codec_name", ""),
+                "kbps": round(int((data.get("format") or {}).get("bit_rate") or 0) / 1000)}
+    except (KeyError, IndexError, ValueError, json.JSONDecodeError):
+        return {}
+
+
 def browser_issues(info: dict) -> list[str]:
     """Reasons a browser may refuse to play a file: it needs H.264 + yuv420p video and AAC audio."""
     if not info.get("video"):

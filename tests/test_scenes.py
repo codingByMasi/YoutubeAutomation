@@ -360,3 +360,12 @@ def test_mixed_style_turns_pie_charts_into_3d_too():
     pl = scenes.plan(seg, "mixed")
     assert pl and pl["mode"] == "3d" and [i["label"] for i in pl["scene"]["items"]] == ["A", "B"]
     assert scenes.plan(seg, "2d") is None
+
+
+def test_style_pickable_tolerates_cast_scene_strings():
+    assert scenes.style_pickable({"scene": "skit"}) == (False, "chart3d")
+    assert scenes.style_pickable({"scene": {"kind": "map"}}) == (True, "map")
+    assert scenes.style_pickable({"scene": {}}) == (True, "chart3d")
+    bar = {"chart_data": {"type": "bar", "labels": ["a"], "values": [1]}}
+    assert scenes.style_pickable({"scene": "skit", **bar})[0] is True
+    assert scenes.style_pickable({}) == (False, "chart3d")

@@ -52,9 +52,9 @@ def _step_panel(ctx, v, flow: dict, run) -> None:
         if res.error and not res.pending:
             remedy_ui.error_panel(res.error, key=f"scr_err{v.id}{task}", ctx=ctx, retry=lambda: svc.capture(run, ctx))
             return
-        prompt = svc.read_prompt(ctx, v.id, task)
+        prompt = svc.read_prompt(ctx, v.id, task, fresh=True)
     if not prompt:
-        st.info("Nothing to answer right now.")
+        handoff_ui.no_request_panel(ctx, v.id, task, run, "scr")
         return
     label = dict((k, n) for k, n, _ in flow["steps"])[flow["current"]]
     st.subheader(f"Now: {label}")
@@ -82,8 +82,6 @@ def _step_panel(ctx, v, flow: dict, run) -> None:
 
 def _advanced(ctx, v, flow: dict) -> None:
     """Everything optional, in one place: nothing was removed, it is just out of the way."""
-    from studio.story import engine
-
     with st.expander("Advanced (optional extras)"):
         sd = ctx.settings.project_dir(v.id) / "script.md"
         if sd.exists():
@@ -116,8 +114,6 @@ def _advanced(ctx, v, flow: dict) -> None:
         if st.button("Run the next step automatically", key=f"scr_auto{v.id}"):
             res = svc.capture(script_stage.run, ctx, v.idea_id, auto=True)
             st.caption(svc.plain_pending(res.error) if res.error else "Done.")
-        what, _cmd = engine.next_step(ctx, v.id)
-        st.caption(f"Pending: {svc.plain_pending(what)}")
 
 
 def _extra_task(ctx, v, task: str, title: str, fn, arg: int) -> None:

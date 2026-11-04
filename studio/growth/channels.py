@@ -28,6 +28,7 @@ DEFAULTS: dict = {
     "posts_per_week": 2,
     "publish_days": [],  # weekdays to publish, 0=Mon..6=Sun; empty = the channel type's default (weekly_plan.py)
     "publish_time": "",  # HH:MM in your local time; empty = the channel type's default
+    "narration": "",  # narration style id (studio/story/narration_styles.py); "" = the channel type's default
     "voice": "",  # edge-tts / ElevenLabs voice; empty = use TTS_VOICE from .env
     "renderer": "",  # 2d | blender; "" = RENDERER from .env
     "scene_style": "",  # 2d | 3d | mixed; "" = the channel type's default

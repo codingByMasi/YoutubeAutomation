@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from studio.story import checks, ledger, loops, safety, titles
-from studio.story import facts as facts_mod
 from studio.story.profile import enabled
 
 
@@ -32,9 +31,6 @@ def story_issues(pkg: dict, prof: dict, peers: list[tuple[str, dict]] | None = N
     if enabled(prof, "loop_ids") and not prof.get("kids") and engine:
         out["pacing"] += [_i("pacing", "major", p, "Fix plants_loop / pays_loop ids and distances.")
                           for p in loops.loop_problems(pkg, prof)]
-    if facts is not None and enabled(prof, "fact_ledger") and engine:
-        out["script"] += [_i("script", "major", p, "Cite a fact id or reword as an estimate.")
-                          for p in facts_mod.trace_problems(pkg, facts)]
     if enabled(prof, "title_judge") and not prof.get("kids"):
         out["metadata"] += [_i("metadata", sev("major"), p, "Align the opening with the title.")
                             for p in titles.promise_problems(pkg)]

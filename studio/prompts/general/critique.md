@@ -1,7 +1,6 @@
 You are a tough script editor for a faceless YouTube explainer channel. Score the script below against the
 checklist, then rewrite it so every criterion scores at least 4. Be specific: quote the weak line, say why it
-loses viewers, and fix it in the rewrite. Keep every true figure and source; do not invent new figures without a
-source, and do not copy any other creator's work.
+loses viewers, and fix it in the rewrite. Keep every true figure; do not invent new figures, and do not copy any other creator's work.
 
 # Topic
 {topic}
@@ -19,15 +18,14 @@ source, and do not copy any other creator's work.
 - `story_arc`: setup, escalation, twist or weak point, payoff; each segment ends by pulling into the next.
 - `payoff_ending`: the last segment answers the hook (callback), gives a one-sentence takeaway and a specific
   question to answer in the comments plus what the next video covers.
-- `originality`: a fresh angle, own examples and comparisons; sources cited; estimates labelled.
+- `originality`: a fresh angle, own examples and comparisons; estimates labelled.
 - `trust`: no hype, no banned phrases ({banned}), no investment advice or guarantees.
 
 # Rules for the rewrite
-- Same JSON shape as the script package below (titles, thumbnail_texts, sources, segments, cta, and so on).
+- Same JSON shape as the script package below (titles, thumbnail_texts, segments, cta, and so on).
 - Segments 8-30 seconds each, hook at most 15, `est_seconds` = words / 2.5, `beat` (only `question`, `reveal`, `example`, `pattern_break` or `null`; never "explain") set at least every 20-40 s,
   `open_loop` filled where a teaser is planted, `hook_type` set.
 - Keep or improve the 15 titles (each under 70 characters, exactly one `is_pick`).
-- Any `source_ids` on a `chart_data` must exist in `sources` (sources themselves are optional).
 
 # Current script package
 ```json

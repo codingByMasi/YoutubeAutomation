@@ -21,7 +21,7 @@ YouTube Channel Studio: a Python CLI that runs a faceless channel from topic res
 Python 3.11, Typer, SQLAlchemy + SQLite, google-api-python-client, edge-tts, faster-whisper, ffmpeg/MoviePy, Pixabay/Pexels API, Pillow, matplotlib, pytest.
 
 ## Channel
-Business-model and economics explainers, English, faceless narration with charts and diagrams. Every figure needs a source. Details in `SPEC.md` Sections 1 and 9.
+Business-model and economics explainers, English, faceless narration with charts and diagrams. Scripts carry no sources or fact ids (owner decision); use real figures and word estimates as estimates. Details in `SPEC.md` Sections 1 and 9.
 
 ## Layout
 - `studio/cli.py` entry point; `studio/stages/` pipeline stages; `studio/manage/` channel management; `studio/youtube/` API clients and quota; `studio/providers/` TTS, footage, captions; `studio/util/` helpers.
@@ -57,7 +57,7 @@ The owner has no LLM API key; Claude Code writes the creative text. Commands lik
 `comments` write `projects/<id>/prompts/<task>.prompt.md`, exit with code 3, and wait.
 When asked to answer one:
 1. Read the whole prompt file; it holds the rules, the style guide and the exact JSON shape.
-2. Research real figures with web search; cite filings, annual reports or reputable articles in `sources`.
+2. Research real figures with web search; do not add `sources`, `source_ids` or `fact_ids` to the JSON.
    Never copy another creator's script or video; write original analysis.
 3. Write ONLY the JSON object to the matching `<task>.response.json`.
 4. Re-run the command; it validates the answer and prints any problems to fix.
