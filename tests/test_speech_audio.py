@@ -70,3 +70,23 @@ def test_mix_adds_lines_and_keeps_length(tmp_path):
     out = sa.mix_into_narration(nar, segs, [(0.0, 6.0)], tmp_path / "m.wav")
     assert out != nar and abs(ff.probe_duration(out) - 6.0) < 0.2
     assert sa.mix_into_narration(nar, [{"scene": "map"}], [(0.0, 6.0)], tmp_path / "m2.wav") == nar
+
+
+def test_narrator_is_silent_while_a_character_speaks(tmp_path):
+    import numpy as np
+    nar, line = tmp_path / "n.wav", tmp_path / "l.wav"
+    _tone(nar, 6.0, 200)
+    _tone(line, 1.0, 800)
+    segs = [{"scene": "skit", "speech": [{"who": "dash", "text": "x", "audio": str(line), "seconds": 1.0}]}]
+    out = sa.mix_into_narration(nar, segs, [(0.0, 6.0)], tmp_path / "m.wav")
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(out), "-f", "s16le", "-ac", "1", "-ar", "48000", "-"],
+                         capture_output=True, check=True).stdout
+    x = np.frombuffer(raw, dtype=np.int16).astype(float)
+
+    def level(t0, t1, hz):  # strength of one frequency in a time window
+        w = x[int(t0 * 48000):int(t1 * 48000)]
+        return abs(np.sum(w * np.exp(-2j * np.pi * hz * np.arange(len(w)) / 48000))) / len(w)
+    a = sa.line_times(segs[0]["speech"], 6.0)[0]
+    assert level(a + 0.2, a + 0.8, 800) > 100  # the character is heard
+    assert level(a + 0.2, a + 0.8, 200) < 5  # the narrator is not
+    assert level(4.0, 5.5, 200) > 100  # narrator back after the line
