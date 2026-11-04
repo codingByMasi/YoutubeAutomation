@@ -144,6 +144,7 @@ def test_build_falls_back_without_vocal_and_mixes_with_it(make_ctx) -> None:
 def test_cli_sing_writes_files_and_reports_missing_vocal(make_ctx, monkeypatch) -> None:
     ctx = make_ctx()
     monkeypatch.setattr(cli, "_ctx", lambda: ctx)
+    monkeypatch.setattr("studio.kids.openutau.find_openutau", lambda configured="": None)  # even if installed here
     from studio.kids.script import project_dir, slugify
     d = project_dir(ctx, slugify("ducks"))
     d.mkdir(parents=True, exist_ok=True)
