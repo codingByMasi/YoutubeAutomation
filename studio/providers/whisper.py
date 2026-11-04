@@ -55,6 +55,21 @@ def cues_from_words(words: list[tuple[float, float, str]]) -> list[Cue]:
     return cues
 
 
+def _decode_16k(audio: Path):
+    """Mono 16 kHz float samples via ffmpeg.
+
+    faster-whisper's own decoder uses PyAV, and newer PyAV releases reject an argument it passes
+    ("open() got an unexpected keyword argument 'metadata_errors'"). ffmpeg is already required, so use it.
+    """
+    import subprocess
+
+    import numpy as np
+
+    cmd = ["ffmpeg", "-nostdin", "-v", "error", "-i", str(audio), "-f", "f32le", "-ac", "1", "-ar", "16000", "-"]
+    out = subprocess.run(cmd, capture_output=True, check=True).stdout
+    return np.frombuffer(out, dtype=np.float32)
+
+
 def whisper_cues(audio: Path, model_size: str = "small") -> list[Cue] | None:
     """Word-timed cues from faster-whisper, or None if it is not installed."""
     words = whisper_words(audio, model_size)
@@ -68,7 +83,7 @@ def whisper_words(audio: Path, model_size: str = "small") -> list[tuple[float, f
     except ImportError:
         return None
     model = WhisperModel(model_size, device="auto", compute_type="int8")
-    segments, _ = model.transcribe(str(audio), word_timestamps=True, language="en")
+    segments, _ = model.transcribe(_decode_16k(audio), word_timestamps=True, language="en")
     return [(w.start, w.end, w.word.strip()) for s in segments for w in (s.words or []) if w.word.strip()]
 
 
