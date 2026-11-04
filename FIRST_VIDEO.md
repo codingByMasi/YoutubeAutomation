@@ -2,10 +2,10 @@
 
 ## What you must provide (only you can)
 1. **A YouTube channel** you own, phone-verified (needed for custom thumbnails). Copy its channel ID (`UC...`) from YouTube Studio > Settings > Channel > Advanced settings.
-2. **Google Cloud project** with YouTube Data API v3 and YouTube Analytics API enabled, an OAuth consent screen (add your Google account as a Test user), and a **Desktop app** OAuth client. Save the JSON as `client_secret.json` in the project folder. Steps: README section 3.
+2. **Google Cloud project** with YouTube Data API v3 and YouTube Analytics API enabled, an OAuth consent screen (add your Google account as a Test user), and a **Desktop app** OAuth client. Upload the JSON on the **Setup** page. Steps: README section 3.
 3. **ffmpeg** installed (Windows: `winget install ffmpeg`; Mac: `brew install ffmpeg`).
-4. **`.env`** copied from `.env.example` with `CHANNEL_ID=UC...`. No LLM key is needed.
-5. Optional but better pictures: a free **Pixabay API key** (`PIXABAY_API_KEY`). Without it the video uses generated charts and cards only.
+4. **Your channel ID** (`UC...`) entered on the app's **Setup** page. No LLM key is needed.
+5. Optional but better pictures: a free **Pixabay API key**, pasted into the Footage box on the **Setup** page. Without it the video uses generated charts and cards only.
 6. Optional: your own music in `assets/music/` with a `<file>.licence.txt` each; otherwise a generated royalty-free bed is used.
 
 ## Run it
@@ -33,5 +33,5 @@ The web app (`run_app.bat`, pages 1 to 4) does the same steps; upload runs on yo
 
 ## Know before you publish
 - Uploads are always private, or scheduled with `--at`. YouTube may force API uploads from unaudited projects to private; the tool tells you, then you flip it public in Studio.
-- Listen to the first 20 seconds of narration and check every figure against its source before typing `yes`.
+- Listen to the first 20 seconds of narration and check every figure before typing `yes`.
 - Not yet tested live: Google sign-in, real upload, captions upload, edge-tts voice, Analytics. The first real video is that test.
