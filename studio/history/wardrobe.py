@@ -169,7 +169,17 @@ def era_for(seg: dict, pkg: dict | None = None) -> str:
         e = str(src.get("era") or "").strip().lower()
         if e:
             return e if known(e) else DEFAULT
-    return guess_era(str((pkg or {}).get("title") or ""))
+    return guess_era(_title_of(pkg or {}))
+
+
+def _title_of(pkg: dict) -> str:
+    """The video's title for era guessing: `title`, else the picked entry of `titles`, else the topic.
+    (Scripts store `titles` and `topic`, not `title`, so a guess from `title` alone never found anything.)"""
+    if pkg.get("title"):
+        return str(pkg["title"])
+    titles = [t for t in pkg.get("titles") or [] if isinstance(t, dict) and t.get("text")]
+    pick = next((t for t in titles if t.get("is_pick")), titles[0] if titles else None)
+    return str(pick["text"] if pick else pkg.get("topic") or "")
 
 
 def prompt_line() -> str:

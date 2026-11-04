@@ -125,3 +125,12 @@ def test_sprite_bank_loads_outfit_files(tmp_path):
     bank = SpriteBank(tmp_path)
     if bank.enabled:
         assert bank.get("q", 120) is not None
+
+
+def test_era_is_guessed_from_the_picked_title_or_topic_when_the_script_has_no_title():
+    pkg = {"topic": "all about the british empire",
+           "titles": [{"text": "A quiet title", "is_pick": False},
+                      {"text": "How the East India Company Really Worked", "is_pick": True}]}
+    assert wardrobe.era_for({"narration": "x"}, pkg) == "sail"
+    assert wardrobe.era_for({}, {"topic": "the british empire and the navy"}) == "sail"
+    assert wardrobe.era_for({}, {"titles": [{"text": "Quiet topic"}]}) == wardrobe.DEFAULT
