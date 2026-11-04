@@ -57,5 +57,11 @@ def test_history_profile_turns_on_cast_checks_and_prompt_block():
     assert "Cast and depiction" in out and "Captain Blunder" in out
 
 
+def test_prompt_does_not_force_fixed_roster():
+    text = cast.prompt_block(sp.get("history"))
+    assert "at most 2 new" not in text and "use them for their job" not in text
+    assert "Invent the cast the story needs" in text and "not a limit" in text
+
+
 def test_faction_colors_wrap():
     assert cast.faction_color(0) == cast.faction_color(len(cast.FACTION_COLORS))
