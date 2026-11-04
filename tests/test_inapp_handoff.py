@@ -96,3 +96,60 @@ def test_script_flow_legacy_script_goes_to_review(make_ctx):
     ctx.session.commit()
     f = wiz.script_flow(ctx, v)
     assert f["legacy"] and f["current"] == "review" and f["steps"][0][2] == "skipped"
+
+
+def _plan_done(ctx, v):
+    from studio.story import engine
+    from tests.test_story import good_outline
+    out = ctx.settings.project_dir(v.id)
+    (out / "outline.json").write_text(json.dumps(good_outline()), encoding="utf-8")
+    st = engine.load_state(out)
+    st["plan"] = "done"
+    engine.save_state(out, st)
+
+
+def test_write_script_step_shows_prompt_even_if_topic_says_sources(make_ctx):
+    """Regression: plan done + script prompt written must show the prompt, never 'Nothing to answer'.
+
+    A topic like 'sources of power' used to make read_prompt think the prompt was an old one, delete it, and
+    leave the main screen empty."""
+    from studio.story import engine
+    from studio.web import wizard_service as wiz
+    ctx = make_ctx()
+    idea = svc.add_manual_topic(ctx, "British Empire: sources of wealth and sources of power")
+    v = research.approve(ctx, idea.id)
+    _plan_done(ctx, v)
+    flow = wiz.script_flow(ctx, v)
+    assert flow["current"] == "script" and flow["done_count"] == 1
+    svc.capture(lambda c: engine.auto(c, v), ctx)
+    first = svc.read_prompt(ctx, v.id, flow["task"], fresh=True)  # what the screen does right after writing
+    assert first
+    pf, _ = svc.prompt_paths(ctx.settings.project_dir(v.id), flow["task"])
+    assert pf.exists()
+
+
+def test_old_prompt_asking_for_source_fields_is_still_replaced(make_ctx):
+    ctx = make_ctx()
+    idea, v = _video(ctx)
+    svc.capture(sc.run, ctx, idea.id)
+    pf, _ = svc.prompt_paths(ctx.settings.project_dir(v.id), "script")
+    pf.write_text('Each fact needs "source_ids".\n\n' + pf.read_text(encoding="utf-8"), encoding="utf-8")
+    assert svc.read_prompt(ctx, v.id) == ""
+    assert not pf.exists()
+
+
+def test_plan_write_review_flow_always_has_a_prompt(make_ctx):
+    """Every pending step of Plan, Write, Review has a prompt for the main panel."""
+    from studio.story import engine
+    from studio.web import wizard_service as wiz
+    ctx = make_ctx()
+    idea, v = _video(ctx)
+    flow = wiz.script_flow(ctx, v)
+    assert flow["current"] == "plan"
+    svc.capture(lambda c: engine.auto(c, v), ctx)
+    assert svc.read_prompt(ctx, v.id, flow["task"], fresh=True)
+    _plan_done(ctx, v)
+    flow = wiz.script_flow(ctx, v)
+    assert flow["current"] == "script"
+    svc.capture(lambda c: engine.auto(c, v), ctx)
+    assert svc.read_prompt(ctx, v.id, flow["task"], fresh=True)
