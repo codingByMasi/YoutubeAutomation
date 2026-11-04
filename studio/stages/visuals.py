@@ -290,7 +290,7 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
                 if src:
                     new_assets.append(Asset(video_id=video_id, kind="scene", path=str(src), licence=OWN_LICENCE,
                                 source=f"generated {res['mode'].upper()} {res['kind']} scene"))
-            seg["visual"] = vis
+            pkg["segments"][pos - 1]["visual"] = vis  # `seg` may be a copy (cast era), so write to the package
             if pos in rows:
                 rows[pos].clip_path = vis["path"]
         pkg["visual_rejects"] = rejected
