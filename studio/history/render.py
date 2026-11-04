@@ -1063,7 +1063,7 @@ def render_scene(seg: dict, dur: float, out: Path, work: Path, audio: Path | Non
     cmd = ["ffmpeg", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{ow}x{oh}", "-r", str(fps), "-i", "-", "-an",
            "-c:v", "libx264", "-preset", "veryfast", "-crf", "16", "-pix_fmt", "yuv420p", "-movflags", "+faststart",
            str(out)]
-    proc = subprocess.Popen(ff.low_memory_cmd(cmd), stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+    proc = ff.popen_raw(cmd)
     try:
         for f in range(n):
             t = f / fps
