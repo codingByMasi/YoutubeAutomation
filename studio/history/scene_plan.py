@@ -50,8 +50,9 @@ the whole video. Per character return:
   "trim": "..."}}, "armour" (none, chainmail, breastplate, plate), "headwear" (e.g. helmet, crown, hood, turban, veil,
   hat, cap, laurel, none), "props" (up to 2: sword, spear, shield, staff, bow, scroll, book, torch, purse, hammer,
   banner, or any object), "accent_color", optional "cape_color", optional "pitch" (low, mid, high) for the voice.
-Dress them for the story's era and place (what people there and then wore). Use the recurring cast below only for
-the host (`quill`, at the lectern) and for light helper roles; everything else is a character from the list above.
+Dress them for the story's era and place (what people there and then wore).
+Use the recurring cast below only for the host (`quill`, at the lectern); every other character is one from the
+list above, described from this script, never a recurring-cast id.
 Recurring cast:
 {roster}
 

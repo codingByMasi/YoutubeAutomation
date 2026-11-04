@@ -146,16 +146,9 @@ def characters_for(segments: list[dict]) -> list[dict]:
 
 
 def _pick_cast(text: str, figs: list[str], k: int) -> list[str]:
-    """Primary character from the words, a counterpart, and a recurring historical figure if the text names one."""
-    primary = next((cid for cid, rx in _WHO if rx.search(text)), None)
-    default = ["blunder", "vex", "coin", "dash", "hindsight"]
-    primary = primary or default[k % len(default)]
+    """The people the script names in this text (up to three); the host fills in only when it names nobody."""
     named = [f for f in figs if re.search(rf"\b{re.escape(f)}\b", text)]
-    second = named[0] if named else ("dusty" if primary != "dusty" else "quill")
-    out = [primary, second]
-    if len(named) > 1:
-        out.append(named[1])
-    return out[:3]
+    return named[:3] or ["quill"]
 
 
 def _speech(text: str, who: list[str]) -> list[dict]:
@@ -235,10 +228,10 @@ def assign(segments: list[dict], force: bool = False) -> int:
             m = _DAYS.search(text)
             days = int(m.group(1)) * (7 if m and m.group(2).lower().startswith("week") else 1) if m else 7
             data = {"days": max(1, min(days, 31)), "title": "Days pass"}
-            who = ["alma"]
+            who = ["quill"]
         elif scene == "silhouette":
             data = {"title": _trim_line(text, 6)}
-            who = [who[-1] if who[-1] not in ("dusty",) else who[0]]
+            who = [who[-1]]
         seg["scene"] = scene
         seg.setdefault("cast", who)
         if not seg.get("cast"):

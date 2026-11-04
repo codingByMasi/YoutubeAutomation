@@ -121,3 +121,10 @@ def test_describe_asks_only_for_names_the_script_has_not_described():
             {"scene": "map", "cast": ["brine"]}]
     assert scene_plan.undescribed(segs, None) == ["coin", "Mir Jafar", "Ramesh"]
     assert scene_plan.undescribed(segs, [{"name": "Madame Coin"}, {"name": "Mir Jafar"}]) == ["Ramesh"]
+
+
+def test_rule_fallback_casts_only_people_the_script_names_never_the_fixed_cast():
+    from studio.history import autoscene
+    text = "Hannibal paid the tax and counted the silver."
+    assert autoscene._pick_cast(text, ["Hannibal"], 0) == ["Hannibal"]  # noqa: SLF001
+    assert autoscene._pick_cast("Why did the taxes rise?", [], 3) == ["quill"]  # noqa: SLF001
