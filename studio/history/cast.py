@@ -190,7 +190,11 @@ def prompt_block(profile: dict) -> str:
     if not profile.get("cast") or not dep:
         return ""
     lines = ["# Cast and depiction (original characters only; never imitate any other channel's characters)",
-             "Recurring cast (use them for their job; add at most 2 new named figures per video):"]
+             "Invent the cast the story needs: every character in the script gets a short visual description "
+             "(role, age, gender, era costume, face traits) so a soldier looks like a soldier and women look like "
+             "women, dressed for the era and place; use as many characters as the story calls for. 2D or 3D follows "
+             "the script. The recurring characters below are an optional pool, not a limit and not a required "
+             "roster: Quill may host or narrate, and the others can be skipped:"]
     lines += [f"- {cid}: {c['name']}, {c['role']}" for cid, c in ROSTER.items()]
     lines.append("Historical figures: never a real likeness. Each gets a faction colour, a letter badge, one "
                  f"headwear from {list(HEADWEAR)} and one prop from {list(PROPS)}. Rules:")
