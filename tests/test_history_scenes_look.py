@@ -22,11 +22,15 @@ def test_backdrop_follows_the_words():
 
 
 def test_crowd_scene_draws_and_extras_do_not_shift_figure_colours(tmp_path):
-    sc = _scene(tmp_path, dict(SKIT))
+    sc = _scene(tmp_path, {**SKIT, "scene_data": {**SKIT.get("scene_data", {}), "crowd": 14}})
     assert sc.crowd and sc.back == "snow"
     before = dict(sc.cast.figs)
     img = sc.frame(2.0)
     assert img.size == (r.W, r.H) and sc.cast.figs == before
+
+
+def test_no_background_crowd_unless_the_script_asks(tmp_path):
+    assert not _scene(tmp_path, dict(SKIT)).crowd  # words like "army" or "people" no longer add extras
 
 
 def test_camera_cuts_between_wide_and_close_up(tmp_path):

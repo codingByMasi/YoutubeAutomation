@@ -564,10 +564,7 @@ class Scene:
             a = sp.get("audio")
             self.line_env.append(envelope(Path(a), max(1, round(float(sp.get("seconds") or 1) * FPS)))
                                  if a and Path(a).exists() else None)
-        words = " ".join([str(seg.get("narration", "")), kw]).lower()
-        self.crowd = bool(self.data.get("crowd")) or (self.kind == "skit" and any(
-            w in words for w in ("army", "armies", "soldiers", "crowd", "mercenar", "legion", "troops", "citizens",
-                                 "revolt", "people", "mob", "rebels", "elephants", "tribes")))
+        self.crowd = bool(self.data.get("crowd"))  # only when the script asks; never guessed from the narration words
         e = str(seg.get("era") or "").lower()
         self.era = e if e in wardrobe.OUTFITS else wardrobe.DEFAULT
 
