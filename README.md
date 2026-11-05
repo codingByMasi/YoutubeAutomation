@@ -11,6 +11,8 @@ research -> approve -> script -> voice -> visuals -> build -> thumbnail
 
 Nothing is published, posted, or replied to without your typed confirmation.
 
+**Standing rule:** everything is done inside the app. You never have to open or edit code files, paste file paths, or run manual steps. Anything that still needs that is a gap to report, not a normal step.
+
 Full design: see `SPEC.md`. Build progress: see `PROGRESS.md`.
 
 ---
