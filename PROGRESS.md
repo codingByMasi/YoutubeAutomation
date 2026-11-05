@@ -2,7 +2,7 @@
 
 Claude Code: update this file at the end of every milestone and whenever you make a decision. Read it first in every new session.
 
-**Last updated:** 2026-11-04
+**Last updated:** 2026-11-05
 **Current milestone:** M0-M8 done; since then the app grew three channel types (business, history, kids), narration styles, the history cartoon cast renderer and a Voices page. Next is the owner's first real video
 **Overall status:** `pytest -q` passes (752 passed, 15 skipped on 2026-11-04), `ruff check .` is clean. There is no CI, so run the full suite before every merge. Entries below run oldest to newest; the milestone checklists M0-M8 are the original build record.
 
@@ -131,6 +131,7 @@ Record any choice made without asking the owner, with date and reason.
 | 2026-10-28 | edge-tts could not be tested live here (no access to Microsoft's speech service from the build machine); the demo falls back to silent narration. | Verify on the owner's machine |
 | 2026-10-28 | Real Google OAuth, upload, captions and Analytics calls are only tested against mocks. | Verify with the first real video |
 | 2026-10-28 | Search suggestions use YouTube's public autocomplete endpoint, which is unofficial; research continues without it if it fails. | Accepted |
+| 2026-11-05 | Gap against the "everything in the app" rule (SPEC 8.8): when characters have no descriptions, the step (`studio/history/scene_plan.py` `describe`) tells the owner to go to Claude Code and give it a prompt with a file path. It needs an in-app button that does this. Not changed here (docs-only PR, owner asked for no code changes). | Open |
 
 ## Session log
 - 2026-10-28: Built M0-M8 in one session. 93 tests pass, demo builds a 49 s sample MP4 with charts, captions, 3 thumbnails and 2 Shorts. Next: owner setup (above), then `research` -> first real video.

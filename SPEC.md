@@ -226,6 +226,7 @@ Worked example for one fully-published video:
 5. **Licensing:** only use footage, music, and fonts with licences that allow YouTube use and monetization; store licence info per asset; fail `review` if an asset has an unknown licence.
 6. **Factual claims:** scripts on finance, health, legal, or news topics avoid advice phrased as guarantees. Add a disclaimer line where relevant.
 7. **Secrets:** never log or commit API keys, tokens, or `client_secret.json`.
+8. **Everything in the app:** the owner must be able to do everything inside the app itself. They never open or edit code files (`.env`, JSON, scripts), paste file paths, or run manual steps. If a step has no in-app control yet, the app must say so plainly and it is listed as a gap in `PROGRESS.md` "Known issues" until a button or setting is added.
 
 ---
 
