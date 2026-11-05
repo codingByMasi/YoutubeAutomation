@@ -161,7 +161,7 @@ def mix_into_narration(narration: Path, segments: list[dict], spans: list[tuple[
     cmd = ["ffmpeg", "-y", "-i", str(narration)]
     for _, _, p in items:
         cmd += ["-i", str(p)]
-    cmd += ["-filter_complex", ";".join(parts), "-map", "[a]", "-ar", "48000", "-ac", "1", str(out)]
+    cmd += ["-filter_complex", ";".join(parts), "-map", "[a]", "-ar", "48000", "-ac", "2", str(out)]
     r = subprocess.run(cmd, capture_output=True, text=True)
     if r.returncode != 0:
         log.warning("Could not mix character voices: %s", r.stderr[-300:])

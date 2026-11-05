@@ -620,3 +620,6 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 - Docs now describe three channels, narration styles, "characters come from the script", the history 2D cartoon cast (3D needs Blender and has no history cast mode), no sources or fact ids, minimal diffs, disclose-every-change and "no CI, run full pytest before merge" (see `CLAUDE.md`).
 - The fact checklist no longer blocks a script for having no sources (`studio/growth/factcheck.py`); photo credits stay.
 - Gaps (no in-app setting yet, so docs say so plainly): OpenUtau location other than `C:\Tools\OpenUtau` or a usual folder (`OPENUTAU_PATH`), and `STUDIO_3D_QUALITY=gpu`. Also, a few in-app messages still say "set ... in .env" (`studio/web/setup_ui.py`, `studio/cli.py`, `studio/web/voices_service.py`, `studio/blender/provider.py`, `studio/manage/doctor.py`); not changed here because this PR is docs-only.
+
+### Fix (2026-11-05, left-only audio)
+- Final video played almost only on the left speaker: the character-voice mix wrote a mono `narration_mix.wav` (`-ac 1`), so `clean.mp4` was mono and the stereo intro join put it on the left channel. The mix now stays stereo (`studio/history/speech_audio.py`), with a test. Existing videos need `build --force` to pick it up. Nothing for the owner to configure.
