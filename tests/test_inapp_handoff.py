@@ -153,3 +153,26 @@ def test_plan_write_review_flow_always_has_a_prompt(make_ctx):
     assert flow["current"] == "script"
     svc.capture(lambda c: engine.auto(c, v), ctx)
     assert svc.read_prompt(ctx, v.id, flow["task"], fresh=True)
+
+
+def test_characters_answer_is_pasted_in_the_app(make_ctx):
+    """The character-description request is answered by pasting in the app, no Claude Code or file editing."""
+    from studio import llm
+    from studio.history import scene_plan
+    from studio.web import handoff_ui
+
+    ctx = make_ctx()
+    _, v = _video(ctx)
+    work = ctx.settings.project_dir(v.id)
+    assert not handoff_ui.characters_waiting(ctx, v)
+    llm.prompt_paths(work, "characters")[0].write_text("Describe them.", encoding="utf-8")
+    assert handoff_ui.characters_waiting(ctx, v)
+    bad = svc.submit_task(ctx, v.id, "characters", '{"characters": []}',
+                          lambda c: llm._load_response(llm.prompt_paths(work, "characters")[1],
+                                                       scene_plan.validate_characters))
+    assert not bad.ok and bad.problems
+    good = svc.submit_task(ctx, v.id, "characters", '{"characters": [{"name": "Brutus"}]}',
+                           lambda c: llm._load_response(llm.prompt_paths(work, "characters")[1],
+                                                        scene_plan.validate_characters))
+    assert good.ok, good.error
+    assert not handoff_ui.characters_waiting(ctx, v)

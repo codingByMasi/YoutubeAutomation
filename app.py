@@ -393,6 +393,7 @@ def page_make() -> None:
               for s, s_done in zip(svc.PRODUCE_STAGES, ["scripted", "voiced", "visuals_ready", "built"])]
     st.write("  →  ".join(labels))
     nxt = svc.next_produce_stage(v)
+    handoff_ui.characters_panel(ctx, v)
     if nxt is None:
         st.success("Production is finished. Go to **4. Review and download**.")
     _production_box(ctx, v.id)
@@ -406,6 +407,8 @@ def page_make() -> None:
     if nxt and (nxt == "voice" or not gated) and c1.button(f"Run next step: {svc.STAGE_LABEL[nxt]}"):
         with st.spinner(f"{svc.STAGE_LABEL[nxt]}..."):
             res, kw = _run(ctx, nxt, v.id, draft)
+            if res.pending and handoff_ui.characters_waiting(ctx, v):
+                st.rerun()  # the request panel for Claude's answer appears at the top of this page
             show(res, f"{svc.STAGE_LABEL[nxt]} done.", key=f"next{v.id}", **kw)
     if nxt and not gated and c2.button("Run everything to the end", type="primary"):
         bar = st.progress(0.0)
@@ -413,6 +416,8 @@ def page_make() -> None:
         for n, name in enumerate(todo):
             bar.progress(n / len(todo), text=f"{svc.STAGE_LABEL[name]}...")
             res = svc.run_stage_by_name(ctx, name, v.id, draft=draft)
+            if res.pending and handoff_ui.characters_waiting(ctx, v):
+                st.rerun()
             if not res.ok:
                 show(res, key=f"all{v.id}", **_variants(ctx, name, v.id, draft))
                 break
