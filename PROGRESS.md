@@ -620,3 +620,7 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 - Docs now describe three channels, narration styles, "characters come from the script", the history 2D cartoon cast (3D needs Blender and has no history cast mode), no sources or fact ids, minimal diffs, disclose-every-change and "no CI, run full pytest before merge" (see `CLAUDE.md`).
 - The fact checklist no longer blocks a script for having no sources (`studio/growth/factcheck.py`); photo credits stay.
 - Gaps (no in-app setting yet, so docs say so plainly): OpenUtau location other than `C:\Tools\OpenUtau` or a usual folder (`OPENUTAU_PATH`), and `STUDIO_3D_QUALITY=gpu`. Also, a few in-app messages still say "set ... in .env" (`studio/web/setup_ui.py`, `studio/cli.py`, `studio/web/voices_service.py`, `studio/blender/provider.py`, `studio/manage/doctor.py`); not changed here because this PR is docs-only.
+
+## 2026-11-05 Fix: unrequested background characters in history videos
+- Cause: `studio/history/render.py` guessed a "crowd" of 14 small extras from words like army, people, soldiers, citizens in the narration, so scenes showed characters the script never listed.
+- Fix: the crowd is drawn only when the script sets `scene_data.crowd`. Characters now come from the script's `cast` only. Re-render a video to see it.
