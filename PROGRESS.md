@@ -621,6 +621,8 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 - The fact checklist no longer blocks a script for having no sources (`studio/growth/factcheck.py`); photo credits stay.
 - Gaps (no in-app setting yet, so docs say so plainly): OpenUtau location other than `C:\Tools\OpenUtau` or a usual folder (`OPENUTAU_PATH`), and `STUDIO_3D_QUALITY=gpu`. Also, a few in-app messages still say "set ... in .env" (`studio/web/setup_ui.py`, `studio/cli.py`, `studio/web/voices_service.py`, `studio/blender/provider.py`, `studio/manage/doctor.py`); not changed here because this PR is docs-only.
 
+### Fix (2026-11-05, left-only audio)
+- Final video played almost only on the left speaker: the character-voice mix wrote a mono `narration_mix.wav` (`-ac 1`), so `clean.mp4` was mono and the stereo intro join put it on the left channel. The mix now stays stereo (`studio/history/speech_audio.py`), with a test. Existing videos need `build --force` to pick it up. Nothing for the owner to configure.
 ## 2026-11-05 Fix: unrequested background characters in history videos
 - Cause: `studio/history/render.py` guessed a "crowd" of 14 small extras from words like army, people, soldiers, citizens in the narration, so scenes showed characters the script never listed.
 - Fix: the crowd is drawn only when the script sets `scene_data.crowd`. Characters now come from the script's `cast` only. Re-render a video to see it.

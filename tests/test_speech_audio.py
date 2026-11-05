@@ -72,6 +72,18 @@ def test_mix_adds_lines_and_keeps_length(tmp_path):
     assert sa.mix_into_narration(nar, [{"scene": "map"}], [(0.0, 6.0)], tmp_path / "m2.wav") == nar
 
 
+def test_mix_stays_stereo_and_centred(tmp_path):
+    nar, line = tmp_path / "n.wav", tmp_path / "l.wav"
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", "sine=frequency=200:duration=6",
+                    "-ar", "48000", "-ac", "2", str(nar)], check=True)
+    _tone(line, 1.0, 800)
+    segs = [{"scene": "skit", "speech": [{"who": "dash", "text": "x", "audio": str(line), "seconds": 1.0}]}]
+    out = sa.mix_into_narration(nar, segs, [(0.0, 6.0)], tmp_path / "m.wav")
+    chans = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "a", "-show_entries", "stream=channels",
+                            "-of", "csv=p=0", str(out)], capture_output=True, text=True, check=True).stdout
+    assert chans.strip() == "2"  # a mono mix made the intro+main join play on the left channel only
+
+
 def test_narrator_is_silent_while_a_character_speaks(tmp_path):
     import numpy as np
     nar, line = tmp_path / "n.wav", tmp_path / "l.wav"
