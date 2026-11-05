@@ -87,6 +87,32 @@ def no_request_panel(ctx, video_id: int, task: str, run_fn, key: str, error: str
             st.rerun()
 
 
+def characters_waiting(ctx, video) -> bool:
+    """True while the character-description request is written and not yet answered."""
+    from studio import llm
+
+    return llm.pending_task(ctx.settings.project_dir(video.id), "characters") == "waiting"
+
+
+def characters_panel(ctx, video) -> None:
+    """Character descriptions asked for by the picture step: copy the request, paste the answer, all in the app.
+
+    Shown only while a request is written and unanswered; the next press of the step button then continues."""
+    from studio import llm
+    from studio.history import scene_plan
+
+    work_dir = ctx.settings.project_dir(video.id)
+    if not characters_waiting(ctx, video):
+        return
+
+    def check(c) -> None:
+        llm._load_response(llm.prompt_paths(work_dir, "characters")[1], scene_plan.validate_characters)
+
+    st.warning("The script names characters without a description. Ask Claude to describe them, then press the "
+               "step button again to continue.")
+    task_panel(ctx, video, "characters", check, "chr", primary_label="Save the descriptions")
+
+
 def task_panel(ctx, video, task: str, run_fn, key: str, idea_id: int | None = None,
                primary_label: str = "Apply answer", plain_script: bool = False) -> None:
     """One LLM step fully in the app: Copy prompt, paste box, Apply button and status.

@@ -143,6 +143,7 @@ def _live_panel(ctx, v) -> None:
 def step_make(ctx, v, show, production_box=None) -> None:
     st.subheader("Step 3 · Make the video")
     nxt = svc.next_produce_stage(v)
+    handoff_ui.characters_panel(ctx, v)
     if v.stage == "scripted":
         with st.expander("Optional: read the script"):
             sd = ctx.settings.project_dir(v.id) / "script.md"
@@ -182,6 +183,8 @@ def step_make(ctx, v, show, production_box=None) -> None:
         for n, name in enumerate(todo):
             bar.progress(n / len(todo), text=f"{svc.STAGE_LABEL[name]}... (this can take a few minutes)")
             res = svc.run_stage_by_name(ctx, name, v.id, draft=draft, on_tick=tick)
+            if res.pending and handoff_ui.characters_waiting(ctx, v):
+                st.rerun()  # the request panel for Claude's answer appears at the top of this step
             if not res.ok:
                 show(res)
                 break
