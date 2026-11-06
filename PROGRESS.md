@@ -643,3 +643,6 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 - Removed the 10-character roster, the host Quill, `cast.build_svg` (shared body), `pil_character`, era SVG costumes, the `wardrobe` command and `studio/history/preview.py`. Every character is drawn from the script's description (`studio/history/figures.py`); crowd extras use the same drawer.
 - `lectern` is no longer a scene type; chapter cards are `title`. Older scripts that say `lectern` draw as a title card; old names (Dusty, Quill ...) are drawn from their own words and get a name-stable voice.
 - Channel art regenerated without characters; the channel name "Quill's Past" is unchanged (owner may want to rename).
+
+## 2026-11-06: skits play the narration first (fix/skit-narration-first)
+- A voiced skit now plays its narration first and uncut; the characters' lines follow it after a short pause (`lines_at`), capped at about 6 s of dialogue per skit (the first line always stays). Before, 9-14 s of banter played ahead of the narrator and the picture held on the last line while the narrator spoke. Older scripts with the lines-first layout are converted on the next `visuals` run. The history script prompt now asks for 1-2 very short lines after the narrator's beat.

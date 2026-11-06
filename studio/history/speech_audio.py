@@ -5,6 +5,7 @@ stable voice picked from the name). The lines are synthesised once in `visuals` 
 assigned), saved under `projects/<id>/speech/`, and their real length is stored in the line (`seconds`, `audio`).
 The scene renderer shows each bubble and moves the speaker's mouth with that audio; `build` mixes the lines into
 the narration track, with the narrator silent while a character speaks (`line_times` is shared by both).
+A skit plays its narration first, uncut, and the characters' short lines follow it (`make_room`).
 """
 
 from __future__ import annotations
@@ -20,6 +21,8 @@ from studio.util.logging import get_logger
 log = get_logger("speech_audio")
 GAP = 0.35  # seconds between two spoken lines
 LEAD = 0.5  # seconds before the first line
+PAUSE = 0.4  # seconds between the end of the narration and the first character line
+MAX_INTERJECTION = 6.0  # seconds of character dialogue per skit: the narrator carries the story, the skit only reacts
 DUCK = 0.0  # narrator volume while a character speaks (silent: two voices must never overlap)
 
 
@@ -63,43 +66,60 @@ def voice_for(who: str, characters: list[dict] | None = None) -> dict:
     return voice_from_spec({"name": who})  # stable by name, never a fixed cast voice
 
 
-def line_times(speech: list[dict], dur: float) -> list[float]:
+def line_times(speech: list[dict], dur: float, start: float | None = None) -> list[float]:
     """Start second of every speech line in a scene of `dur` seconds. Uses real audio lengths when all lines have
-    them (one after another, gaps squeezed if needed), else spreads the lines evenly."""
+    them (one after another, gaps squeezed if needed), else spreads the lines evenly. `start` is when the first
+    line may begin (default `LEAD`; a skit with narration first passes the end of its narration)."""
     n = len(speech)
     if not n:
         return []
+    first = LEAD if start is None else start
     secs = [float(s.get("seconds") or 0) for s in speech]
     if all(secs):
-        room = max(0.0, dur - LEAD - 0.3 - sum(secs))
+        room = max(0.0, dur - first - 0.3 - sum(secs))
         gap = min(GAP, room / max(1, n - 1)) if n > 1 else 0.0
-        starts, t = [], LEAD
+        starts, t = [], first
         for sec in secs:
             starts.append(round(t, 3))
             t += sec + gap
         return starts
-    return [round(LEAD + k * (dur - 1.2) / n, 3) for k in range(n)]
+    return [round(first + k * (dur - first - 0.7) / n, 3) for k in range(n)]
 
 
 def make_room(segments: list[dict]) -> int:
-    """Give every voiced skit time for its lines BEFORE the narrator speaks, so nothing is muted or cut off.
+    """Lay out every voiced skit as: the narration first and uncut, then a short exchange of character lines.
 
-    The skit's dialogue plays from `LEAD`; the segment's own narration (its set-up or tag) is delayed by
-    `lead_seconds` and `real_seconds` grows by the same amount. Safe to repeat: `narr_seconds` remembers the
-    narration's own length. Returns how many segments were lengthened."""
+    The narration keeps its own length (`narr_seconds`); the lines start at `lines_at` (its end plus `PAUSE`) and
+    `real_seconds` grows to hold them. Dialogue beyond `MAX_INTERJECTION` seconds is dropped (the first line always
+    stays), so the skit is an interjection, not a second script. Safe to repeat: `narr_seconds` remembers the
+    narration's own length. Returns how many segments were laid out."""
     changed = 0
     for seg in segments:
         sp = seg.get("speech") or []
         if seg.get("scene") != "skit" or not sp or not all(s.get("audio") and s.get("seconds") for s in sp):
             continue
+        keep, used = [], 0.0
+        for s in sp:
+            used += float(s["seconds"]) + (GAP if keep else 0.0)
+            if keep and used > MAX_INTERJECTION:
+                break
+            keep.append(s)
+        seg["speech"] = sp = keep
         cur = float(seg.get("real_seconds") or 0)
         if not cur:
             continue
-        had = float(seg.get("lead_seconds") or 0)
-        done = had and abs(cur - float(seg.get("narr_seconds", 0)) - had) < 0.01
-        narr = float(seg["narr_seconds"]) if done else cur
-        lead = round(LEAD + sum(float(s["seconds"]) for s in sp) + GAP * (len(sp) - 1) + 0.3, 3)
-        seg["narr_seconds"], seg["lead_seconds"], seg["real_seconds"] = round(narr, 3), lead, round(narr + lead, 3)
+        talk = sum(float(s["seconds"]) for s in sp) + GAP * (len(sp) - 1) + 0.3
+        at = float(seg.get("lines_at") or 0)
+        old = float(seg.get("narr_seconds") or 0)
+        if at and abs(cur - (at + talk)) < 0.01:
+            narr = old  # already laid out
+        elif seg.get("lead_seconds") and old:
+            narr = old  # an older build put the lines first: the narration length was kept
+        else:
+            narr = cur
+        at = round(narr + PAUSE, 3)
+        seg["narr_seconds"], seg["lines_at"], seg["lead_seconds"] = round(narr, 3), at, 0
+        seg["real_seconds"] = round(at + talk, 3)
         changed += 1
     return changed
 
@@ -161,7 +181,7 @@ def mix_into_narration(narration: Path, segments: list[dict], spans: list[tuple[
         sp = [s for s in seg.get("speech") or [] if s.get("audio") and Path(s["audio"]).exists()]
         if seg.get("scene") != "skit" or not sp or len(sp) != len(seg.get("speech") or []):
             continue
-        for t0, line in zip(line_times(seg["speech"], end - start), seg["speech"], strict=True):
+        for t0, line in zip(line_times(seg["speech"], end - start, seg.get("lines_at")), seg["speech"], strict=True):
             items.append((start + t0, float(line["seconds"]), Path(line["audio"])))
     if not items:
         return narration

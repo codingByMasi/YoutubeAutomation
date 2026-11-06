@@ -104,21 +104,51 @@ def test_narrator_is_silent_while_a_character_speaks(tmp_path):
     assert level(4.0, 5.5, 200) > 100  # narrator back after the line
 
 
-def test_make_room_puts_the_dialogue_before_the_narrator_and_is_repeatable():
+def test_make_room_plays_the_narration_first_then_a_short_exchange_and_is_repeatable():
     segs = [{"scene": "skit", "real_seconds": 4.0,
              "speech": [{"audio": "a.mp3", "seconds": 2.0}, {"audio": "b.mp3", "seconds": 1.5}]},
             {"scene": "map", "real_seconds": 5.0, "speech": []}]
     assert sa.make_room(segs) == 1
-    lead = segs[0]["lead_seconds"]
-    assert lead >= sa.LEAD + 3.5 + sa.GAP and segs[0]["real_seconds"] == round(4.0 + lead, 3)
-    assert segs[0]["narr_seconds"] == 4.0 and segs[1]["real_seconds"] == 5.0
+    at, seg = segs[0]["lines_at"], segs[0]
+    assert at == round(4.0 + sa.PAUSE, 3) and seg["lead_seconds"] == 0  # narration from second 0, uncut
+    assert seg["real_seconds"] == round(at + 3.5 + sa.GAP + 0.3, 3) and segs[1]["real_seconds"] == 5.0
     sa.make_room(segs)  # running visuals again must not grow the segment twice
-    assert segs[0]["real_seconds"] == round(4.0 + lead, 3)
-    segs[0]["real_seconds"] = 6.0  # the voice stage re-ran with a new narration length
+    assert seg["real_seconds"] == round(at + 3.5 + sa.GAP + 0.3, 3)
+    seg["real_seconds"] = 6.0  # the voice stage re-ran with a new narration length
     sa.make_room(segs)
-    assert segs[0]["narr_seconds"] == 6.0 and segs[0]["real_seconds"] == round(6.0 + lead, 3)
-    for t, line in zip(sa.line_times(segs[0]["speech"], segs[0]["real_seconds"]), segs[0]["speech"], strict=True):
-        assert t + line["seconds"] <= lead  # every line ends before the narration starts
+    assert seg["narr_seconds"] == 6.0 and seg["lines_at"] == round(6.0 + sa.PAUSE, 3)
+    for t, line in zip(sa.line_times(seg["speech"], seg["real_seconds"], seg["lines_at"]), seg["speech"], strict=True):
+        assert t >= seg["narr_seconds"] and t + line["seconds"] <= seg["real_seconds"]  # after the narrator
+
+
+def test_make_room_keeps_the_dialogue_short_and_converts_an_older_lines_first_layout():
+    long = [{"audio": f"{k}.mp3", "seconds": 2.5} for k in range(5)]
+    segs = [{"scene": "skit", "real_seconds": 4.0, "speech": long}]
+    sa.make_room(segs)
+    assert len(segs[0]["speech"]) == 2  # 2.5 + gap + 2.5 fits the budget; a third line does not
+    old = [{"scene": "skit", "real_seconds": 15.0, "narr_seconds": 3.0, "lead_seconds": 12.0,
+            "speech": [{"audio": "a.mp3", "seconds": 2.0}]}]
+    sa.make_room(old)
+    assert old[0]["lines_at"] == round(3.0 + sa.PAUSE, 3) and old[0]["lead_seconds"] == 0
+    assert old[0]["real_seconds"] == round(3.4 + 2.0 + 0.3, 3)
+
+
+def test_mix_puts_the_lines_after_the_narration(tmp_path):
+    import numpy as np
+    nar, line = tmp_path / "n.wav", tmp_path / "l.wav"
+    _tone(nar, 4.7, 200)  # the build pads the narration to the segment length
+    _tone(line, 1.0, 800)
+    seg = {"scene": "skit", "lines_at": 3.4, "speech": [{"who": "A", "text": "x", "audio": str(line), "seconds": 1.0}]}
+    out = sa.mix_into_narration(nar, [seg], [(0.0, 4.7)], tmp_path / "m.wav")
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(out), "-f", "s16le", "-ac", "1", "-ar", "48000", "-"],
+                         capture_output=True, check=True).stdout
+    x = np.frombuffer(raw, dtype=np.int16).astype(float)
+
+    def level(t0, t1, hz):
+        w = x[int(t0 * 48000):int(t1 * 48000)]
+        return abs(np.sum(w * np.exp(-2j * np.pi * hz * np.arange(len(w)) / 48000))) / len(w)
+    assert level(0.2, 2.8, 200) > 100 and level(0.2, 2.8, 800) < 5  # the narrator alone, from the start
+    assert level(3.6, 4.3, 800) > 100 and level(3.6, 4.3, 200) < 5  # then the character
 
 
 def test_fit_voice_delays_the_narration_by_the_lead(tmp_path):

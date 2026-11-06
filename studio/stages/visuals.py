@@ -173,7 +173,7 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
             autoscene.persist(out / "script.json", pkg["segments"], {"characters": pkg["characters"]})
         if cast_on and speech_audio.synth_lines(ctx.settings, out, pkg["segments"], typer.echo,
                                                         pkg.get("characters")):
-            speech_audio.make_room(pkg["segments"])  # the skit's lines play first; the narrator follows, unmuted
+            speech_audio.make_room(pkg["segments"])  # the narrator plays first, uncut; the skit's short lines follow
             autoscene.persist(out / "script.json", pkg["segments"])  # keeps each line's audio file and length
         cast_stage = cast_render.Cast(out / "cast", pkg.get("characters")) if cast_on else None
         for pos, seg in enumerate(pkg["segments"], 1):
