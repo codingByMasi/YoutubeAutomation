@@ -95,3 +95,11 @@ def test_a_long_title_shrinks_or_wraps_to_stay_inside_its_banner():
     assert spilled.crop(outside).tobytes() == plain.crop(outside).tobytes()  # no text ran past the box
     x0, x1 = spilled.crop((290, 30, 990, 150)).convert("L").getextrema()
     assert x0 < 100  # the title is drawn inside it
+
+
+def test_a_long_title_card_stays_inside_the_picture(tmp_path):
+    seg = {"scene": "title", "scene_data": {"title": "Who started the fires? Disputed."}, "cast": []}
+    img = r.Scene(seg, 5.0, r.Cast(tmp_path), [1.0] * 130, 0).frame(4.0)
+    light = img.convert("L").point(lambda v: 255 if v > 200 else 0)  # the cream title text
+    assert light.crop((0, 0, 6, r.H)).getbbox() is None and light.crop((r.W - 6, 0, r.W, r.H)).getbbox() is None
+    assert light.getbbox() is not None

@@ -740,8 +740,14 @@ class Scene:
 
     def _title(self, img: Image.Image, t: float) -> None:
         d = ImageDraw.Draw(img)
-        centered(d, (640, 300), str(self.data.get("title") or self.seg.get("chapter", "")), font(84),
-                 fill=(255, 246, 214), stroke=(20, 16, 40), sw=4)
+        text = str(self.data.get("title") or self.seg.get("chapter", ""))
+        size = 84
+        while size > 48 and len(wrap(text, font(size), 1100)) > 2:  # a long title gets smaller, then two lines
+            size -= 6
+        lines = wrap(text, font(size), 1100)[:2]
+        for k, ln in enumerate(lines):
+            centered(d, (640, 300 - (len(lines) - 1) * size * 0.55 + k * size * 1.1), ln, font(size),
+                     fill=(255, 246, 214), stroke=(20, 16, 40), sw=4)
         if self.who:
             self.actor(img, self.who[0], 640, 700, 360, t, 0, self.mouth(t))
 
