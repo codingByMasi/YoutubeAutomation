@@ -152,3 +152,18 @@ def test_every_face_option_and_posture_draws():
             assert figures.draw({"name": "t", "face": {part: o}}, 80).getchannel("A").getbbox() is not None
     for p in figures.POSTURES:
         assert figures.draw({"name": "t", "posture": p}, 80).getchannel("A").getbbox() is not None
+
+
+def test_a_returning_name_looks_different_in_another_story_but_not_inside_one(tmp_path):
+    from studio.history import figures
+    spec = {"name": "Napoleon", "role": "Emperor of the French", "gender": "male", "age": "adult"}
+    a = figures.normalize({**spec, "look_seed": "French Empire|10"})
+    assert a == figures.normalize({**spec, "look_seed": "French Empire|10"})  # stable within one story
+    others = [figures.normalize({**spec, "look_seed": f"Story {k}|{k}"}) for k in range(6)]
+    assert any(o["face"] != a["face"] for o in others)  # the same name in another story is not a copy
+    assert any(figures.normalize({**spec, "role": f"Role {k}", "look_seed": "x"})["face"] != a["face"] for k in range(6))
+    from studio.history import render as r
+    same = r.Cast(tmp_path, [spec], "T|1").sprite("Napoleon", 200, 0, 0, False)
+    again = r.Cast(tmp_path, [spec], "T|1").sprite("Napoleon", 200, 0, 0, False)
+    assert same.tobytes() == again.tobytes()
+    assert r.fingerprint({"scene": "title"}, 4.0, None, [spec], "T|1") != r.fingerprint({"scene": "title"}, 4.0, None, [spec], "T|2")
