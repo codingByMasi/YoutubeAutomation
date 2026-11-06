@@ -541,7 +541,7 @@ class Scene:
                      ]
             active = self._active_line(t)
             talk = active is not None and active in lines and self._line_mouth(active, t)
-            self.actor(img, w, cx, 640, 430 if n <= 2 else 340, t, i, talk or (not self.speech and self.mouth(t)),
+            self.actor(img, w, cx, 640, 430 if n <= 2 else 340, t, i, talk,
                        enter=0.1 * i)
         act = self._active_line(t)
         for k, s in enumerate(self.speech):
@@ -648,7 +648,7 @@ class Scene:
         if title:
             banner(img, str(title), 78, width=700)
         if self.who:
-            self.actor(img, self.who[0], 1160, 650, 260, t, 0, self.mouth(t))
+            self.actor(img, self.who[0], 1160, 650, 260, t, 0, False)  # the narrator is not this figure
 
     # -- diagram: numbered steps appear one after another
     def _diagram(self, img: Image.Image, t: float) -> None:
@@ -680,7 +680,7 @@ class Scene:
             centered(ImageDraw.Draw(img), (W / 2, 535), "Told by Livy. Historians dispute this.", font(34, False),
                      fill=(110, 84, 52))
         if self.who:  # standing below the step boxes (they end at y=500), not in front of the first one
-            self.actor(img, self.who[0], 130, 740, 250, t, 0, self.mouth(t))
+            self.actor(img, self.who[0], 130, 740, 250, t, 0, False)  # the narrator is not this figure
 
     # -- calendar: days cross off one by one
     def _calendar(self, img: Image.Image, t: float) -> None:
@@ -730,7 +730,7 @@ class Scene:
             size -= 6
         centered(d, (640, int(410 + 30 * (1 - rise))), date, font(size))
         if self.who:
-            self.actor(img, self.who[0], 120, 650, 250, t, 0, self.mouth(t))
+            self.actor(img, self.who[0], 120, 650, 250, t, 0, False)  # the narrator is not this figure
 
     # -- easel: a list or short chart on an easel
     def _easel(self, img: Image.Image, t: float) -> None:
@@ -748,7 +748,7 @@ class Scene:
                 d.ellipse([360, 238 + k * 44 - 8, 376, 238 + k * 44 + 8], fill=hex_rgb(cast.faction_color(k)))
                 d.text((392, 238 + k * 44), it, font=font(32, False), fill=INK, anchor="lm")
         if self.who:
-            self.actor(img, self.who[0], 1090, 650, 400, t, 0, self.mouth(t))
+            self.actor(img, self.who[0], 1090, 650, 400, t, 0, False)  # the narrator is not this figure
 
     def _archive(self, img: Image.Image, t: float) -> None:
         d = ImageDraw.Draw(img)
@@ -763,7 +763,7 @@ class Scene:
             centered(d, (640, 305), "archive picture", font(40, False), fill=(120, 100, 70))
         centered(d, (640, 540), str(self.data.get("title") or ""), font(36, False), fill=(110, 84, 52))
         if self.who:
-            self.actor(img, self.who[0], 1100, 650, 360, t, 0, self.mouth(t))
+            self.actor(img, self.who[0], 1100, 650, 360, t, 0, False)  # the narrator is not this figure
 
     def _silhouette(self, img: Image.Image, t: float) -> None:
         push = 40 * min(1.0, t / max(self.dur, 1.0))  # a slow push-in so a long silhouette is never a still
@@ -784,7 +784,7 @@ class Scene:
             centered(d, (640, 300 - (len(lines) - 1) * size * 0.55 + k * size * 1.1), ln, font(size),
                      fill=(255, 246, 214), stroke=(20, 16, 40), sw=4)
         if self.who:
-            self.actor(img, self.who[0], 640, 700, 360, t, 0, self.mouth(t))
+            self.actor(img, self.who[0], 640, 700, 360, t, 0, False)  # the narrator is not this figure
 
 
 # ---------------------------------------------------------------- map base and small shapes

@@ -148,3 +148,11 @@ def test_palm_trees_only_on_the_desert_backdrop():
     box = (100, 100, 300, 380)  # where the left palm stands
     diff = ImageChops.difference(r.backdrop("market").crop(box), r.backdrop("desert").crop(box)).convert("L")
     assert diff.getbbox() is not None and sum(diff.histogram()[40:]) > 500  # the desert has trees there, the market not
+
+def test_the_narrator_is_not_drawn_as_a_talking_character(tmp_path):
+    """Only a skit line moves a figure's mouth; narration over a title, map, calendar or speechless skit does not."""
+    for kind in ("title", "calendar", "diagram", "skit"):
+        seg = {"scene": kind, "cast": ["Odo"], "scene_data": {"title": "T", "days": 3, "steps": ["a", "b"]}, "narration": "x"}
+        loud = r.Scene(seg, 6.0, r.Cast(tmp_path), [1.0] * 200, 0).frame(3.3)
+        quiet = r.Scene(seg, 6.0, r.Cast(tmp_path), [0.0] * 200, 0).frame(3.3)
+        assert loud.tobytes() == quiet.tobytes(), kind

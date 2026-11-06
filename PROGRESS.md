@@ -672,3 +672,6 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 
 ## 2026-11-07: palm trees only on a desert backdrop (added to fix/backdrop-from-script-location)
 - The `market` backdrop always drew two palm trees, so a Madrid square or a Portuguese harbour looked like an oasis. Palms are now only on a new `desert` backdrop (words: Carthage, desert, Africa, oasis, Sahara, Egypt); the script and scene-plan prompts list it.
+
+## 2026-11-07: the narrator is not a talking figure (fix/narrator-mouth)
+- On title, map, calendar, diagram, easel, archive and silhouette scenes, and on a skit with no speech lines, the first cast figure moved its mouth to the NARRATION, so it looked as if that character narrated (in a skit the same figure stays silent). Figures now move their mouth only for their own skit lines.
