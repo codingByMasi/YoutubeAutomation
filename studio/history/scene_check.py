@@ -67,6 +67,28 @@ def text_problems(items: list[tuple[str, tuple]], width: int = R.W, height: int 
     return out
 
 
+def diagram_problems(seg: dict, items: list[tuple[str, tuple]]) -> list[str]:
+    """Every word of every step must be drawn, and inside its own box."""
+    if seg.get("scene") != "diagram":
+        return []
+    from studio.history import autoscene
+    steps = autoscene.steps_for(str(seg.get("narration", "")), (seg.get("scene_data") or {}).get("steps")) or []
+    if not steps:
+        return []
+    cw, x0 = R.diagram_layout(len(steps))
+    drawn = " ".join(t for t, _ in items).lower().split()
+    out: list[str] = []
+    for k, step in enumerate(steps):
+        lo, hi = x0 + k * (cw + 60), x0 + k * (cw + 60) + cw
+        missing = [w for w in step.lower().split() if w not in drawn]
+        if missing:
+            out.append(f"step {k + 1} is cut short: {', '.join(missing[:3])!r} is not shown")
+        for text, (a, _, b, _) in items:
+            if text in step and lo - 6 <= (a + b) / 2 <= hi + 6 and (a < lo + 4 or b > hi - 4) and len(text) > 2:
+                out.append(f"step {k + 1}: the text {text[:30]!r} touches or crosses the edge of its box")
+    return out
+
+
 def backdrop_problems(seg: dict) -> list[str]:
     """A skit backdrop that contradicts the place the script describes."""
     if seg.get("scene") != "skit":
@@ -116,7 +138,8 @@ def check_package(pkg: dict) -> list[str]:
             for t in (dur * 0.5, dur * 0.9):  # each frame on its own: a text may legitimately move
                 with record_text() as items:
                     scene.frame(t)
-                found += [p for p in text_problems(items) if p not in found]
+                more = diagram_problems(seg, items) if t == dur * 0.9 else []  # all steps are on screen by then
+                found += [p for p in text_problems(items) + more if p not in found]
             found += mouth_problems({**seg, "era": seg.get("era") or "default"}, dur, cast)
         except Exception as exc:  # noqa: BLE001 - a check must never stop a build
             found.append(f"could not be checked ({str(exc)[:80]})")
