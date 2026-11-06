@@ -370,13 +370,24 @@ def bubble(img: Image.Image, text: str, cx: float, tail_y: float, alpha: float =
 
 
 def banner(img: Image.Image, text: str, cy: int, sub: str = "", width: int = 880) -> None:
-    """Title banner across the top of a scene."""
-    box = (int((W - width) / 2), cy - 52, int((W + width) / 2), cy + (86 if sub else 52))
+    """Title banner across the top of a scene. A long title shrinks, then wraps to two lines, so it is never cut off."""
+    size = 56
+    while size > 34 and font(size).getlength(text) > width - 60:
+        size -= 4
+    lines = wrap(text, font(size), width - 60)[:2]
+    extra = (len(lines) - 1) * (size + 6)
+    box = (int((W - width) / 2), cy - 52 - extra // 2, int((W + width) / 2), cy + (86 if sub else 52) + extra // 2 + extra % 2)
     shadowed_box(img, box, (252, 244, 222), outline=WOOD, radius=18, width=5)
     d = ImageDraw.Draw(img)
-    centered(d, (W / 2, cy), text, font(56))
+    for k, ln in enumerate(lines):
+        centered(d, (W / 2, cy - extra // 2 + k * (size + 6)), ln, font(size))
     if sub:
-        centered(d, (W / 2, cy + 58), sub, font(30, serif=False), fill=(110, 84, 52))
+        centered(d, (W / 2, cy + 58 + extra // 2), sub, font(30, serif=False), fill=(110, 84, 52))
+
+
+_DATE = re.compile(r"\b\d{1,2} (?:January|February|March|April|May|June|July|August|September|October|November|December)"
+                   r"(?: \d{4})?\b|\b(?:January|February|March|April|May|June|July|August|September|October|November|"
+                   r"December) \d{4}\b")
 
 
 # ---------------------------------------------------------------- the scene drawers
@@ -638,8 +649,11 @@ class Scene:
 
     # -- calendar: days cross off one by one
     def _calendar(self, img: Image.Image, t: float) -> None:
-        days = max(1, min(int(self.data.get("days", 7)), 31))
-        banner(img, str(self.data.get("title") or "Days"), 90, str(self.data.get("label") or ""), width=700)
+        if self.data.get("days") in (None, ""):  # no count of days: one page showing the date the script talks about
+            return self._date_page(img, t)
+        days = max(1, min(int(self.data.get("days") or 7), 31))
+        banner(img, str(self.data.get("title") or self.seg.get("chapter") or "Days"), 90,
+               str(self.data.get("label") or ""), width=900)
         cols = 8 if days > 10 else days
         cw, gap = 112, 14
         x0 = (W - (cols * cw + (cols - 1) * gap)) // 2
@@ -652,13 +666,34 @@ class Scene:
             shadowed_box(img, (x, y, x + cw, y + cw), (252, 244, 222) if not crossed else (236, 220, 190),
                          outline=WOOD, radius=14, width=4)
             d = ImageDraw.Draw(img)
-            centered(d, (x + cw / 2, y + cw / 2), str(k + 1), font(46), fill=INK if not crossed else (150, 128, 96))
-            if crossed:
-                d.line([(x + 14, y + 14), (x + cw - 14, y + cw - 14)], fill=RED, width=9)
-                d.line([(x + cw - 14, y + 14), (x + 14, y + cw - 14)], fill=RED, width=9)
-        if done >= days and t > self.dur * 0.78:
+            if crossed:  # a thin cross behind the number: the day stays readable
+                d.line([(x + 30, y + 30), (x + cw - 30, y + cw - 30)], fill=RED, width=5)
+                d.line([(x + cw - 30, y + 30), (x + 30, y + cw - 30)], fill=RED, width=5)
+            centered(d, (x + cw / 2, y + cw / 2), str(k + 1), font(46), fill=INK if not crossed else (120, 96, 64))
+        q = self.data.get("question")  # a closing "?" only when the script asks for one
+        if q and done >= days and t > self.dur * 0.78:
             s = ease((t - self.dur * 0.78) / 0.4)
-            centered(ImageDraw.Draw(img), (W - 150, 600), "?", font(int(40 + 130 * s)), fill=RED, stroke=PAPER, sw=6)
+            centered(ImageDraw.Draw(img), (W - 150, 600), str(q) if isinstance(q, str) else "?", font(int(40 + 130 * s)),
+                     fill=RED, stroke=PAPER, sw=6)
+        if self.who:
+            self.actor(img, self.who[0], 120, 650, 250, t, 0, self.mouth(t))
+
+    def _date_page(self, img: Image.Image, t: float) -> None:
+        """One calendar page with the date from the script (`label`, else a date in the narration, else the title)."""
+        text = " ".join(str(self.seg.get(k) or "") for k in ("narration",))
+        m = _DATE.search(text)
+        date = str(self.data.get("label") or (m.group(0) if m else "") or self.data.get("title") or
+                   self.seg.get("chapter") or "")
+        banner(img, str(self.data.get("title") or self.seg.get("chapter") or ""), 90, width=900)
+        rise = ease(t / 0.5)
+        shadowed_box(img, (340, int(230 + 30 * (1 - rise)), 940, int(520 + 30 * (1 - rise))), (252, 244, 222),
+                     outline=WOOD, radius=16, width=6)
+        d = ImageDraw.Draw(img)
+        d.rounded_rectangle([340, int(230 + 30 * (1 - rise)), 940, int(300 + 30 * (1 - rise))], 16, fill=RED)
+        size = 84
+        while size > 40 and font(size).getlength(date) > 520:
+            size -= 6
+        centered(d, (640, int(410 + 30 * (1 - rise))), date, font(size))
         if self.who:
             self.actor(img, self.who[0], 120, 650, 250, t, 0, self.mouth(t))
 
