@@ -60,6 +60,7 @@ required for a skit), "speech" (skit only: at most {cast.MAX_SPEECH_LINES} lines
 {{"who": "...", "text": "..."}}, invented tone-setting dialogue, never a quote presented as real), and "scene_data":
 - map: {{"title": "...", "points": [{{"x": 0-1, "y": 0-1, "label": "..."}}]}} using these known places on the map:
   {places}. Positions are given by the studio for known places; use only those names as labels.
+- skit: {{"backdrop": "where it is: parchment, mountains, hall, night, snow, field, market, plain, sea or desert"}}
 - diagram: {{"title": "...", "steps": ["3-5 short steps"]}}
 - calendar: {{"title": "...", "days": 1-31}}
 - title: {{"title": "...", "question": "..."}}

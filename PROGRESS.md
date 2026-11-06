@@ -643,3 +643,9 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 - Removed the 10-character roster, the host Quill, `cast.build_svg` (shared body), `pil_character`, era SVG costumes, the `wardrobe` command and `studio/history/preview.py`. Every character is drawn from the script's description (`studio/history/figures.py`); crowd extras use the same drawer.
 - `lectern` is no longer a scene type; chapter cards are `title`. Older scripts that say `lectern` draw as a title card; old names (Dusty, Quill ...) are drawn from their own words and get a name-stable voice.
 - Channel art regenerated without characters; the channel name "Quill's Past" is unchanged (owner may want to rename).
+
+## 2026-11-06: skit backdrops follow the script's location (fix/backdrop-from-script-location)
+- A skit's backdrop was guessed from loose substrings of its narration ("frozen" with shock or "pass" inside "bypass" gave snow; a ship in the story gave sea). It now comes from the script's own `scene_data.backdrop` when given (a known name), else from whole words in the scene's setting only (`visual_intent.must_show`, `staging`, `visual_keywords`), else the hall. The script and scene-plan prompts ask for a backdrop per skit.
+
+## 2026-11-07: palm trees only on a desert backdrop (added to fix/backdrop-from-script-location)
+- The `market` backdrop always drew two palm trees, so a Madrid square or a Portuguese harbour looked like an oasis. Palms are now only on a new `desert` backdrop (words: Carthage, desert, Africa, oasis, Sahara, Egypt); the script and scene-plan prompts list it.
