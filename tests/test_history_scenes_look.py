@@ -64,3 +64,22 @@ def test_lectern_card_gets_a_line_from_the_narration_when_it_has_no_question():
     assert r.card_question("It is 1600. A charter is signed.", "Rewind") == "A charter is signed."
     assert r.card_question("What Comes Next.", "What Comes Next") == ""  # never repeats the title
     assert r.card_question("A sentence far too long to fit on a chapter card " * 3, "T") == ""
+
+
+def test_map_labels_of_close_places_do_not_overlap_and_stay_in_frame():
+    f = r.font(36)
+    xy = [(500.0, 300.0), (520.0, 310.0), (545.0, 305.0), (60.0, 160.0)]
+    boxes = r._label_boxes(xy, ["Niemen", "Smolensk", "Moscow", "Paris"], f)
+    for i, a in enumerate(boxes):
+        assert a[0] >= 20 and a[2] <= r.W - 20 and a[1] >= 140 and a[3] <= r.H - 20
+        for b in boxes[:i]:
+            assert a[2] <= b[0] or b[2] <= a[0] or a[3] <= b[1] or b[3] <= a[1]
+
+
+def test_the_narrator_stands_below_the_diagram_boxes(tmp_path):
+    seg = {"scene": "diagram", "cast": ["A"], "scene_data": {"title": "T", "steps": ["One", "Two", "Three", "Four"]},
+           "narration": "x"}
+    img = r.Scene(seg, 8.0, r.Cast(tmp_path), [0.0] * 300, 0).frame(7.0)
+    dark = img.crop((100, 255, 330, 495)).convert("L").point(lambda v: 255 if v < 70 else 0)
+    # the first step box region holds only its own text: no big dark sprite block (hat, coat) in front of it
+    assert dark.getbbox() is None or (dark.getbbox()[3] - dark.getbbox()[1]) < 200 and dark.histogram()[255] < 6000
