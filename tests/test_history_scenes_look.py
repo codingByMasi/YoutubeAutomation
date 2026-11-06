@@ -78,3 +78,33 @@ def test_backdrop_comes_from_the_setting_not_from_the_narration_or_a_wrong_pick(
     assert r.Scene(given, 5.0, r.Cast(tmp_path), [1.0] * 130, 0).back == "market"  # the script's own choice wins
     bad = {**base, "scene_data": {"backdrop": "volcano"}}
     assert r.Scene(bad, 5.0, r.Cast(tmp_path), [1.0] * 130, 0).back == "hall"  # unknown value is ignored
+
+def _cal(tmp_path, data, narration="The coup works. On 9 November 1799, the Directory falls.", dur=8.0):
+    seg = {"scene": "calendar", "narration": narration, "chapter": "Eighteenth of Brumaire", "cast": [],
+           "scene_data": data}
+    return r.Scene(seg, dur, r.Cast(tmp_path), [1.0] * int(dur * r.FPS), 0)
+
+
+def _red(img, box):
+    px = img.crop(box).convert("RGB").getdata()
+    return sum(1 for (a, b, c) in px if a > 170 and b < 90 and c < 90)
+
+
+def test_calendar_without_a_day_count_shows_the_date_and_no_crossed_boxes_or_question_mark(tmp_path):
+    page = _cal(tmp_path, {"title": "The Directory falls"}).frame(7.0)
+    assert page.size == (r.W, r.H)
+    assert _red(page, (1000, 480, 1280, 720)) == 0  # no "?"
+    days = _cal(tmp_path, {"title": "x", "days": 7}).frame(7.0)
+    assert _red(days, (1000, 480, 1280, 720)) == 0  # crossed days, but no "?" unless the script asks
+    asked = _cal(tmp_path, {"title": "x", "days": 7, "question": True}).frame(7.5)
+    assert _red(asked, (1000, 480, 1280, 720)) > 200
+
+
+def test_a_long_title_shrinks_or_wraps_to_stay_inside_its_banner():
+    long = "How the Directory fell and three consuls took over the whole of France in a single day"
+    plain, spilled = r.backdrop("parchment").copy(), r.backdrop("parchment").copy()
+    r.banner(spilled, long, 90, width=700)
+    outside = (0, 0, 280, 220)  # left of the 700px banner (it starts at x=290)
+    assert spilled.crop(outside).tobytes() == plain.crop(outside).tobytes()  # no text ran past the box
+    x0, x1 = spilled.crop((290, 30, 990, 150)).convert("L").getextrema()
+    assert x0 < 100  # the title is drawn inside it

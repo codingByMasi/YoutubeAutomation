@@ -652,3 +652,6 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 
 ## 2026-11-06: skit backdrops follow the script's location (fix/backdrop-from-script-location)
 - A skit's backdrop was guessed from loose substrings of its narration ("frozen" with shock or "pass" inside "bypass" gave snow; a ship in the story gave sea). It now comes from the script's own `scene_data.backdrop` when given (a known name), else from whole words in the scene's setting only (`visual_intent.must_show`, `staging`, `visual_keywords`), else the hall. The script and scene-plan prompts ask for a backdrop per skit.
+
+## 2026-11-06: calendar scenes (fix/calendar-scene-text)
+- Long scene titles (banner) shrink, then wrap to two lines instead of being cut off. A calendar with no `days` count now shows one page with the date the narration or `label` gives (it used to draw seven crossed-out boxes titled "Days"). With a day count, the cross is thin and the day number stays readable; the closing "?" appears only when the script sets `scene_data.question`.
