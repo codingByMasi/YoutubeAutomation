@@ -103,3 +103,15 @@ def test_a_long_title_card_stays_inside_the_picture(tmp_path):
     light = img.convert("L").point(lambda v: 255 if v > 200 else 0)  # the cream title text
     assert light.crop((0, 0, 6, r.H)).getbbox() is None and light.crop((r.W - 6, 0, r.W, r.H)).getbbox() is None
     assert light.getbbox() is not None
+
+
+def test_a_calendar_without_a_date_does_not_show_its_title_twice(tmp_path):
+    seg = {"scene": "calendar", "chapter": "Bread, Games and 100 Days", "narration": "Rome keeps the crowd happy.",
+           "scene_data": {"title": "Bread, Games and 100 Days"}, "cast": []}
+    dated = {**seg, "narration": "On 9 November 1799 it ends."}
+    cast = r.Cast(tmp_path)
+    undated_img = r.Scene(seg, 8.0, cast, [0.0] * 300, 0).frame(7.0)
+    dated_img = r.Scene(dated, 8.0, cast, [0.0] * 300, 0).frame(7.0)
+    zone = (300, 30, 980, 130)  # where the banner sits
+    assert undated_img.crop(zone).convert("L").getextrema()[0] > 120  # parchment only: no banner
+    assert dated_img.crop(zone).convert("L").getextrema()[0] < 100  # a dated page keeps its banner text

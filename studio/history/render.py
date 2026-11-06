@@ -684,7 +684,9 @@ class Scene:
         m = _DATE.search(text)
         date = str(self.data.get("label") or (m.group(0) if m else "") or self.data.get("title") or
                    self.seg.get("chapter") or "")
-        banner(img, str(self.data.get("title") or self.seg.get("chapter") or ""), 90, width=900)
+        title = str(self.data.get("title") or self.seg.get("chapter") or "")
+        if date.lower() != title.lower():  # with no real date the card already carries the title: not twice
+            banner(img, title, 90, width=900)
         rise = ease(t / 0.5)
         shadowed_box(img, (340, int(230 + 30 * (1 - rise)), 940, int(520 + 30 * (1 - rise))), (252, 244, 222),
                      outline=WOOD, radius=16, width=6)

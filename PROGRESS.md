@@ -646,3 +646,4 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 
 ## 2026-11-06: calendar scenes (fix/calendar-scene-text)
 - Long scene titles (banner) shrink, then wrap to two lines instead of being cut off. A calendar with no `days` count now shows one page with the date the narration or `label` gives (it used to draw seven crossed-out boxes titled "Days"). With a day count, the cross is thin and the day number stays readable; the closing "?" appears only when the script sets `scene_data.question`. The `title` scene card gets the same treatment (it ran off both edges for a title like "Who started the fires? Disputed.").
+- Date page (same PR): with no date in the narration or `label`, the card repeated the title that the banner already showed; the banner is now left out in that case.
