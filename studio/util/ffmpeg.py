@@ -376,9 +376,9 @@ def vertical_cmd(src: Path, start: float, duration: float, out: Path, subtitles:
                  zoom: bool = False) -> list[str]:
     """Cut a 9:16 1080x1920 Short: blurred fill background with the 16:9 frame centred.
 
-    `zoom` crops the middle three quarters of the width first (a drawn cartoon scene keeps its figures in the
-    middle), so the picture and the figures are a third bigger."""
-    front = "crop=iw*3/4:ih:iw/8:0,scale=1080:-2" if zoom else "scale=1080:-2"
+    `zoom` crops the middle two thirds of the width first (a drawn cartoon scene keeps up to four figures in the
+    middle), so the picture and the figures are half again as big."""
+    front = "crop=iw*2/3:ih:iw/6:0,scale=1080:-2" if zoom else "scale=1080:-2"
     fc = ("[0:v]split=2[bg][fg];[bg]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,"
           f"boxblur=20:2[b];[fg]{front}[f];[b][f]overlay=(W-w)/2:(H-h)/2,setsar=1")
     if subtitles and Path(subtitles).suffix.lower() == ".ass":

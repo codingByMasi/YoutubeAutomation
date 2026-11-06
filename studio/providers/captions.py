@@ -101,7 +101,7 @@ ScaledBorderAndShadow: yes
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: Default,{st.font},{st.size},&H00FFFFFF,&H000000FF,&H00000000,&H96000000,-1,0,0,0,100,100,0,0,1,{max(4, st.size // 14)},2,2,60,60,{st.margin_v},1
-Style: Banner,{st.font},{round(st.size * 0.62)},&H00FFFFFF,&H000000FF,&H00201810,&H00201810,-1,0,0,0,100,100,1,0,3,14,0,7,60,60,{round(st.h * 0.06)},1
+Style: Banner,{st.font},{round(st.size * (0.8 if st.shorts else 0.62))},&H00FFFFFF,&H000000FF,&H00201810,&H00201810,-1,0,0,0,100,100,1,0,3,14,0,{8 if st.shorts else 7},60,60,{round(st.h * 0.06)},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
