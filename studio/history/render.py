@@ -400,20 +400,20 @@ def guess_backdrop(text: str) -> str | None:
 
 
 def _label_boxes(xy: list[tuple[float, float]], labels: list[str], f: ImageFont.FreeTypeFont) -> list[tuple]:
-    """A box for each marker's name: above it, or beside or below it when that would sit on an earlier label."""
+    """A box for each marker's name: above it, or higher / to either side when that would sit on an earlier name."""
     boxes: list[tuple] = []
     for (x, y), text in zip(xy, labels):
         bw = f.getlength(text) + 28
-        cands = [(x - bw / 2, y - 92), (x + 26, y - 26), (x - 26 - bw, y - 26), (x - bw / 2, y + 40),
-                 (x + 26, y - 92), (x - 26 - bw, y - 92)]
-        pick = cands[0]
-        for cx, cy in cands:
-            cx, cy = min(max(cx, 20), W - 20 - bw), min(max(cy, 140), H - 72)  # keep it in the picture
-            box = (cx, cy, cx + bw, cy + 52)
-            if all(box[2] + 6 <= b[0] or b[2] + 6 <= box[0] or box[3] + 6 <= b[1] or b[3] + 6 <= box[1]
-                              for b in boxes):
+        # above the marker first (the marching army is drawn just below it), then below the army
+        offs = [(dx, -92 - row * 58) for row in range(3) for dx in (-bw / 2, 30, -30 - bw, 40 + bw, -40 - 2 * bw)]
+        offs += [(dx, 110 + row * 58) for row in range(2) for dx in (-bw / 2, 30, -30 - bw)]
+        pick = None
+        for dx, dy in offs:
+            cx, cy = min(max(x + dx, 20), W - 20 - bw), min(max(y + dy, 140), H - 72)  # keep it in the picture
+            if all(cx + bw + 6 <= b[0] or b[2] + 6 <= cx or cy + 58 <= b[1] or b[3] + 6 <= cy for b in boxes):
                 pick = (cx, cy)
                 break
+        pick = pick or (min(max(x - bw / 2, 20), W - 20 - bw), min(max(y - 92, 140), H - 72))
         boxes.append((int(pick[0]), int(pick[1]), int(pick[0] + bw), int(pick[1] + 52)))
     return boxes
 
@@ -583,6 +583,7 @@ class Scene:
                 if frac > 0.02:
                     _arrow_head(d, a, (a[0] + (b[0] - a[0]) * frac, a[1] + (b[1] - a[1]) * frac), RED)
             boxes = _label_boxes(xy, [str(p.get("label", "")) for p in pts], font(36))
+            shown: list[int] = []  # names are drawn last, on top of the marching army
             for k, (x, y) in enumerate(xy):
                 if k > prog + 0.05:
                     break
@@ -590,11 +591,7 @@ class Scene:
                 pop = ease((prog - k + 0.3) / 0.4)
                 r = int(16 + 6 * pop)
                 d.ellipse([x - r, y - r, x + r, y + r], fill=hex_rgb(col), outline=INK, width=4)
-                label = str(pts[k].get("label", ""))
-                bx = boxes[k]
-                shadowed_box(img, bx, (252, 244, 222), outline=WOOD, radius=14, width=4)
-                d = ImageDraw.Draw(img)
-                centered(d, ((bx[0] + bx[2]) / 2, (bx[1] + bx[3]) / 2), label, font(36))
+                shown.append(k)
             if n > 1:  # an army marches at the head of the route, with a troop counter that counts up
                 k0 = min(n - 2, int(prog))
                 fr = min(1.0, prog - k0)
@@ -611,6 +608,11 @@ class Scene:
                                  outline=WOOD, radius=12, width=4)
                     centered(ImageDraw.Draw(img), (hx, hy + 69), label, font(30, False))
                 d = ImageDraw.Draw(img)
+            for k in shown:
+                bx = boxes[k]
+                shadowed_box(img, bx, (252, 244, 222), outline=WOOD, radius=14, width=4)
+                d = ImageDraw.Draw(img)
+                centered(d, ((bx[0] + bx[2]) / 2, (bx[1] + bx[3]) / 2), str(pts[k].get("label", "")), font(36))
             ff_, ft = self.data.get("flag_from"), self.data.get("flag_to")
             if ff_ and prog >= 0:
                 _flag(d, xy[0][0] - 70, xy[0][1] + 40, cast.faction_color(self.faction0), str(ff_))
