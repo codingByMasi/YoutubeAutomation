@@ -71,3 +71,15 @@ def test_a_map_name_at_the_border_stays_whole():
         with sc.record_text() as items:
             r.Scene(seg, 6.0, r.Cast("."), [0.0] * 200, 0).frame(5.0)
     assert sc.text_problems(items) == []
+
+
+def test_a_diagram_step_with_text_cut_or_over_the_box_edge_is_reported():
+    seg = {"scene": "diagram", "narration": "x", "scene_data": {"steps": ["Picture a bathtub", "Two taxes"]}}
+    cw, x0 = r.diagram_layout(2)
+    ok = [("Picture a", (x0 + 20, 300, x0 + cw - 20, 330)), ("bathtub", (x0 + 20, 340, x0 + cw - 20, 370)),
+          ("Two taxes", (x0 + cw + 80, 300, x0 + 2 * cw + 20, 330))]
+    assert sc.diagram_problems(seg, ok) == []
+    cut = ok[:2]  # the second step never drawn
+    assert any("step 2" in p and "cut short" in p for p in sc.diagram_problems(seg, cut))
+    over = [ok[0], ("bathtub", (x0 + 20, 340, x0 + cw + 12, 370)), ok[2]]
+    assert any("step 1" in p and "edge" in p for p in sc.diagram_problems(seg, over))

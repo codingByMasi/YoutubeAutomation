@@ -682,3 +682,4 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 - Diagram steps (same PR): a long step was cut to three lines and its words could run past the box edge (found on the British and Roman Empire videos: "Four: use the ..." and "Picture a bathtub" touching the border). A step now gets the largest font at which every word fits inside its box, up to four lines; no word is dropped.
 
 - Date page (same PR): with no date in the narration or `label`, the card repeated the title that the banner already showed; the banner is now left out in that case.
+- Scene check (same PR) also verifies diagram steps: every word of each step is drawn and stays inside its own box.
