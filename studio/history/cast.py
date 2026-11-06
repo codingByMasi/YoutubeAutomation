@@ -193,15 +193,16 @@ def prompt_block(profile: dict) -> str:
              "Invent the cast the story needs: every character in the script gets a short visual description "
              "(role, age, gender, era costume, face traits) so a soldier looks like a soldier and women look like "
              "women, dressed for the era and place; use as many characters as the story calls for. 2D or 3D follows "
-             "the script. The recurring characters below are an optional pool, not a limit and not a required "
-             "roster: Quill may host or narrate, and the others can be skipped:"]
-    lines += [f"- {cid}: {c['name']}, {c['role']}" for cid, c in ROSTER.items()]
+             "the script. Only the host is recurring: Quill may host or narrate. Never use any other fixed-cast "
+             "name (Dusty, Vex, Coin, Blunder, Dash, Brine, Hindsight ...); every other character is one the "
+             "story itself needs, named and described from the story:"]
+    lines.append(f"- quill: {ROSTER['quill']['name']}, {ROSTER['quill']['role']}")
     lines.append("Historical figures: never a real likeness. Each gets a faction colour, a letter badge, one "
                  f"headwear from {list(HEADWEAR)} and one prop from {list(PROPS)}. Rules:")
     lines += [f"- {r}" for r in dep.get("rules", [])]
     lines.append(wardrobe.prompt_line())
     lines.append(f"Scene types per segment: {', '.join(SCENE_TYPES)}. Add optional keys to each segment: `scene`, "
-                 "`cast` (list of roster ids or figure names), `staging` (one sentence), `speech` (at most "
+                 "`cast` (`quill` or the story's own character names), `staging` (one sentence), `speech` (at most "
                  f"{MAX_SPEECH_LINES} on-screen lines of at most {MAX_SPEECH_WORDS} words, each "
                  '{"who": "...", "text": "..."}). Speech is invented dialogue: use it only for tone, never for quotes '
                  "you present as real; real quotes go in the narration.")

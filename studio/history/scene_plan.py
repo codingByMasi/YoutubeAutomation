@@ -25,7 +25,7 @@ def missing(segments: list[dict]) -> list[int]:
 
 
 def build_prompt(segments: list[dict]) -> str:
-    roster = "\n".join(f"- {cid}: {c['name']}, {c['role']}" for cid, c in cast.ROSTER.items())
+    roster = f"- quill: {cast.ROSTER['quill']['name']}, {cast.ROSTER['quill']['role']}"
     places = ", ".join(sorted(autoscene.PLACES))
     lines = "\n".join(f"{i}. [{s.get('chapter', '')}] {s.get('narration', '')}" for i, s in enumerate(segments, 1))
     return f"""You assign a cartoon scene to every segment of a history video script. Choose what best SHOWS the
@@ -52,13 +52,13 @@ the whole video. Per character return:
   banner, or any object), optional "face" {{"shape", "eyes", "brows", "nose", "mouth", "marks"}} (make faces
   differ), optional "posture", "accent_color", optional "cape_color", optional "pitch" (low, mid, high) for the voice.
 Dress them for the story's era and place (what people there and then wore).
-Use the recurring cast below only for the host (`quill`, at the lectern); every other character is one from the
-list above, described from this script, never a recurring-cast id.
-Recurring cast:
+Only the host (`quill`, at the lectern) is recurring; every other character is one from the list above, described
+from this script, never a fixed-cast name or id (no Dusty, Vex, Coin, Blunder, Dash, Brine, Hindsight ...).
+Host:
 {roster}
 
 For each segment return: "n" (its number), "scene", "cast" (1-3 character names from your list
-or roster ids; required for a skit), "speech" (skit only: at most {cast.MAX_SPEECH_LINES} lines of at most
+or `quill`; required for a skit), "speech" (skit only: at most {cast.MAX_SPEECH_LINES} lines of at most
 {cast.MAX_SPEECH_WORDS} words, each
 {{"who": "...", "text": "..."}}, invented tone-setting dialogue, never a quote presented as real), and "scene_data":
 - map: {{"title": "...", "points": [{{"x": 0-1, "y": 0-1, "label": "..."}}]}} using these known places on the map:
