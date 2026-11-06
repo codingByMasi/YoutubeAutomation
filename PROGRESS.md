@@ -664,3 +664,5 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 
 ## 2026-11-06: new history projects could not draw scenes (fix/cast-folder-missing)
 - Found while rebuilding a story on a new project: PR 96 removed the line that created the project's `cast/` folder, so `visuals` failed on the first scene with "[Errno 22] Invalid argument" (ffmpeg could not write the clip). `render_scene` now creates the folder.
+
+- Long scene titles (banner) shrink, then wrap to two lines instead of being cut off. A calendar with no `days` count now shows one page with the date the narration or `label` gives (it used to draw seven crossed-out boxes titled "Days"). With a day count, the cross is thin and the day number stays readable; the closing "?" appears only when the script sets `scene_data.question`. The `title` scene card gets the same treatment (it ran off both edges for a title like "Who started the fires? Disputed.").

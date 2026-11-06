@@ -113,3 +113,11 @@ def test_a_cast_scene_is_written_into_a_folder_that_does_not_exist_yet(tmp_path)
     out = tmp_path / "projects" / "9" / "cast" / "cast_001.mp4"
     seg = {"scene": "title", "scene_data": {"title": "Hello"}, "cast": []}
     assert r.render_scene(seg, 1.0, out, out.parent) == out and out.exists() and out.stat().st_size > 0
+
+
+def test_a_long_title_card_stays_inside_the_picture(tmp_path):
+    seg = {"scene": "title", "scene_data": {"title": "Who started the fires? Disputed."}, "cast": []}
+    img = r.Scene(seg, 5.0, r.Cast(tmp_path), [1.0] * 130, 0).frame(4.0)
+    light = img.convert("L").point(lambda v: 255 if v > 200 else 0)  # the cream title text
+    assert light.crop((0, 0, 6, r.H)).getbbox() is None and light.crop((r.W - 6, 0, r.W, r.H)).getbbox() is None
+    assert light.getbbox() is not None
