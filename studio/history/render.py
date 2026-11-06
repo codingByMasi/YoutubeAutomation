@@ -394,7 +394,8 @@ _DATE = re.compile(r"\b\d{1,2} (?:January|February|March|April|May|June|July|Aug
 
 # ---------------------------------------------------------------- the scene drawers
 _BACK_WORDS = [("snow", ("snow", "snowy", "alps", "blizzard", "winter", "frost")),
-               ("sea", ("ship", "fleet", "sail", "harbour", "harbor", "naval", "sea", "ocean")),
+               ("sea", ("ship", "fleet", "sail", "harbour", "harbor", "naval", "sea", "ocean", "shore", "shoreline", "coast",
+                       "coastline", "wave")),
                ("field", ("battle", "plain", "river", "field", "march", "army", "legion", "camp", "valley", "elephant")),
                ("market", ("tax", "silver", "coin", "market", "trade", "merchant", "debt", "mercenary", "wage",
                            "square")),
@@ -593,6 +594,8 @@ class Scene:
             marks = [(p["x"] * (W - 160) + 80, p["y"] * (H - 220) + 130) for p in pts]
             for name, (lon, lat) in maps.REGIONS[region]["labels"].items():  # real names, clear of the markers and title
                 x, y = (v * k for v, k in zip(maps.project(region, lon, lat), (W, H)))
+                half = font(30, False).getlength(name) / 2 + 10
+                x = min(max(x, half), W - half)  # a name near the border stays whole
                 if y > 150 and all(abs(x - mx) > 190 or abs(y - my) > 110 for mx, my in marks):
                     centered(d, (x, y), name, font(30, False), fill=(250, 246, 230), stroke=(30, 36, 50), sw=3)
         d = ImageDraw.Draw(img)

@@ -678,3 +678,6 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 
 ## 2026-11-07: Shorts captions fit the frame (fix/shorts-caption-fit)
 - Short captions ran off both edges ("ANCE GETS THREE CONSU"): a phrase could be 26 characters, but at the Shorts size (84 px bold, ASS style without wrapping) only about 14 fit in 1080 px. The phrase length now follows the frame width and font size.
+
+## 2026-11-07: automatic scene checks for any story (fix/scene-checks)
+- New `studio/history/scene_check.py`, run inside `qa` (so `build` prints it) for story channels: draws two frames of every cast scene and reports, with the segment number, text that runs past the picture edge, text drawn over other text, a skit backdrop that contradicts the place in the scene's setting (or is not a known backdrop), and a figure whose mouth follows the narration instead of its own line. It found real defects on the existing videos: every map cut off the ocean name at the border (the name is now kept whole), and sea backdrops with no sea words in the setting (shore, coast and wave now count as sea words).
