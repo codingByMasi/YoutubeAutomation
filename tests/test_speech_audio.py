@@ -118,7 +118,7 @@ def test_make_room_plays_the_narration_first_then_a_short_exchange_and_is_repeat
     sa.make_room(segs)
     assert seg["narr_seconds"] == 6.0 and seg["lines_at"] == round(6.0 + sa.PAUSE, 3)
     for t, line in zip(sa.line_times(seg["speech"], seg["real_seconds"], seg["lines_at"]), seg["speech"], strict=True):
-        assert t >= seg["narr_seconds"] and t + line["seconds"] <= seg["real_seconds"]  # after the narrator, in the scene
+        assert t >= seg["narr_seconds"] and t + line["seconds"] <= seg["real_seconds"]  # after the narrator
 
 
 def test_make_room_keeps_the_dialogue_short_and_converts_an_older_lines_first_layout():
