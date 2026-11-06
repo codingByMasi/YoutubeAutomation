@@ -646,3 +646,6 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 
 ## 2026-11-06: skits play the narration first (fix/skit-narration-first)
 - A voiced skit now plays its narration first and uncut; the characters' lines follow it after a short pause (`lines_at`), capped at about 6 s of dialogue per skit (the first line always stays). Before, 9-14 s of banter played ahead of the narrator and the picture held on the last line while the narrator spoke. Older scripts with the lines-first layout are converted on the next `visuals` run. The history script prompt now asks for 1-2 very short lines after the narrator's beat.
+
+## 2026-11-06: hook first (fix/hook-first-start, builds on fix/skit-narration-first)
+- A story (cast) channel no longer gets the automatic 3 s silent 3D title card before the first line (it appeared whenever the renderer setting resolved to Blender, even though the video is drawn by the 2D cast renderer). The opening segment, narration plus any skit lines, is kept within 15 s: lines that do not fit are dropped so the narration carries the hook.
