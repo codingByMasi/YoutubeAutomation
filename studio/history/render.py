@@ -405,7 +405,7 @@ def guess_backdrop(text: str) -> str | None:
 
 def setting_words(seg: dict) -> str:
     """The words that say WHERE a scene happens: what the script says must be shown, the staging and the drawn
-    objects. The narration is left out on purpose: it talks about the events, not the room (a ship sunk, a pope
+    objects. The narration is left out on purpose: it talks about the events, not the room (a ship that sinks, a person
     "frozen" with shock, a winter in another year), and picked sea or snow for skits that were not set there."""
     intent = seg.get("visual_intent") if isinstance(seg.get("visual_intent"), dict) else {}
     return " ".join(str(x) for x in [intent.get("must_show") or "", seg.get("staging") or "",
