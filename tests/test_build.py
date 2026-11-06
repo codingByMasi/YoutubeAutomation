@@ -122,3 +122,21 @@ def test_whisper_words_decodes_with_ffmpeg_not_pyav(monkeypatch, tmp_path):
     monkeypatch.setattr(subprocess, "run", lambda *a, **k: types.SimpleNamespace(stdout=pcm))
     assert w.whisper_words(tmp_path / "a.wav") == [(0.0, 0.5, "hi")]
     assert isinstance(seen["audio"], np.ndarray) and seen["audio"].shape == (1600,)
+
+
+def test_short_captions_never_run_past_the_frame_edges():
+    import re
+
+    from studio.providers import captions
+    from studio.util import fonts
+    text = ("the coup works on nine november seventeen ninety nine and france gets three consuls while napoleon is "
+            "first and the other two learn who is in charge of everything").split()
+    words = [(i * 0.3, i * 0.3 + 0.25, w) for i, w in enumerate(text)]
+    for style in (captions.CaptionStyle(1080, 1920, shorts=True), captions.CaptionStyle(1920, 1080)):
+        ass = captions.to_ass(words, style)
+        f = fonts.load(style.size, False)
+        widest = 0
+        for m in re.finditer(r"Dialogue: 0,[^,]*,[^,]*,Default,,0,0,0,,(.*)", ass):
+            plain = re.sub(r"\{[^}]*\}", "", m.group(1))
+            widest = max(widest, f.getlength(plain) * 1.0)
+        assert 0 < widest <= style.w - 100, (style.w, widest)
