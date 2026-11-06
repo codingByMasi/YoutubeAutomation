@@ -643,3 +643,6 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 - Removed the 10-character roster, the host Quill, `cast.build_svg` (shared body), `pil_character`, era SVG costumes, the `wardrobe` command and `studio/history/preview.py`. Every character is drawn from the script's description (`studio/history/figures.py`); crowd extras use the same drawer.
 - `lectern` is no longer a scene type; chapter cards are `title`. Older scripts that say `lectern` draw as a title card; old names (Dusty, Quill ...) are drawn from their own words and get a name-stable voice.
 - Channel art regenerated without characters; the channel name "Quill's Past" is unchanged (owner may want to rename).
+
+## 2026-11-07: Shorts captions fit the frame (fix/shorts-caption-fit)
+- Short captions ran off both edges ("ANCE GETS THREE CONSU"): a phrase could be 26 characters, but at the Shorts size (84 px bold, ASS style without wrapping) only about 14 fit in 1080 px. The phrase length now follows the frame width and font size.
