@@ -711,7 +711,7 @@ class Scene:
             centered(ImageDraw.Draw(img), (W - 150, 600), str(q) if isinstance(q, str) else "?", font(int(40 + 130 * s)),
                      fill=RED, stroke=PAPER, sw=6)
         if self.who:
-            self.actor(img, self.who[0], 120, 650, 250, t, 0, self.mouth(t))
+            self.actor(img, self.who[0], 120, 650, 250, t, 0, False)  # the narrator is not this figure
 
     def _date_page(self, img: Image.Image, t: float) -> None:
         """One calendar page with the date from the script (`label`, else a date in the narration, else the title)."""
