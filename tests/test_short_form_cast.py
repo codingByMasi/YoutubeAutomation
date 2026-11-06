@@ -157,3 +157,15 @@ def test_voice_check_reports_what_to_fix() -> None:
         with pytest.raises(StudioError):
             voices.check(bad)
     assert voices.prosody(voices.DEFAULT) == {"rate": 0, "pitch": 0, "volume": 0}
+
+
+@needs_cairo
+def test_empty_easel_shows_the_lectern_and_silhouette_moves(tmp_path):
+    base = {"cast": ["quill"], "chapter": "c", "speech": []}
+    cst = render.Cast(tmp_path)
+    env = render.envelope(None, 144)
+    easel = render.Scene({**base, "scene": "easel", "scene_data": {}}, 6.0, cst, env)
+    lect = render.Scene({**base, "scene": "lectern", "scene_data": {}}, 6.0, cst, env)
+    assert easel.frame(1.0).tobytes() == lect.frame(1.0).tobytes()  # not a blank board
+    sil = render.Scene({**base, "scene": "silhouette", "scene_data": {"title": "x"}}, 20.0, cst, env)
+    assert sil.frame(1.0).tobytes() != sil.frame(19.0).tobytes()  # a long silhouette is never a still

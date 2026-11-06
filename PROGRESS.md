@@ -630,6 +630,9 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 ## 2026-11-06 Fix: could not reuse an already used topic
 - Seed research skipped any suggestion matching an already approved topic, so a used topic never got a "Use this" button. Approved topics no longer count as duplicates in `research.run`, so a used topic can be picked again (it makes a new video). Same seed on the same day still reuses cached results; tick "Fetch fresh results today" to search again.
 
+## 2026-11-06 Fix: blank easel and static silhouette (video review)
+- Cause: a history `easel` scene with no `items` drew an empty white board (15 s in project 9), and a `silhouette` scene was one unmoving figure (30 s).
+- Fix (`studio/history/render.py`): an easel with nothing to write shows the host's lectern card instead; a silhouette slowly pushes in. Re-render a video to see it. Nothing for the owner to configure.
 ## 2026-11-06 Fix: character lines cut off the narrator (video review of project 9)
 - Cause: skit lines start 0.5 s into the scene and mute the narrator for their whole length, but the scene length came only from the narration. The hook and most skit set-ups were never heard.
 - Fix: after the lines are voiced (`visuals`), `speech_audio.make_room` lengthens every voiced skit by the dialogue span (`lead_seconds`, `narr_seconds`, `real_seconds` saved in `script.json`); `build` delays that segment's narration by the lead (and its word times), so the lines play first and the narrator follows, unmuted. Repeatable. The narrator is still never under a character line.

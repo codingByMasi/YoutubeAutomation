@@ -829,6 +829,8 @@ class Scene:
     # -- easel: a list or short chart on an easel
     def _easel(self, img: Image.Image, t: float) -> None:
         items = [str(x) for x in (self.data.get("items") or [])][:6]
+        if not items:  # nothing to write on the board: show the host's lectern card instead of a blank easel
+            return self._lectern(img, t)
         d = ImageDraw.Draw(img)
         d.polygon([(470, 560), (520, 560), (640, 300), (600, 300)], fill=WOOD)
         d.polygon([(810, 560), (760, 560), (640, 300), (680, 300)], fill=WOOD)
@@ -858,7 +860,9 @@ class Scene:
             self.actor(img, self.who[0], 1100, 650, 360, t, 0, self.mouth(t))
 
     def _silhouette(self, img: Image.Image, t: float) -> None:
-        self.actor(img, self.who[0] if self.who else "dusty", 640, 700, 520, t, 0, False, silhouette=True)
+        push = 40 * min(1.0, t / max(self.dur, 1.0))  # a slow push-in so a long silhouette is never a still
+        self.actor(img, self.who[0] if self.who else "dusty", 640, 700 + push, 520 + 2 * push, t, 0, False,
+                   silhouette=True)
         d = ImageDraw.Draw(img)
         for k, ln in enumerate(wrap(str(self.data.get("title") or ""), font(48), 1100)[:3]):
             centered(d, (640, 100 + k * 62), ln, font(48), fill=(255, 246, 214))
