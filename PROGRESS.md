@@ -666,3 +666,6 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 - Found while rebuilding a story on a new project: PR 96 removed the line that created the project's `cast/` folder, so `visuals` failed on the first scene with "[Errno 22] Invalid argument" (ffmpeg could not write the clip). `render_scene` now creates the folder.
 
 - Long scene titles (banner) shrink, then wrap to two lines instead of being cut off. A calendar with no `days` count now shows one page with the date the narration or `label` gives (it used to draw seven crossed-out boxes titled "Days"). With a day count, the cross is thin and the day number stays readable; the closing "?" appears only when the script sets `scene_data.question`. The `title` scene card gets the same treatment (it ran off both edges for a title like "Who started the fires? Disputed.").
+
+## 2026-11-07: map labels and diagram narrator (fix/map-labels-and-diagram-sprite)
+- Map marker names for close places (London/Paris, Niemen/Smolensk/Moscow) sat on top of each other; each name now goes above its marker, or beside or below it when that would overlap an earlier name, and stays in the picture. On diagram scenes the narrator figure stood in front of the first step box; it now stands below the boxes.
