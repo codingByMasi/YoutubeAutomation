@@ -643,3 +643,6 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 - Removed the 10-character roster, the host Quill, `cast.build_svg` (shared body), `pil_character`, era SVG costumes, the `wardrobe` command and `studio/history/preview.py`. Every character is drawn from the script's description (`studio/history/figures.py`); crowd extras use the same drawer.
 - `lectern` is no longer a scene type; chapter cards are `title`. Older scripts that say `lectern` draw as a title card; old names (Dusty, Quill ...) are drawn from their own words and get a name-stable voice.
 - Channel art regenerated without characters; the channel name "Quill's Past" is unchanged (owner may want to rename).
+
+## 2026-11-06: character looks differ per story (fix/character-looks-per-story)
+- Face parts the script leaves out were picked from the character's NAME alone, so Napoleon or the Pope looked identical in every video. The pick now also uses the character's role and the video's own seed (topic + project), still identical across every scene of one video. The thumbnail draws the script's own character descriptions with the same seed, and the history prompt asks for descriptions written fresh for this story's role and era.
