@@ -122,3 +122,12 @@ def test_whisper_words_decodes_with_ffmpeg_not_pyav(monkeypatch, tmp_path):
     monkeypatch.setattr(subprocess, "run", lambda *a, **k: types.SimpleNamespace(stdout=pcm))
     assert w.whisper_words(tmp_path / "a.wav") == [(0.0, 0.5, "hi")]
     assert isinstance(seen["audio"], np.ndarray) and seen["audio"].shape == (1600,)
+
+
+def test_a_story_channel_gets_no_automatic_title_card_intro(monkeypatch, tmp_path):
+    from studio.stages import build
+    from studio.story import profile as sprofile
+    made = []
+    monkeypatch.setattr(build, "_title_card", lambda *a: made.append(a) or tmp_path / "t.mp4")
+    assert build._generated_intro(None, {}, {}, tmp_path, sprofile.get("history")) is None and not made
+    assert build._generated_intro(None, {}, {}, tmp_path, sprofile.get("business")) == tmp_path / "t.mp4"
