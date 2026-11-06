@@ -629,3 +629,7 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 
 ## 2026-11-06 Fix: could not reuse an already used topic
 - Seed research skipped any suggestion matching an already approved topic, so a used topic never got a "Use this" button. Approved topics no longer count as duplicates in `research.run`, so a used topic can be picked again (it makes a new video). Same seed on the same day still reuses cached results; tick "Fetch fresh results today" to search again.
+
+## 2026-11-06 Fix: blank easel and static silhouette (video review)
+- Cause: a history `easel` scene with no `items` drew an empty white board (15 s in project 9), and a `silhouette` scene was one unmoving figure (30 s).
+- Fix (`studio/history/render.py`): an easel with nothing to write shows the host's lectern card instead; a silhouette slowly pushes in. Re-render a video to see it. Nothing for the owner to configure.
