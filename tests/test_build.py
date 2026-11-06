@@ -163,8 +163,8 @@ def test_short_command_zooms_for_cartoon_scenes_and_the_hook_is_the_first_senten
     from studio.stages.shorts import hook_text
     plain = ff.vertical_cmd(P("c.mp4"), 1, 20, P("s.mp4"), None)
     zoomed = ff.vertical_cmd(P("c.mp4"), 1, 20, P("s.mp4"), None, zoom=True)
-    assert "crop=iw*3/4:ih" in zoomed[zoomed.index("-filter_complex") + 1]
-    assert "crop=iw*3/4" not in plain[plain.index("-filter_complex") + 1]
+    assert "crop=iw*2/3:ih" in zoomed[zoomed.index("-filter_complex") + 1]
+    assert "crop=iw*2/3" not in plain[plain.index("-filter_complex") + 1]
     assert hook_text({"narration": "Money buys ships. And ships matter.", "chapter": "X"}) == "Money buys ships."
     assert hook_text({"narration": "A very long opening sentence that does not fit on a title card at all.",
                       "chapter": "Trafalgar: no way across"}) == "Trafalgar: no way across"

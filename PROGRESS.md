@@ -695,4 +695,4 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 - Scene check (same PR) also verifies diagram steps: every word of each step is drawn and stays inside its own box.
 
 ## 2026-11-07: Shorts from cartoon videos are bigger and open on a title (fix/shorts-bigger-picture-and-hook, stacked on fix/shorts-start-on-a-story-scene)
-- For a video made of drawn scenes the Short crops the middle three quarters of the frame before placing it on the blurred background (figures a third bigger), and shows the opening sentence (or the chapter name when it is long) as a title over the first seconds.
+- For a video made of drawn scenes the Short crops the middle two thirds of the frame before placing it on the blurred background (figures half again as big), and shows the opening sentence (or the chapter name when it is long) as a centred title over the first seconds.
