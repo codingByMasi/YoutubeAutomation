@@ -157,7 +157,8 @@ def run(ctx: Ctx, seed: str, force: bool = False, limit: int = 15, suggest=None,
                                    strict=not _custom_niche(ctx))
     outliers = sorted((v for v in videos if v.is_outlier), key=lambda v: v.ratio, reverse=True)
     from studio.stages.discover import is_duplicate, key_tokens
-    seen = [key_tokens(i.topic) for i in scope.ideas(s).all()]
+    # approved topics do not count as duplicates, so an already used topic can be picked again
+    seen = [key_tokens(i.topic) for i in scope.ideas(s).filter(Idea.status != "approved").all()]
     ideas = []
     for pos, topic in enumerate(topics):
         if is_duplicate(topic, seen):

@@ -626,3 +626,6 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 ## 2026-11-05 Fix: unrequested background characters in history videos
 - Cause: `studio/history/render.py` guessed a "crowd" of 14 small extras from words like army, people, soldiers, citizens in the narration, so scenes showed characters the script never listed.
 - Fix: the crowd is drawn only when the script sets `scene_data.crowd`. Characters now come from the script's `cast` only. Re-render a video to see it.
+
+## 2026-11-06 Fix: could not reuse an already used topic
+- Seed research skipped any suggestion matching an already approved topic, so a used topic never got a "Use this" button. Approved topics no longer count as duplicates in `research.run`, so a used topic can be picked again (it makes a new video). Same seed on the same day still reuses cached results; tick "Fetch fresh results today" to search again.
