@@ -83,6 +83,9 @@ def quality_report(pkg: dict, profile: dict | None = None) -> dict:
         avg = sum(len(s.split()) for s in sentences) / max(len(sentences), 1)
         if avg > MAX_SENTENCE_WORDS:
             warnings.append(f"Sentences average {avg:.0f} words: spoken scripts work best under {MAX_SENTENCE_WORDS}.")
+    if (profile or {}).get("flags", {}).get("cast_scenes"):  # drawn scenes: text fit, overlaps, backdrop, mouths
+        from studio.history import scene_check
+        warnings += [f"Scene check: {w}" for w in scene_check.check_package(pkg)]
     warnings += pacing_warnings(segs, "est_seconds", (profile or {}).get("min_minutes"))
     warnings += chart_gaps(segs) if any(g.get("visual") for g in segs) else []
     cards = 0
