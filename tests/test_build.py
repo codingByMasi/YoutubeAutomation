@@ -133,3 +133,13 @@ def test_a_short_does_not_open_on_a_title_card_or_calendar_page():
     assert len(wins) == 2 and all(segs[i]["scene"] == "skit" for i, _ in wins)
     plain = [{"beat": "reveal"}] * 9  # videos without cast scenes are unchanged
     assert pick_short_windows(spans, plain, 2) == pick_short_windows(spans, [{"beat": "reveal"}] * 9, 2)
+
+def test_short_command_zooms_for_cartoon_scenes_and_the_hook_is_the_first_sentence():
+    from studio.stages.shorts import hook_text
+    plain = ff.vertical_cmd(P("c.mp4"), 1, 20, P("s.mp4"), None)
+    zoomed = ff.vertical_cmd(P("c.mp4"), 1, 20, P("s.mp4"), None, zoom=True)
+    assert "crop=iw*2/3:ih" in zoomed[zoomed.index("-filter_complex") + 1]
+    assert "crop=iw*2/3" not in plain[plain.index("-filter_complex") + 1]
+    assert hook_text({"narration": "Money buys ships. And ships matter.", "chapter": "X"}) == "Money buys ships."
+    assert hook_text({"narration": "A very long opening sentence that does not fit on a title card at all.",
+                      "chapter": "Trafalgar: no way across"}) == "Trafalgar: no way across"
