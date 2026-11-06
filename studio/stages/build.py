@@ -227,11 +227,13 @@ def render_picture(segs: list[dict], work: Path, limits: dict | None = None,
     return outs, plans
 
 
-def fit_voice_cmd(voice: Path, seconds: float | None, out: Path) -> list[str]:
+def fit_voice_cmd(voice: Path, seconds: float | None, out: Path, lead: float = 0.0) -> list[str]:
     """Decode one segment's voice to WAV, padded or trimmed to exactly `seconds` (its real_seconds, which is what the
     picture and caption timeline use). mp3 durations from ffprobe differ from the decoded length by a few tens of ms,
     and joining the mp3 files directly let those differences pile up into captions seconds out of step."""
     fit = f",apad,atrim=end={float(seconds):.3f}" if seconds else ""
+    if lead:  # a skit's dialogue plays first: the narration starts after it
+        fit = f",adelay={int(lead * 1000)}:all=1" + fit
     return ["ffmpeg", "-y", "-i", str(voice), "-af", f"aresample=48000{fit}", "-ac", "2", "-c:a", "pcm_s16le", str(out)]
 
 
@@ -266,7 +268,7 @@ def run(ctx: Ctx, video_id: int, force: bool = False) -> None:
 
         # 2. narration track
         voices = [out / "voice" / f"seg_{i:03d}.mp3" for i in range(1, len(segs) + 1)]
-        fitted = [fit_voice_cmd(v, g.get("real_seconds"), tmp / f"fit_{i:03d}.wav")
+        fitted = [fit_voice_cmd(v, g.get("real_seconds"), tmp / f"fit_{i:03d}.wav", float(g.get("lead_seconds") or 0))
                   for i, (v, g) in enumerate(zip(voices, segs, strict=True), 1)]
         for cmd in fitted:
             ff.run(cmd, "preparing narration")
@@ -285,7 +287,9 @@ def run(ctx: Ctx, video_id: int, force: bool = False) -> None:
         stored = [g.get("words") for g in segs]
         words, ref = None, None
         if all(stored):  # word times straight from the voice engine (no extra model run)
-            words, caption_source = nar.abs_words(stored, spans), "tts"
+            lead = [float(g.get("lead_seconds") or 0) for g in segs]  # skit dialogue plays before the narration
+            shifted = [[[a + d, b + d, t] for a, b, t in w] for w, d in zip(stored, lead, strict=True)]
+            words, caption_source = nar.abs_words(shifted, spans), "tts"
         if sprofile.enabled(sprof_c, "caption_sync_check") or words is None:
             try:
                 ref = whisper_words(tmp / "narration.wav")
