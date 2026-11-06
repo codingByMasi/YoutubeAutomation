@@ -399,6 +399,41 @@ def guess_backdrop(text: str) -> str | None:
     return None
 
 
+def diagram_layout(n: int) -> tuple[int, int]:
+    """(box width, left edge of the first box) for `n` step boxes."""
+    cw = min(300, (W - 200 - (n - 1) * 60) // n)
+    return cw, (W - (cw * n + 60 * (n - 1))) // 2
+
+
+def diagram_text(text: str, cw: int) -> tuple[int, list[str]]:
+    """Font size and lines that show a whole step inside a box `cw` wide and 250 tall: the largest size at which no
+    word is cut and at most four lines are needed (a long step gets a smaller font, never lost words)."""
+    for size in (38, 34, 30, 27, 24):
+        lines = wrap(text, font(size), cw - 36)
+        if len(lines) <= (3 if size >= 34 else 4) and all(font(size).getlength(w) <= cw - 36 for w in text.split()):
+            return size, lines
+    return 22, wrap(text, font(22), cw - 36)[:5]
+
+
+def _label_boxes(xy: list[tuple[float, float]], labels: list[str], f: ImageFont.FreeTypeFont) -> list[tuple]:
+    """A box for each marker's name: above it, or higher / to either side when that would sit on an earlier name."""
+    boxes: list[tuple] = []
+    for (x, y), text in zip(xy, labels):
+        bw = f.getlength(text) + 28
+        # above the marker first (the marching army is drawn just below it), then below the army
+        offs = [(dx, -92 - row * 58) for row in range(3) for dx in (-bw / 2, 30, -30 - bw, 40 + bw, -40 - 2 * bw)]
+        offs += [(dx, 110 + row * 58) for row in range(2) for dx in (-bw / 2, 30, -30 - bw)]
+        pick = None
+        for dx, dy in offs:
+            cx, cy = min(max(x + dx, 20), W - 20 - bw), min(max(y + dy, 140), H - 72)  # keep it in the picture
+            if all(cx + bw + 6 <= b[0] or b[2] + 6 <= cx or cy + 58 <= b[1] or b[3] + 6 <= cy for b in boxes):
+                pick = (cx, cy)
+                break
+        pick = pick or (min(max(x - bw / 2, 20), W - 20 - bw), min(max(y - 92, 140), H - 72))
+        boxes.append((int(pick[0]), int(pick[1]), int(pick[0] + bw), int(pick[1] + 52)))
+    return boxes
+
+
 class Scene:
     """One segment's scene. `frame(t)` returns the picture at second t of `dur`."""
 
@@ -563,6 +598,8 @@ class Scene:
                 _dashed(d, a, (a[0] + (b[0] - a[0]) * frac, a[1] + (b[1] - a[1]) * frac), RED, 9)
                 if frac > 0.02:
                     _arrow_head(d, a, (a[0] + (b[0] - a[0]) * frac, a[1] + (b[1] - a[1]) * frac), RED)
+            boxes = _label_boxes(xy, [str(p.get("label", "")) for p in pts], font(36))
+            shown: list[int] = []  # names are drawn last, on top of the marching army
             for k, (x, y) in enumerate(xy):
                 if k > prog + 0.05:
                     break
@@ -570,13 +607,7 @@ class Scene:
                 pop = ease((prog - k + 0.3) / 0.4)
                 r = int(16 + 6 * pop)
                 d.ellipse([x - r, y - r, x + r, y + r], fill=hex_rgb(col), outline=INK, width=4)
-                label = str(pts[k].get("label", ""))
-                f = font(36)
-                bw = f.getlength(label) + 28
-                shadowed_box(img, (int(x - bw / 2), int(y - 92), int(x + bw / 2), int(y - 40)), (252, 244, 222),
-                             outline=WOOD, radius=14, width=4)
-                d = ImageDraw.Draw(img)
-                centered(d, (x, y - 66), label, f)
+                shown.append(k)
             if n > 1:  # an army marches at the head of the route, with a troop counter that counts up
                 k0 = min(n - 2, int(prog))
                 fr = min(1.0, prog - k0)
@@ -593,6 +624,11 @@ class Scene:
                                  outline=WOOD, radius=12, width=4)
                     centered(ImageDraw.Draw(img), (hx, hy + 69), label, font(30, False))
                 d = ImageDraw.Draw(img)
+            for k in shown:
+                bx = boxes[k]
+                shadowed_box(img, bx, (252, 244, 222), outline=WOOD, radius=14, width=4)
+                d = ImageDraw.Draw(img)
+                centered(d, ((bx[0] + bx[2]) / 2, (bx[1] + bx[3]) / 2), str(pts[k].get("label", "")), font(36))
             ff_, ft = self.data.get("flag_from"), self.data.get("flag_to")
             if ff_ and prog >= 0:
                 _flag(d, xy[0][0] - 70, xy[0][1] + 40, cast.faction_color(self.faction0), str(ff_))
@@ -610,8 +646,7 @@ class Scene:
             or [str(self.data.get("title") or self.seg.get("chapter") or "How it worked")]
         n = len(steps)
         banner(img, str(self.data.get("title") or self.seg.get("chapter", "")), 90, width=760)
-        cw = min(300, (W - 200 - (n - 1) * 60) // n)
-        x0 = (W - (cw * n + 60 * (n - 1))) // 2
+        cw, x0 = diagram_layout(n)
         for k, s in enumerate(steps):
             start = 0.7 + k * (self.dur * 0.6) / n
             if t < start:
@@ -623,8 +658,9 @@ class Scene:
             d = ImageDraw.Draw(img)
             d.ellipse([x + cw / 2 - 34, y - 34, x + cw / 2 + 34, y + 34], fill=hex_rgb(cast.faction_color(k)), outline=INK, width=4)
             centered(d, (x + cw / 2, y), str(k + 1), font(44), fill=(255, 255, 255))
-            for j, ln in enumerate(wrap(s, font(38), cw - 40)[:3]):
-                centered(d, (x + cw / 2, y + 100 + j * 50), ln, font(38))
+            size, lines = diagram_text(s, cw)
+            for j, ln in enumerate(lines):
+                centered(d, (x + cw / 2, y + 125 - (len(lines) - 1) * size * 0.65 + j * size * 1.3), ln, font(size))
             if k + 1 < n and t > start + 0.5:
                 _arrow_head(d, (x + cw + 6, y + 125), (x + cw + 54, y + 125), INK)
             if self.data.get("disputed") and k == 1:
@@ -633,8 +669,8 @@ class Scene:
         if self.data.get("disputed") and t > 2:
             centered(ImageDraw.Draw(img), (W / 2, 535), "Told by Livy. Historians dispute this.", font(34, False),
                      fill=(110, 84, 52))
-        if self.who:
-            self.actor(img, self.who[0], 130, 650, 250, t, 0, self.mouth(t))
+        if self.who:  # standing below the step boxes (they end at y=500), not in front of the first one
+            self.actor(img, self.who[0], 130, 740, 250, t, 0, self.mouth(t))
 
     # -- calendar: days cross off one by one
     def _calendar(self, img: Image.Image, t: float) -> None:
