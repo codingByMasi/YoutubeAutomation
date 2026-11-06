@@ -119,7 +119,7 @@ def make_room(segments: list[dict]) -> int:
             keep.append(s)
         seg["speech"] = keep
         if not keep:  # the hook has no room for a line: the narration alone carries it
-            seg["narr_seconds"], seg["lines_at"], seg["lead_seconds"], seg["real_seconds"] = round(narr, 3), 0, 0, round(narr, 3)
+            seg.update(narr_seconds=round(narr, 3), lines_at=0, lead_seconds=0, real_seconds=round(narr, 3))
         else:
             at = round(narr + PAUSE, 3)
             seg["narr_seconds"], seg["lines_at"], seg["lead_seconds"] = round(narr, 3), at, 0
