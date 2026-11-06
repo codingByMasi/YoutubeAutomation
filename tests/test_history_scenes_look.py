@@ -9,7 +9,7 @@ def _scene(tmp_path, seg, dur=10.0):
 
 
 SKIT = {"scene": "skit", "narration": "The mercenary army gathered in the snow of the Alps.", "cast": ["Gaius", "Odo"],
-        "speech": [{"who": "Gaius", "text": "Where is our pay?"}, {"who": "Odo", "text": "Ask Rome."}]}
+        "staging": "A mercenary camp in the snow of the Alps.", "speech": [{"who": "Gaius", "text": "Where is our pay?"}, {"who": "Odo", "text": "Ask Rome."}]}
 
 
 def test_backdrop_follows_the_words():
@@ -17,6 +17,7 @@ def test_backdrop_follows_the_words():
     assert r.guess_backdrop("the fleet sailed from the harbour") == "sea"
     assert r.guess_backdrop("they argued about the tax") == "market"
     assert r.guess_backdrop("nothing special") is None
+    assert r.guess_backdrop("the pope frozen with shock; they bypass the guards") is None  # not snow
     for name in r.BACKDROPS:
         assert r.backdrop(name).size == (r.W, r.H)
 
@@ -64,3 +65,16 @@ def test_lectern_card_gets_a_line_from_the_narration_when_it_has_no_question():
     assert r.card_question("It is 1600. A charter is signed.", "Rewind") == "A charter is signed."
     assert r.card_question("What Comes Next.", "What Comes Next") == ""  # never repeats the title
     assert r.card_question("A sentence far too long to fit on a chapter card " * 3, "T") == ""
+
+
+def test_backdrop_comes_from_the_setting_not_from_the_narration_or_a_wrong_pick(tmp_path):
+    base = {"scene": "skit", "cast": ["A"], "narration": "A ship sinks in a winter storm; he is frozen with shock.",
+            "staging": "Two officials argue over a map in a candle-lit office.", "visual_keywords": ["map", "ledger"]}
+    sc = r.Scene(base, 5.0, r.Cast(tmp_path), [1.0] * 130, 0)
+    assert sc.back == "hall"  # the narration's ship, winter and frozen do not move a room to sea or snow
+    snowy = {**base, "visual_intent": {"must_show": "soldiers marching through deep snow"}}
+    assert r.Scene(snowy, 5.0, r.Cast(tmp_path), [1.0] * 130, 0).back == "snow"
+    given = {**base, "scene_data": {"backdrop": "market"}}
+    assert r.Scene(given, 5.0, r.Cast(tmp_path), [1.0] * 130, 0).back == "market"  # the script's own choice wins
+    bad = {**base, "scene_data": {"backdrop": "volcano"}}
+    assert r.Scene(bad, 5.0, r.Cast(tmp_path), [1.0] * 130, 0).back == "hall"  # unknown value is ignored
