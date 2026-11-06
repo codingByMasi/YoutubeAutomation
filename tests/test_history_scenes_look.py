@@ -139,3 +139,12 @@ def test_the_narrator_stands_below_the_diagram_boxes(tmp_path):
     dark = img.crop((100, 255, 330, 495)).convert("L").point(lambda v: 255 if v < 70 else 0)
     # the first step box region holds only its own text: no big dark sprite block (hat, coat) in front of it
     assert dark.getbbox() is None or (dark.getbbox()[3] - dark.getbbox()[1]) < 200 and dark.histogram()[255] < 6000
+
+
+def test_palm_trees_only_on_the_desert_backdrop():
+    assert r.guess_backdrop("a camp in the Sahara desert near Carthage") == "desert"
+    assert r.guess_backdrop("a Madrid square") == "market"
+    from PIL import ImageChops
+    box = (100, 100, 300, 380)  # where the left palm stands
+    diff = ImageChops.difference(r.backdrop("market").crop(box), r.backdrop("desert").crop(box)).convert("L")
+    assert diff.getbbox() is not None and sum(diff.histogram()[40:]) > 500  # the desert has trees there, the market not

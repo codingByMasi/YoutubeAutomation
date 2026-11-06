@@ -669,3 +669,6 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 
 ## 2026-11-07: map labels and diagram narrator (fix/map-labels-and-diagram-sprite)
 - Map marker names for close places (London/Paris, Niemen/Smolensk/Moscow) sat on top of each other; each name now goes above its marker, or beside or below it when that would overlap an earlier name, and stays in the picture. On diagram scenes the narrator figure stood in front of the first step box; it now stands below the boxes.
+
+## 2026-11-07: palm trees only on a desert backdrop (added to fix/backdrop-from-script-location)
+- The `market` backdrop always drew two palm trees, so a Madrid square or a Portuguese harbour looked like an oasis. Palms are now only on a new `desert` backdrop (words: Carthage, desert, Africa, oasis, Sahara, Egypt); the script and scene-plan prompts list it.
