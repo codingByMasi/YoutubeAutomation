@@ -695,7 +695,7 @@ class Scene:
             size -= 6
         centered(d, (640, int(410 + 30 * (1 - rise))), date, font(size))
         if self.who:
-            self.actor(img, self.who[0], 120, 650, 250, t, 0, self.mouth(t))
+            self.actor(img, self.who[0], 120, 650, 250, t, 0, False)
 
     # -- easel: a list or short chart on an easel
     def _easel(self, img: Image.Image, t: float) -> None:
