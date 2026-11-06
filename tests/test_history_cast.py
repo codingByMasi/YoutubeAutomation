@@ -54,13 +54,25 @@ def test_history_profile_turns_on_cast_checks_and_prompt_block():
     assert checks.profile_problems({"segments": [seg("dance")]}, {**h, "flags": {"cast_scenes": True}}) != []
     assert "Quill" in cast.prompt_block(h) and cast.prompt_block(sp.get("explainer")) == ""
     out = prompts.compose("script", h, topic="t", brief="b", style="s", outline="o", learned="", competitors="")
-    assert "Cast and depiction" in out and "Captain Blunder" in out
+    assert "Cast and depiction" in out and "- quill:" in out and "- blunder:" not in out
 
 
 def test_prompt_does_not_force_fixed_roster():
     text = cast.prompt_block(sp.get("history"))
     assert "at most 2 new" not in text and "use them for their job" not in text
-    assert "Invent the cast the story needs" in text and "not a limit" in text
+    assert "Invent the cast the story needs" in text and "Only the host is recurring" in text
+
+
+def test_only_the_host_is_offered_as_recurring_cast():
+    """Prompts must not hand the script writer the fixed cast: every non-host character comes from the story."""
+    from studio.history import scene_plan
+    block = cast.prompt_block(sp.get("history"))
+    plan = scene_plan.build_prompt([{"chapter": "c", "narration": "Napoleon crowns himself."}])
+    for cid in cast.ROSTER:
+        if cid == "quill":
+            continue
+        assert f"- {cid}:" not in block and f"- {cid}:" not in plan
+    assert "- quill:" in block and "- quill:" in plan and "roster ids" not in plan
 
 
 def test_faction_colors_wrap():

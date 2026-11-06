@@ -95,7 +95,7 @@ PACKS: dict[str, dict] = {
         "cast": True,
         "depiction": {
             "rules": [
-                "Original characters only: the recurring cast plus new figures built with the same body system.",
+                "Original characters only: host Quill plus the story's own characters, each described from the script.",
                 "Every historical figure keeps one faction colour, one letter badge, one headwear and one prop "
                 "for the whole video, so viewers can tell similar figures apart.",
                 "Stylised, never a real likeness; no photographs of living people; archive images only for "
