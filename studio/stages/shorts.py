@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import typer
@@ -14,6 +15,13 @@ from studio.stages.base import get_video, stage_index
 from studio.stages.script import load_package, timeline, write_package
 from studio.stages.timing import pick_short_windows
 from studio.util import ffmpeg as ff
+
+
+def hook_text(seg: dict, limit: int = 34) -> str:
+    """The opening line of a Short as a short title: the segment's first sentence when it is short enough, else
+    its chapter name."""
+    first = re.split(r"(?<=[.!?])\s+", str(seg.get("narration", "")).strip())[0]
+    return first if 3 <= len(first) <= limit else str(seg.get("chapter") or "")[:limit]
 
 
 def run(ctx: Ctx, video_id: int, count: int = 3, force: bool = False) -> list[Path]:
@@ -47,9 +55,12 @@ def run(ctx: Ctx, video_id: int, count: int = 3, force: bool = False) -> list[Pa
     made, info = [], []
     for n, (i, j) in enumerate(windows, 1):
         start, end = spans[i][0], spans[j][1]
-        ass = captions.write_ass(out / f"short_{n}.ass", words, style, window=(start, end))
+        hook = hook_text(segs[i])  # a title over the first seconds: the Short opens on its point
+        ass = captions.write_ass(out / f"short_{n}.ass", words, style, window=(start, end),
+                                 chapters=[(start, hook)] if hook else None)
         dest = out / f"short_{n}.mp4"
-        ff.run(ff.vertical_cmd(clean, start, end - start, dest, ass), f"cutting Short {n}")
+        cast = any(g.get("scene") for g in segs)  # drawn scenes keep their figures in the middle: zoom in
+        ff.run(ff.vertical_cmd(clean, start, end - start, dest, ass, zoom=cast), f"cutting Short {n}")
         made.append(dest)
         info.append({"file": str(dest), "start": round(start, 2), "end": round(end, 2),
                      "segments": [i + 1, j + 1], "chapter": segs[i].get("chapter", "")})
