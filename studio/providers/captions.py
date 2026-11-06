@@ -31,6 +31,12 @@ class CaptionStyle:
         return round(self.h * (0.044 if self.shorts else 0.048))
 
     @property
+    def max_chars(self) -> int:
+        """Most characters of one phrase that fit the frame width (bold capitals are about 0.78 em wide, and the
+        spoken word is drawn 16% larger); the ASS style does not wrap, so a longer phrase would run off the edges."""
+        return max(8, int((self.w - 120) / (self.size * 0.78 * 1.16)))
+
+    @property
     def margin_v(self) -> int:
         return round(self.h * (0.30 if self.shorts else 0.075))
 
@@ -52,12 +58,12 @@ def words_from_script(spans: list[tuple[float, float]], narrations: list[str]) -
     return out
 
 
-def phrases(words: list[Word]) -> list[list[Word]]:
+def phrases(words: list[Word], max_chars: int = MAX_PHRASE_CHARS) -> list[list[Word]]:
     """Group words into short on-screen phrases, breaking at punctuation and size limits."""
     out: list[list[Word]] = []
     cur: list[Word] = []
     for w in words:
-        if cur and (len(cur) >= MAX_PHRASE_WORDS or len(" ".join(x[2] for x in cur + [w])) > MAX_PHRASE_CHARS):
+        if cur and (len(cur) >= MAX_PHRASE_WORDS or len(" ".join(x[2] for x in cur + [w])) > max_chars):
             out.append(cur)
             cur = []
         cur.append(w)
@@ -112,7 +118,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             a = start - base + offset
             lines.append(f"Dialogue: 1,{_ts(a)},{_ts(a + BANNER_SECONDS)},Banner,,0,0,0,,"
                          f"{{\\fad(250,300)}} {_clean(title)} ")
-    for ph in phrases([w for w in words if w[1] > lo and w[0] < hi]):
+    for ph in phrases([w for w in words if w[1] > lo and w[0] < hi], min(MAX_PHRASE_CHARS, st.max_chars)):
         for i, (s, e, _) in enumerate(ph):
             nxt = ph[i + 1][0] if i + 1 < len(ph) else e  # no gap inside a phrase: it never flickers
             a, b = max(s, lo) - base + offset, min(max(nxt, e), hi) - base + offset

@@ -675,3 +675,6 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 
 ## 2026-11-07: the narrator is not a talking figure (fix/narrator-mouth)
 - On title, map, calendar, diagram, easel, archive and silhouette scenes, and on a skit with no speech lines, the first cast figure moved its mouth to the NARRATION, so it looked as if that character narrated (in a skit the same figure stays silent). Figures now move their mouth only for their own skit lines.
+
+## 2026-11-07: Shorts captions fit the frame (fix/shorts-caption-fit)
+- Short captions ran off both edges ("ANCE GETS THREE CONSU"): a phrase could be 26 characters, but at the Shorts size (84 px bold, ASS style without wrapping) only about 14 fit in 1080 px. The phrase length now follows the frame width and font size.

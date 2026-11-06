@@ -131,3 +131,20 @@ def test_a_story_channel_gets_no_automatic_title_card_intro(monkeypatch, tmp_pat
     monkeypatch.setattr(build, "_title_card", lambda *a: made.append(a) or tmp_path / "t.mp4")
     assert build._generated_intro(None, {}, {}, tmp_path, sprofile.get("history")) is None and not made
     assert build._generated_intro(None, {}, {}, tmp_path, sprofile.get("business")) == tmp_path / "t.mp4"
+
+def test_short_captions_never_run_past_the_frame_edges():
+    import re
+
+    from studio.providers import captions
+    from studio.util import fonts
+    text = ("the coup works on nine november seventeen ninety nine and france gets three consuls while napoleon is "
+            "first and the other two learn who is in charge of everything").split()
+    words = [(i * 0.3, i * 0.3 + 0.25, w) for i, w in enumerate(text)]
+    for style in (captions.CaptionStyle(1080, 1920, shorts=True), captions.CaptionStyle(1920, 1080)):
+        ass = captions.to_ass(words, style)
+        f = fonts.load(style.size, False)
+        widest = 0
+        for m in re.finditer(r"Dialogue: 0,[^,]*,[^,]*,Default,,0,0,0,,(.*)", ass):
+            plain = re.sub(r"\{[^}]*\}", "", m.group(1))
+            widest = max(widest, f.getlength(plain) * 1.0)
+        assert 0 < widest <= style.w - 100, (style.w, widest)
