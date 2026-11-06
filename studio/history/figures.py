@@ -49,7 +49,8 @@ ERA_STYLE: dict[str, dict] = {
 
 # Face and body variety. A script may name any of these per character (`"face": {"shape", "eyes", "brows", "nose",
 # "mouth", "marks"}`, optional `"posture"`); whatever it leaves out is picked from the character's name, so two people in
-# one video never share a face, and the same person is the same in every scene.
+# one video never share a face, and the same person is the same in every scene of that video (the pick also depends
+# on the role and the video's `look_seed`, so a returning historical figure is not drawn identically in every story).
 FACE_OPTIONS: dict[str, tuple[str, ...]] = {
     "shape": ("round", "oval", "square", "long", "heart"),
     "eyes": ("round", "narrow", "wide", "sleepy", "sharp"),
@@ -112,7 +113,9 @@ def normalize(spec: dict, era_style: dict | None = None) -> dict:
     age = _word(spec.get("age")) if _word(spec.get("age")) in AGE_H else "adult"
     hair = spec.get("hair") if isinstance(spec.get("hair"), dict) else {"style": spec.get("hair")}
     cloth = spec.get("clothing") if isinstance(spec.get("clothing"), dict) else {"type": spec.get("clothing")}
-    h = int(hashlib.sha1(str(spec.get("name", "")).lower().encode()).hexdigest(), 16)
+    # a stable pick per character in ONE story: the same name in another video or another role looks different
+    seed = f"{spec.get('name', '')}|{spec.get('role', '')}|{spec.get('look_seed', '')}".lower()
+    h = int(hashlib.sha1(seed.encode()).hexdigest(), 16)
     accent = spec.get("accent_color") or spec.get("color") or f"#{(h >> 4) & 0xFFFFFF:06x}"
     props = spec.get("props") or ([spec["prop"]] if spec.get("prop") else [])
     props = [props] if isinstance(props, str) else list(props)

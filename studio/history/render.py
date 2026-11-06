@@ -249,7 +249,8 @@ def card_question(narration: str, title: str = "", limit: int = 70) -> str:
 class Cast:
     """Sprites for the video's own characters, each drawn from the script's description of it."""
 
-    def __init__(self, work: Path, characters: list[dict] | None = None) -> None:
+    def __init__(self, work: Path, characters: list[dict] | None = None, look_seed: str = "") -> None:
+        self.look_seed = look_seed  # per video: unspecified face parts differ between stories, not between scenes
         # characters the script describes (name, gender, age, clothing, props ...): drawn from those attributes
         self.chars = {str(c.get("name", "")).strip().lower(): c for c in characters or []
                       if isinstance(c, dict) and str(c.get("name", "")).strip()}
@@ -279,6 +280,7 @@ class Cast:
     def _from_spec(self, spec: dict, px: int, closed: bool, talking: bool, era: str) -> Image.Image:
         key = (str(spec.get("name", "")).lower(), px, closed, talking, era)
         if key not in self._cs:
+            spec = {**spec, "look_seed": self.look_seed}
             self._cs[key] = figures.draw(spec, px, closed, talking, figures.ERA_STYLE.get(era))
         return self._cs[key]
 
@@ -872,14 +874,20 @@ def _flag(d: ImageDraw.ImageDraw, x: float, y: float, color: str, text: str) -> 
 _CODE_STAMP = hashlib.sha1(Path(__file__).read_bytes()).hexdigest()[:8]  # drawing code changed -> redraw
 
 
-def fingerprint(seg: dict, dur: float, audio: Path | None, characters: list[dict] | None = None) -> str:
+def look_seed(pkg: dict, project_dir: Path) -> str:
+    """What makes this video's characters differ from the same names in another video: its topic and project."""
+    return f"{pkg.get('topic', '')}|{Path(project_dir).name}"
+
+
+def fingerprint(seg: dict, dur: float, audio: Path | None, characters: list[dict] | None = None,
+                seed: str = "") -> str:
     """Hash of everything that decides how a scene looks (re-render only when it changes)."""
     keys = {k: seg.get(k) for k in ("scene", "scene_data", "cast", "speech", "chapter", "era")}
     names = {str(n).lower() for n in seg.get("cast") or []} | {str(x.get("who", "")).lower()
                                                                for x in seg.get("speech") or [] if isinstance(x, dict)}
     keys["characters"] = [c for c in characters or [] if str(c.get("name", "")).lower() in names]
     pf = ff.profile()
-    keys.update(size=[pf.w, pf.h, pf.fps], dur=round(dur, 2),
+    keys.update(look=seed, size=[pf.w, pf.h, pf.fps], dur=round(dur, 2),
                 audio=audio.stat().st_size if audio and Path(audio).exists() else 0, code=_CODE_STAMP)
     return hashlib.sha1(json.dumps(keys, sort_keys=True, default=str).encode()).hexdigest()[:12]
 
@@ -889,7 +897,7 @@ def render_scene(seg: dict, dur: float, out: Path, work: Path, audio: Path | Non
     """Render one cast scene to `out` (silent H.264 at the video profile size and frame rate, `dur` seconds). Reuses an identical earlier clip."""
     ff.ensure_ffmpeg()
     stamp = out.with_suffix(".stamp")
-    fp = fingerprint(seg, dur, audio, characters)
+    fp = fingerprint(seg, dur, audio, characters, cst.look_seed if cst else "")
     if out.exists() and stamp.exists() and stamp.read_text() == fp:
         return out
     pf = ff.profile()

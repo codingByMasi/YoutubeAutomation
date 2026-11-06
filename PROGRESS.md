@@ -646,3 +646,6 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 
 ## 2026-11-06: skits play the narration first (fix/skit-narration-first)
 - A voiced skit now plays its narration first and uncut; the characters' lines follow it after a short pause (`lines_at`), capped at about 6 s of dialogue per skit (the first line always stays). Before, 9-14 s of banter played ahead of the narrator and the picture held on the last line while the narrator spoke. Older scripts with the lines-first layout are converted on the next `visuals` run. The history script prompt now asks for 1-2 very short lines after the narrator's beat.
+
+## 2026-11-06: character looks differ per story (fix/character-looks-per-story)
+- Face parts the script leaves out were picked from the character's NAME alone, so Napoleon or the Pope looked identical in every video. The pick now also uses the character's role and the video's own seed (topic + project), still identical across every scene of one video. The thumbnail draws the script's own character descriptions with the same seed, and the history prompt asks for descriptions written fresh for this story's role and era.
