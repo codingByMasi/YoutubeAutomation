@@ -175,7 +175,8 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
                                                         pkg.get("characters")):
             speech_audio.make_room(pkg["segments"])  # the skit's lines play first; the narrator follows, unmuted
             autoscene.persist(out / "script.json", pkg["segments"])  # keeps each line's audio file and length
-        cast_stage = cast_render.Cast(out / "cast", pkg.get("characters"), cast_render.look_seed(pkg, out))             if cast_on else None
+        seed = cast_render.look_seed(pkg, out)  # this video's own faces
+        cast_stage = cast_render.Cast(out / "cast", pkg.get("characters"), seed) if cast_on else None
         for pos, seg in enumerate(pkg["segments"], 1):
             left3d = None
             if budget.sec_per_frame and todo3d:
