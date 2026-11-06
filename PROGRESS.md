@@ -643,3 +643,6 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 - Removed the 10-character roster, the host Quill, `cast.build_svg` (shared body), `pil_character`, era SVG costumes, the `wardrobe` command and `studio/history/preview.py`. Every character is drawn from the script's description (`studio/history/figures.py`); crowd extras use the same drawer.
 - `lectern` is no longer a scene type; chapter cards are `title`. Older scripts that say `lectern` draw as a title card; old names (Dusty, Quill ...) are drawn from their own words and get a name-stable voice.
 - Channel art regenerated without characters; the channel name "Quill's Past" is unchanged (owner may want to rename).
+
+## 2026-11-06: retention gaps are caught while the script is written (fix/retention-beat-gap)
+- A history script is now rejected (with the segment numbers) when 40 s or more of estimated narration pass without a retention beat or chart. Before, only the final quality gate looked, on the measured audio, and by then 45-64 s stretches were already in the video. The script prompt states the 40 s rule.

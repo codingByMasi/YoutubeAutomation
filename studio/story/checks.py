@@ -116,6 +116,28 @@ def readability_problems(pkg: dict, profile: dict) -> list[str]:
     return []
 
 
+BEAT_GAP_SECONDS = 40.0  # estimated; spoken audio runs ~10-20% longer, and the quality gate's limit is 50 s
+
+
+def retention_problems(pkg: dict, limit: float = BEAT_GAP_SECONDS) -> list[str]:
+    """Stretches of the script (by estimated seconds) with no retention beat or chart for longer than `limit`.
+
+    A segment with a `beat` (question, reveal, example, pattern_break) or a `chart_data` is a beat; the video's
+    start counts as one. Reported while the script is written, so the gap is fixed in the script, not found later."""
+    out: list[str] = []
+    run, first = 0.0, 1
+    for i, seg in enumerate(pkg.get("segments") or [], 1):
+        if seg.get("beat") or seg.get("chart_data"):
+            run, first = 0.0, i
+        run += float(seg.get("est_seconds") or 0)
+        if run > limit:
+            out.append(f"segments {first}-{i} run about {run:.0f}s without a retention beat or chart (limit "
+                       f"{limit:g}s): give one of them a `beat` (question, reveal, example or pattern_break) and "
+                       "make that segment deliver it, or add a turn")
+            run, first = 0.0, i + 1
+    return out
+
+
 def profile_problems(pkg: dict, profile: dict) -> list[str]:
     """Hard profile-driven script rules (these block a script): banned phrases and cast/scene keys.
 
@@ -128,6 +150,7 @@ def profile_problems(pkg: dict, profile: dict) -> list[str]:
     if enabled(profile, "cast_scenes"):
         from studio.history import cast
         out += cast.scene_problems(pkg, profile)
+        out += retention_problems(pkg)
     return out
 
 
