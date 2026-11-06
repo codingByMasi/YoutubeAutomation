@@ -35,7 +35,7 @@ SEA = (176, 205, 210)
 LAND = (222, 204, 160)
 LAND_EDGE = (150, 122, 76)
 RED = (192, 57, 43)
-BACKDROPS = ("parchment", "mountains", "hall", "night", "snow", "field", "market", "plain", "sea")
+BACKDROPS = ("parchment", "mountains", "hall", "night", "snow", "field", "market", "plain", "sea", "desert")
 DEFAULT_BACKDROP = {"lectern": "parchment", "skit": "hall", "map": "parchment", "diagram": "parchment",
                     "easel": "parchment", "archive": "parchment", "calendar": "parchment", "silhouette": "night",
                     "title": "night"}
@@ -183,8 +183,8 @@ def _field() -> Image.Image:
     return _vignette(img, 0.25)
 
 
-def _market() -> Image.Image:
-    """A sunny sandy square: pale wall, banner posts, a wooden stage."""
+def _market(palms: bool = False) -> Image.Image:
+    """A sunny sandy square: pale wall, banner posts, a wooden stage (palms only in the desert variant)."""
     img = _gradient((250, 226, 172), (236, 204, 144))
     d = ImageDraw.Draw(img)
     d.rectangle([0, 0, W, int(H * 0.5)], fill=(176, 160, 138))
@@ -193,7 +193,7 @@ def _market() -> Image.Image:
     d.rectangle([0, int(H * 0.5), W, H], fill=(226, 200, 134))
     d.rectangle([80, int(H * 0.52), W - 80, int(H * 0.6)], fill=(214, 170, 96))
     d.rectangle([80, int(H * 0.6), W - 80, int(H * 0.64)], fill=(160, 118, 66))
-    for x in (160, W - 220):  # palms
+    for x in (160, W - 220) if palms else ():  # palms
         d.line([(x, int(H * 0.52)), (x - 10, int(H * 0.22))], fill=(120, 84, 48), width=12)
         for ang in range(-60, 70, 30):
             ex, ey = x - 10 + math.sin(math.radians(ang)) * 90, int(H * 0.22) + 40 - math.cos(math.radians(ang)) * 30
@@ -223,7 +223,7 @@ def _sea() -> Image.Image:
 
 
 _BACK = {"parchment": _parchment, "mountains": _mountains, "hall": _hall, "night": _night, "snow": _snow,
-         "field": _field, "market": _market, "plain": _plain, "sea": _sea}
+         "field": _field, "market": _market, "plain": _plain, "sea": _sea, "desert": lambda: _market(True)}
 _back_cache: dict[str, Image.Image] = {}
 
 
@@ -384,7 +384,8 @@ _BACK_WORDS = [("snow", ("snow", "snowy", "alps", "blizzard", "winter", "frost")
                ("sea", ("ship", "fleet", "sail", "harbour", "harbor", "naval", "sea", "ocean")),
                ("field", ("battle", "plain", "river", "field", "march", "army", "legion", "camp", "valley", "elephant")),
                ("market", ("tax", "silver", "coin", "market", "trade", "merchant", "debt", "mercenary", "wage",
-                           "square", "carthage", "desert", "africa")),
+                           "square")),
+               ("desert", ("carthage", "desert", "africa", "oasis", "sahara", "egypt")),
                ("mountains", ("mountain", "cliff", "peak")),
                ("night", ("night", "dark", "torch", "assassin", "secret", "plot", "plotter", "candlelit")),
                ("plain", ("contract", "treaty", "gag", "paper", "list", "number"))]

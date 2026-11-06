@@ -78,3 +78,13 @@ def test_backdrop_comes_from_the_setting_not_from_the_narration_or_a_wrong_pick(
     assert r.Scene(given, 5.0, r.Cast(tmp_path), [1.0] * 130, 0).back == "market"  # the script's own choice wins
     bad = {**base, "scene_data": {"backdrop": "volcano"}}
     assert r.Scene(bad, 5.0, r.Cast(tmp_path), [1.0] * 130, 0).back == "hall"  # unknown value is ignored
+
+
+def test_palm_trees_only_on_the_desert_backdrop():
+    assert r.guess_backdrop("a camp in the Sahara desert near Carthage") == "desert"
+    assert r.guess_backdrop("a Madrid square") == "market"
+    palm = (70, 140, 70)
+
+    def green(img):
+        return sum(1 for px in img.getdata() if px == palm)
+    assert green(r.backdrop("market")) == 0 and green(r.backdrop("desert")) > 100
