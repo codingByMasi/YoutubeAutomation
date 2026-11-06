@@ -83,3 +83,15 @@ def test_the_narrator_stands_below_the_diagram_boxes(tmp_path):
     dark = img.crop((100, 255, 330, 495)).convert("L").point(lambda v: 255 if v < 70 else 0)
     # the first step box region holds only its own text: no big dark sprite block (hat, coat) in front of it
     assert dark.getbbox() is None or (dark.getbbox()[3] - dark.getbbox()[1]) < 200 and dark.histogram()[255] < 6000
+
+
+def test_diagram_steps_show_every_word_inside_their_box(tmp_path):
+    steps = ["Here is how", "One, loot from conquered land", "Two, taxes from the farms", "Three, trade across the sea",
+             "Picture a bathtub"]
+    cw, _ = r.diagram_layout(len(steps))
+    for text in steps:
+        size, lines = r.diagram_text(text, cw)
+        assert " ".join(lines).split() == text.split()  # nothing dropped
+        assert all(r.font(size).getlength(ln) <= cw - 30 for ln in lines) and len(lines) <= 4
+    seg = {"scene": "diagram", "cast": [], "scene_data": {"title": "T", "steps": steps}, "narration": "x"}
+    assert r.Scene(seg, 8.0, r.Cast(tmp_path), [0.0] * 300, 0).frame(7.5).size == (r.W, r.H)
