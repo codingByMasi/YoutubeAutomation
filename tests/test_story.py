@@ -186,4 +186,5 @@ def test_retention_gap_is_reported_while_the_script_is_written():
     long = {"segments": [seg(15, "question"), seg(25), seg(22), seg(18), seg(12, "reveal"), seg(30), seg(30)]}
     probs = checks.retention_problems(long)
     assert len(probs) == 2 and "segments 1-3" in probs[0] and "segments 5-6" in probs[1]
-    assert checks.retention_problems({"segments": [seg(10, None), {"est_seconds": 30, "chart_data": {"type": "bar"}}]}) == []
+    charted = {"segments": [seg(10, None), {"est_seconds": 30, "chart_data": {"type": "bar"}}]}
+    assert checks.retention_problems(charted) == []
