@@ -412,7 +412,7 @@ class Scene:
         guess = guess_backdrop(kw) if self.kind == "skit" else None
         self.back = self.data.get("backdrop") or guess or DEFAULT_BACKDROP.get(self.kind, "parchment")
         self.faction0 = faction0
-        self.starts = speech_audio.line_times(self.speech, dur)
+        self.starts = speech_audio.line_times(self.speech, dur, seg.get("lines_at"))
         self.line_env: list[list[float] | None] = []
         for sp in self.speech:  # a voiced line moves its speaker's mouth with its own audio
             a = sp.get("audio")

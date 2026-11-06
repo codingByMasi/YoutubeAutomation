@@ -287,7 +287,7 @@ def run(ctx: Ctx, video_id: int, force: bool = False) -> None:
         stored = [g.get("words") for g in segs]
         words, ref = None, None
         if all(stored):  # word times straight from the voice engine (no extra model run)
-            lead = [float(g.get("lead_seconds") or 0) for g in segs]  # skit dialogue plays before the narration
+            lead = [float(g.get("lead_seconds") or 0) for g in segs]  # older builds played skit dialogue before the narration (0 now)
             shifted = [[[a + d, b + d, t] for a, b, t in w] for w, d in zip(stored, lead, strict=True)]
             words, caption_source = nar.abs_words(shifted, spans), "tts"
         if sprofile.enabled(sprof_c, "caption_sync_check") or words is None:
