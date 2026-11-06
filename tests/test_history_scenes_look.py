@@ -64,3 +64,12 @@ def test_lectern_card_gets_a_line_from_the_narration_when_it_has_no_question():
     assert r.card_question("It is 1600. A charter is signed.", "Rewind") == "A charter is signed."
     assert r.card_question("What Comes Next.", "What Comes Next") == ""  # never repeats the title
     assert r.card_question("A sentence far too long to fit on a chapter card " * 3, "T") == ""
+
+
+def test_the_narrator_is_not_drawn_as_a_talking_character(tmp_path):
+    """Only a skit line moves a figure's mouth; narration over a title, map, calendar or speechless skit does not."""
+    for kind in ("title", "calendar", "diagram", "skit"):
+        seg = {"scene": kind, "cast": ["Odo"], "scene_data": {"title": "T", "days": 3, "steps": ["a", "b"]}, "narration": "x"}
+        loud = r.Scene(seg, 6.0, r.Cast(tmp_path), [1.0] * 200, 0).frame(3.3)
+        quiet = r.Scene(seg, 6.0, r.Cast(tmp_path), [0.0] * 200, 0).frame(3.3)
+        assert loud.tobytes() == quiet.tobytes(), kind
