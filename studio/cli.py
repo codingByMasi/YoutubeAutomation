@@ -195,17 +195,6 @@ def build(video_id: int, force: bool = FORCE) -> None:
     m.run(_ctx(), video_id, force=force)
 
 
-@app.command("wardrobe")
-def wardrobe_cmd(character: str = typer.Argument("quill", help="History character id, e.g. quill, vex."),
-                 out: str = typer.Option("", help="PNG to write (default wardrobe-<id>.png).")) -> None:
-    """Preview one history character in every era outfit (the same face and voice, a costume per story)."""
-    from pathlib import Path
-
-    from studio.history import preview
-    path = preview.write_sheet(character, Path(out or f"wardrobe-{character}.png"))
-    print(f"Wrote {path}. Set `era` on a script (or let the studio guess from the title) to use an outfit.")
-
-
 @app.command()
 def qa(video_id: int) -> None:
     """Flag weak hooks, flat pacing, repeated or missing pictures and a weak ending (read-only)."""

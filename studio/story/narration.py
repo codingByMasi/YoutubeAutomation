@@ -18,8 +18,7 @@ MAX_GROUP_SECONDS = 150.0
 
 
 # ---------- stage directions ----------
-_ACTORS = r"(?:Quill|Dusty|Dash|Vizier Vex|Vex|Captain Blunder|Blunder|Madame Coin|Coin|Admiral Brine|Brine|" \
-          r"Inspector Hindsight|Hindsight|Ironhand(?: the Smith)?|Almanac Alma|Alma|She|He|They)"
+_ACTORS = r"(?:She|He|They)"
 _ACTIONS = (r"states?|puts?|sets?|closes?|opens?|whistles?|nods?|sighs?|pauses?|looks?|turns?|walks?|slams?|"
             r"shrugs?|grins?|smiles?|waves?|points?|picks?|lowers?|raises?|leans?|steps?|stares?|gasps?|"
             r"laughs?|winks?|clears?|taps?|folds?|unrolls?|rolls?|flips?|slides?|hands?|shakes?|frowns?")
@@ -31,7 +30,7 @@ _SENT = re.compile(r"(?<=[.!?])\s+")
 
 
 def spoken(text: str) -> str:
-    """Narration minus stage directions ("Quill states it plainly. Dash puts down the pen."): those describe on-screen
+    """Narration minus stage directions ("She states it plainly. He puts down the pen."): those describe on-screen
     action only, so they are never spoken or captioned. Text that is all direction is returned unchanged."""
     keep = [x for x in _SENT.split(text.strip()) if x and not _DIRECTION.match(x.strip())]
     return " ".join(keep) if keep else text

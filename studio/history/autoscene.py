@@ -10,8 +10,8 @@ Rules in plain words:
 - violence or loss -> `silhouette` (never drawn in detail);
 - two or more places we can put on the map -> `map` with a route through them;
 - "first / then / finally" steps -> `diagram`; "N days" -> `calendar`;
-- the first segment of a later chapter may open with the `lectern` host (at most every other chapter);
-- everything else -> `skit`, with the characters picked from the words (money -> Madame Coin, plans -> Vizier Vex ...)
+- the first segment of a later chapter may open with a `title` card (at most every fifth segment);
+- everything else -> `skit`, with the characters the script names
   and one or two short speech lines taken from the narration.
 - the same scene type is never used three times in a row (`cast.scene_problems` enforces the same rule).
 """
@@ -37,22 +37,6 @@ _STEP = re.compile(r"\b(first|second|third|then|next|finally|after that|step)\b"
 _KILL = re.compile(r"\b(kill\w*|massacre\w*|slaughter\w*|executed|execution|crucif\w+|dead|died|death|bloodbath|"
                    r"slain|perish\w*|destroyed the city|burned? (?:it|the city)|butcher\w*)\b", re.I)
 _DAYS = re.compile(r"\b(\d{1,2})\s+(days?|weeks?)\b", re.I)
-_WHO: list[tuple[str, re.Pattern]] = [
-    ("coin", re.compile(r"\b(tax\w*|tribute|debt|pay\w*|paid|silver|gold|talents?|coin\w*|cost\w*|money|price|ransom|"
-                        r"indemnit\w+|treasur\w+|wage\w*|bankrupt\w*|loan\w*|ledger)\b", re.I)),
-    ("vex", re.compile(r"\b(senate|senator\w*|plot\w*|scheme\w*|advis\w+|court\w*|politic\w+|treaty|treaties|"
-                       r"negotiat\w+|secret\w*|rival\w*|council|oath)\b", re.I)),
-    ("blunder", re.compile(r"\b(battle|general\w*|commander\w*|army|armies|soldier\w*|charge[ds]?|attack\w*|"
-                           r"invad\w+|war|siege|legion\w*|mercenar\w+|victory|defeat\w*)\b", re.I)),
-    ("dash", re.compile(r"\b(news|messenger|rode|arriv\w+|rumou?rs?|report\w*|word came|reached|sent word)\b", re.I)),
-    ("brine", re.compile(r"\b(fleet\w*|ship\w*|sea|navy|naval|harbou?r\w*|sail\w*|blockade\w*|ports?|galley|galleys)\b", re.I)),
-    ("hindsight", re.compile(r"\b(warning\w*|ignored|mistake\w*|overlooked|clue\w*|hindsight|should have|unaware|"
-                             r"did not know|didn't know)\b", re.I)),
-    ("ironhand", re.compile(r"\b(weapon\w*|iron|forge\w*|smith\w*|steel|armou?r\w*|catapult\w*|engineer\w*|"
-                            r"factory|factories|siege engine\w*)\b", re.I)),
-    ("alma", re.compile(r"\b(years? later|months? later|winter|spring|summer|autumn|\d{3,4}\s?(?:bc|bce|ad|ce))\b", re.I)),
-    ("dusty", re.compile(r"\b(why|how come|wait|really\?|who paid|what\?)\b", re.I)),
-]
 _NOT_NAMES = {"the", "a", "an", "but", "and", "so", "then", "when", "after", "before", "in", "on", "at", "it", "he",
               "she", "they", "this", "that", "these", "those", "i", "we", "you", "his", "her", "their", "if", "as",
               "by", "for", "from", "with", "one", "two", "three", "part", "january", "february", "march", "april",
@@ -146,9 +130,9 @@ def characters_for(segments: list[dict]) -> list[dict]:
 
 
 def _pick_cast(text: str, figs: list[str], k: int) -> list[str]:
-    """The people the script names in this text (up to three); the host fills in only when it names nobody."""
+    """The people the script names in this text (up to three); a generic bystander fills in only when it names nobody."""
     named = [f for f in figs if re.search(rf"\b{re.escape(f)}\b", text)]
-    return named[:3] or ["quill"]
+    return named[:3] or [cast.GENERIC]
 
 
 def _speech(text: str, who: list[str]) -> list[dict]:
@@ -189,14 +173,14 @@ def steps_for(text: str, given: object = None) -> list[str]:
 
 
 def choose(seg: dict, idx: int, prev_chapter: str | None, figs: list[str], recent: list[str],
-           lectern_ok: bool) -> str:
+           title_ok: bool) -> str:
     """The scene type for one segment (see the module docstring for the rules)."""
     text = str(seg.get("narration", ""))
     kw = " ".join(str(k) for k in seg.get("visual_keywords") or [])
     if idx == 0:
         return "skit"  # the cold open is always a small scene in progress
-    if idx > 0 and lectern_ok and seg.get("chapter") and seg.get("chapter") != prev_chapter:
-        return "lectern"
+    if idx > 0 and title_ok and seg.get("chapter") and seg.get("chapter") != prev_chapter:
+        return "title"
     if _KILL.search(text) and idx > 0:
         return "silhouette"
     if len(places_in(text + " " + kw)) >= 2:
@@ -214,7 +198,7 @@ def assign(segments: list[dict], force: bool = False) -> int:
     figs = figures(segments)
     recent: list[str] = []
     prev_chapter: str | None = None
-    last_lectern = -99
+    last_title = -99
     for i, seg in enumerate(segments):
         text = str(seg.get("narration", ""))
         have = seg.get("scene") if isinstance(seg.get("scene"), str) and seg["scene"] in cast.SCENE_TYPES else None
@@ -222,16 +206,15 @@ def assign(segments: list[dict], force: bool = False) -> int:
             recent.append(have)
             prev_chapter = seg.get("chapter") or prev_chapter
             continue
-        lectern_ok = i - last_lectern >= 5
-        scene = choose(seg, i, prev_chapter, figs, recent, lectern_ok)
+        title_ok = i - last_title >= 5
+        scene = choose(seg, i, prev_chapter, figs, recent, title_ok)
         if len(recent) >= 2 and recent[-1] == recent[-2] == scene and scene not in ("map", "diagram"):
-            scene = "skit" if scene != "skit" else "silhouette" if _KILL.search(text) else "lectern"
+            scene = "skit" if scene != "skit" else "silhouette" if _KILL.search(text) else "title"
         who = _pick_cast(text, figs, i)
         data: dict = {}
         speech: list[dict] = []
-        if scene == "lectern":
-            last_lectern = i
-            who = ["quill"]
+        if scene == "title":
+            last_title = i
             data = {"title": str(seg.get("chapter") or "")}
         elif scene == "skit":
             speech = _speech(text, who)
@@ -247,7 +230,6 @@ def assign(segments: list[dict], force: bool = False) -> int:
             m = _DAYS.search(text)
             days = int(m.group(1)) * (7 if m and m.group(2).lower().startswith("week") else 1) if m else 7
             data = {"days": max(1, min(days, 31)), "title": "Days pass"}
-            who = ["quill"]
         elif scene == "silhouette":
             data = {"title": _trim_line(text, 6)}
             who = [who[-1]]

@@ -27,7 +27,8 @@ def test_diagram_scene_renders_without_placeholder_text(tmp_path, monkeypatch):
     seen = []
     orig = r.centered
     monkeypatch.setattr(r, "centered", lambda d, xy, text, *a, **k: (seen.append(text), orig(d, xy, text, *a, **k))[1])
-    sc = _scene(tmp_path, {"scene": "diagram", "narration": NARR, "cast": ["quill"], "scene_data": {"title": "t"}}, 8.0)
+    seg = {"scene": "diagram", "narration": NARR, "cast": ["Hannibal"], "scene_data": {"title": "t"}}
+    sc = _scene(tmp_path, seg, 8.0)
     sc.frame(7.0)
     assert not any("Step one" in str(x) for x in seen)
     assert any("shareholders" in str(x).lower() or "raises" in str(x).lower() for x in seen), seen

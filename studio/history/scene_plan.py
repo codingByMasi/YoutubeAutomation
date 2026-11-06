@@ -1,7 +1,7 @@
 """One-time scene assignment for a script that has no scene types, answered by Claude (prompt-file handoff).
 
 `visuals` calls `assign(...)` when a cast channel's script has segments without a `scene`. Claude reads each
-segment's narration and chooses what best shows it (skit, map, diagram, calendar, silhouette, lectern), who acts,
+segment's narration and chooses what best shows it (skit, map, diagram, calendar, silhouette, title), who acts,
 the short speech lines and the map points. The answer is validated, saved into script.json and never asked again.
 If the provider fails (not merely pending), the built-in word rules in `autoscene` fill in so nothing stalls.
 """
@@ -25,7 +25,6 @@ def missing(segments: list[dict]) -> list[int]:
 
 
 def build_prompt(segments: list[dict]) -> str:
-    roster = f"- quill: {cast.ROSTER['quill']['name']}, {cast.ROSTER['quill']['role']}"
     places = ", ".join(sorted(autoscene.PLACES))
     lines = "\n".join(f"{i}. [{s.get('chapter', '')}] {s.get('narration', '')}" for i, s in enumerate(segments, 1))
     return f"""You assign a cartoon scene to every segment of a history video script. Choose what best SHOWS the
@@ -35,8 +34,8 @@ and must not be used here.
 
 Scene types: {', '.join(cast.SCENE_TYPES)} (do not use `archive` or `easel` unless the narration names a single
 document or a list). Rules: the first segment is a `skit`; never three of the same scene type in a row (maps and
-diagrams excepted); `lectern` only at the start of a new chapter, at most every fifth segment; violence or loss is a
-`silhouette`, never drawn in detail.
+diagrams excepted); `title` (a chapter card) only at the start of a new chapter, at most every fifth segment;
+violence or loss is a `silhouette`, never drawn in detail.
 
 Characters come from THIS script. List every person or creature that appears on screen (not the narrator), the way
 the script describes them: a general, a queen, a merchant's child, a sailor, a priestess, a spy, an elephant keeper,
@@ -52,20 +51,18 @@ the whole video. Per character return:
   banner, or any object), optional "face" {{"shape", "eyes", "brows", "nose", "mouth", "marks"}} (make faces
   differ), optional "posture", "accent_color", optional "cape_color", optional "pitch" (low, mid, high) for the voice.
 Dress them for the story's era and place (what people there and then wore).
-Only the host (`quill`, at the lectern) is recurring; every other character is one from the list above, described
-from this script, never a fixed-cast name or id (no Dusty, Vex, Coin, Blunder, Dash, Brine, Hindsight ...).
-Host:
-{roster}
+There is no fixed or recurring cast and no host: every character is one from the list above, described from this
+script.
 
-For each segment return: "n" (its number), "scene", "cast" (1-3 character names from your list
-or `quill`; required for a skit), "speech" (skit only: at most {cast.MAX_SPEECH_LINES} lines of at most
+For each segment return: "n" (its number), "scene", "cast" (1-3 character names from your list;
+required for a skit), "speech" (skit only: at most {cast.MAX_SPEECH_LINES} lines of at most
 {cast.MAX_SPEECH_WORDS} words, each
 {{"who": "...", "text": "..."}}, invented tone-setting dialogue, never a quote presented as real), and "scene_data":
 - map: {{"title": "...", "points": [{{"x": 0-1, "y": 0-1, "label": "..."}}]}} using these known places on the map:
   {places}. Positions are given by the studio for known places; use only those names as labels.
 - diagram: {{"title": "...", "steps": ["3-5 short steps"]}}
 - calendar: {{"title": "...", "days": 1-31}}
-- lectern: {{"title": "...", "question": "..."}}
+- title: {{"title": "...", "question": "..."}}
 - silhouette: {{"title": "one plain sentence on the human cost"}}
 Write ONLY this JSON object: {{"characters": [...], "segments": [{{"n": 1, "scene": "skit",
 "cast": ["Roman consul", "Scout"], "speech": [...], "scene_data": {{}}}}, ...]}}
@@ -105,7 +102,7 @@ def merge(segments: list[dict], data: dict, store: dict | None = None) -> None:
         r = data["segments"][i]
         seg = segments[i]
         seg["scene"] = r["scene"]
-        seg["cast"] = r.get("cast") or seg.get("cast") or ["quill"]
+        seg["cast"] = r.get("cast") or seg.get("cast") or [cast.GENERIC]
         if r.get("speech") and not seg.get("speech"):
             seg["speech"] = r["speech"]
         sd = dict(r.get("scene_data") or {})
@@ -147,7 +144,7 @@ def assign(settings: Settings, work_dir: Path, segments: list[dict], say=print, 
 
 
 def undescribed(segments: list[dict], characters: list[dict] | None) -> list[str]:
-    """Names on screen (skit cast and speakers, except the host) that the script has not described yet."""
+    """Names on screen (skit cast and speakers) that the script has not described yet."""
     have = [str(c.get("name", "")).strip().lower() for c in characters or [] if isinstance(c, dict)]
     out: list[str] = []
     for s in segments:
@@ -156,7 +153,7 @@ def undescribed(segments: list[dict], characters: list[dict] | None) -> list[str
         names = [*(s.get("cast") or []), *(str(x.get("who", "")) for x in s.get("speech") or [] if isinstance(x, dict))]
         for n in names:
             low = str(n).strip().lower()
-            if low in ("", "quill", "narrator") or any(low in h or h in low for h in have) or n in out:
+            if low in ("", "narrator") or any(low in h or h in low for h in have) or n in out:
                 continue
             out.append(str(n))
     return out

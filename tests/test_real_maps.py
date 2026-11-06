@@ -5,7 +5,7 @@ from tests.test_history_scenes_look import _scene
 
 
 def _map(label_list, title="t", **extra):
-    return {"scene": "map", "narration": "x", "cast": ["quill"],
+    return {"scene": "map", "narration": "x", "cast": ["Hannibal"],
             "scene_data": {"title": title, "points": [{"label": n, "x": 0.1, "y": 0.1} for n in label_list], **extra}}
 
 
@@ -41,6 +41,6 @@ def test_each_region_draws_and_differs(tmp_path):
 def test_unknown_labels_do_not_crash_and_planner_keeps_known_regional_labels():
     assert maps.resolve_points("world", [{"label": "Nowhere"}]) == []
     segs = [{"narration": "The Company took Bengal."}]
-    scene_plan.merge(segs, {"segments": [{"scene": "map", "cast": ["quill"],
+    scene_plan.merge(segs, {"segments": [{"scene": "map", "cast": ["Hannibal"],
                                           "scene_data": {"points": [{"label": "Plassey"}, {"label": "Calcutta"}]}}]})
     assert [p["label"] for p in segs[0]["scene_data"]["points"]] == ["Plassey", "Calcutta"]

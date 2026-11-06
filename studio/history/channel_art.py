@@ -1,22 +1,18 @@
 # ruff: noqa: E501  (drawing code)
 """Channel branding for the history channel "Quill's Past": 800x800 profile icon and 2560x1440 banner.
 
-Reuses the cast SVGs (`studio.history.cast`), the map and fonts from the scene renderer, so the art matches the
-videos. Everything is original. Run: `python -m studio.history.channel_art [out_dir]`.
+Reuses the map and fonts from the scene renderer, so the art matches the
+videos. No characters are drawn: the channel has no fixed cast. Everything is original. Run: `python -m studio.history.channel_art [out_dir]`.
 """
 
 from __future__ import annotations
 
-import io
-import re
 import sys
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFilter
 
-from studio.history import cast
 from studio.history import render as R
-from studio.util import svg as svg_engine
 
 CREAM = (244, 233, 207)
 TEAL = (46, 125, 135)
@@ -27,16 +23,6 @@ TAGLINE = "History, told like a story"
 BANNER = (2560, 1440)
 SAFE = (507, 508, 2053, 931)  # YouTube's all-devices safe area (1546x423, centred)
 DEFAULT_OUT = Path("assets/history/channel-art")
-
-
-def _sprite(char_id: str, px: int, viewbox: str | None = None) -> Image.Image:
-    """Character SVG as an RGBA picture; `viewbox` crops it (e.g. head only)."""
-    svg = cast.roster_svg(char_id)
-    for gid in ("eyes-closed", "mouth-open"):  # still picture: keep only the open eyes and closed mouth
-        svg = re.sub(rf'<g id="{gid}">.*?</g>', "", svg, flags=re.S)
-    if viewbox:
-        svg = svg.replace('viewBox="0 0 400 400" width="400" height="400"', f'viewBox="{viewbox}"')
-    return Image.open(io.BytesIO(svg_engine.svg_to_png(svg, px))).convert("RGBA")
 
 
 def _shadow(img: Image.Image, canvas: Image.Image, xy: tuple[int, int], off: int = 10, blur: int = 12, a: int = 90) -> None:
@@ -64,22 +50,15 @@ def _feather(size: int) -> Image.Image:
 
 
 def make_icon() -> Image.Image:
-    """800x800 profile picture: Quill on a cream disc with a teal ring and a feather (YouTube crops to a circle)."""
+    """800x800 profile picture: a quill feather on a cream disc with a teal ring (YouTube crops to a circle)."""
     n = 800
     img = Image.new("RGBA", (n, n), (*TEAL_DARK, 255))
     d = ImageDraw.Draw(img)
     d.ellipse([20, 20, n - 20, n - 20], fill=(*TEAL, 255))
     d.ellipse([52, 52, n - 52, n - 52], fill=(*CREAM, 255))
     d.ellipse([70, 70, n - 70, n - 70], outline=(200, 170, 118, 255), width=4)
-    head = _sprite("quill", 620, "88 40 224 280")  # head and shoulders; the disc below crops the body
-    layer = Image.new("RGBA", (n, n), (0, 0, 0, 0))
-    _shadow(head, layer, ((n - head.width) // 2, 150), off=8, blur=8)
-    mask = Image.new("L", (n, n), 0)
-    ImageDraw.Draw(mask).ellipse([52, 52, n - 52, n - 52], fill=255)
-    layer.putalpha(Image.composite(layer.getchannel("A"), Image.new("L", (n, n), 0), mask))
-    img.alpha_composite(layer)
-    f = _feather(250)
-    _shadow(f, img, (480, 78), off=6, blur=6)
+    f = _feather(480)
+    _shadow(f, img, ((n - 480) // 2, (n - 480) // 2), off=8, blur=8)
     return img.convert("RGB")
 
 
@@ -101,29 +80,24 @@ def _backdrop() -> Image.Image:
 
 
 def make_banner() -> Image.Image:
-    """2560x1440 banner. Title, tagline and all three characters sit inside the 1546x423 safe area."""
+    """2560x1440 banner. Title and tagline sit inside the 1546x423 safe area."""
     img = _backdrop()
     x0, y0, x1, y1 = SAFE
     panel = Image.new("RGBA", BANNER, (0, 0, 0, 0))
-    ImageDraw.Draw(panel).rounded_rectangle([x0 + 6, y0 + 20, x0 + 660, y1 - 20], 36, fill=(250, 244, 228, 255),
+    ImageDraw.Draw(panel).rounded_rectangle([x0 + 6, y0 + 20, x1 - 6, y1 - 20], 36, fill=(250, 244, 228, 255),
                                            outline=(*INK, 255), width=6)
     _shadow(panel, img, (0, 0), off=12, blur=14, a=110)
     d = ImageDraw.Draw(img)
     tf = R.font(92)
     while d.textlength(NAME, font=tf) > 580:
         tf = R.font(tf.size - 4)
-    cx = x0 + 320
+    cx = (x0 + x1) // 2
     d.text((cx, y0 + 140), NAME, font=tf, fill=(*TEAL_DARK, 255), anchor="mm")
     d.line([cx - 250, y0 + 205, cx + 250, y0 + 205], fill=(200, 170, 118, 255), width=5)
     sf = R.font(40, serif=False)
     while d.textlength(TAGLINE, font=sf) > 580:
         sf = R.font(sf.size - 2, serif=False)
     d.text((cx, y0 + 262), TAGLINE, font=sf, fill=(*INK, 255), anchor="mm")
-    # cast: Dusty, Quill (host, biggest, centre), Vizier Vex; feet share one line at the bottom of the safe area
-    feet = y1 - 30  # body bottom (0.9 of the sprite square) sits here
-    for cid, px, centre in (("dusty", 400, 1290), ("vex", 420, 1860), ("quill", 520, 1560)):
-        s = _sprite(cid, px)
-        _shadow(s, img, (centre - px // 2, feet - round(px * 0.9)))
     return img.convert("RGB")
 
 

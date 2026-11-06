@@ -95,13 +95,13 @@ PACKS: dict[str, dict] = {
         "cast": True,
         "depiction": {
             "rules": [
-                "Original characters only: host Quill plus the story's own characters, each described from the script.",
-                "Every historical figure keeps one faction colour, one letter badge, one headwear and one prop "
-                "for the whole video, so viewers can tell similar figures apart.",
+                "Original characters only: the story's own, each described from the script; no fixed cast and no host.",
+                "Every character keeps one described look (face, build, clothes, headwear, props) for the "
+                "whole video, so viewers can tell similar figures apart.",
                 "Stylised, never a real likeness; no photographs of living people; archive images only for "
                 "things (places, documents, objects) and at most one per chapter.",
-                "Atrocity, death and torture are never shown: cut to a map, a silhouette or the host at the "
-                "lectern and state the human cost in one plain sentence.",
+                "Atrocity, death and torture are never shown: cut to a map, a silhouette or a title card "
+                "and state the human cost in one plain sentence.",
                 "Invented dialogue is for tone only. Real quotes go in the narration; disputed "
                 "claims are staged with a question mark above the speaker.",
                 "Anachronism is allowed in the narrator's tone and skit jokes, never in a stated fact, date or "

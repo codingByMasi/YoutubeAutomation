@@ -14,11 +14,11 @@ class _S:
     tts_provider = "edge"
 
 
-def test_roster_and_figures_get_stable_distinct_voices():
-    assert sa.voice_for("quill")["kokoro"] == "bm_george"
-    assert sa.voice_for("Captain Blunder") == sa.voice_for("blunder")
+def test_figures_get_stable_voices_and_described_ones_follow_their_description():
     assert sa.voice_for("Hannibal") == sa.voice_for("Hannibal")
-    assert sa.voice_for("blunder")["kokoro"] != sa.voice_for("dash")["kokoro"]
+    assert sa.voice_for("Dusty")  # an old script's name still gets a voice, no crash
+    old = sa.voice_for("Hasdrubal", [{"name": "Hasdrubal", "gender": "male", "age": "elder"}])
+    assert old["speed"] == 0.9
 
 
 def test_line_times_follow_real_lengths_and_fit_the_scene():
@@ -34,7 +34,7 @@ def test_line_times_follow_real_lengths_and_fit_the_scene():
 def test_silent_provider_voices_nothing(tmp_path):
     class Silent:
         tts_provider = "silent"
-    segs = [{"scene": "skit", "speech": [{"who": "dash", "text": "Hello there."}]}]
+    segs = [{"scene": "skit", "speech": [{"who": "Hannibal", "text": "Hello there."}]}]
     assert sa.synth_lines(Silent(), tmp_path, segs, lambda m: None) == 0 and "audio" not in segs[0]["speech"][0]
 
 
@@ -54,10 +54,10 @@ def test_synth_uses_each_characters_voice(tmp_path, monkeypatch):
             return out
 
     monkeypatch.setattr(sa, "_engines", lambda settings, v: [Fake(v["kokoro"])])
-    segs = [{"scene": "skit", "speech": [{"who": "dash", "text": "News!"}, {"who": "vex", "text": "Quiet."}]},
+    segs = [{"scene": "skit", "speech": [{"who": "Hannibal", "text": "News!"}, {"who": "Scipio", "text": "Quiet."}]},
             {"scene": "map", "speech": []}]
     assert sa.synth_lines(_S(), tmp_path, segs, lambda m: None) == 2
-    assert used == [sa.voice_for("dash")["kokoro"], sa.voice_for("vex")["kokoro"]]
+    assert used == [sa.voice_for("Hannibal")["kokoro"], sa.voice_for("Scipio")["kokoro"]]
     assert all(abs(x["seconds"] - 0.8) < 0.2 and x["audio"] for x in segs[0]["speech"])
 
 
@@ -66,7 +66,7 @@ def test_mix_adds_lines_and_keeps_length(tmp_path):
     _tone(nar, 6.0, 200)
     line = tmp_path / "l.wav"
     _tone(line, 1.0, 800)
-    segs = [{"scene": "skit", "speech": [{"who": "dash", "text": "x", "audio": str(line), "seconds": 1.0}]}]
+    segs = [{"scene": "skit", "speech": [{"who": "Hannibal", "text": "x", "audio": str(line), "seconds": 1.0}]}]
     out = sa.mix_into_narration(nar, segs, [(0.0, 6.0)], tmp_path / "m.wav")
     assert out != nar and abs(ff.probe_duration(out) - 6.0) < 0.2
     assert sa.mix_into_narration(nar, [{"scene": "map"}], [(0.0, 6.0)], tmp_path / "m2.wav") == nar
@@ -77,7 +77,7 @@ def test_mix_stays_stereo_and_centred(tmp_path):
     subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", "sine=frequency=200:duration=6",
                     "-ar", "48000", "-ac", "2", str(nar)], check=True)
     _tone(line, 1.0, 800)
-    segs = [{"scene": "skit", "speech": [{"who": "dash", "text": "x", "audio": str(line), "seconds": 1.0}]}]
+    segs = [{"scene": "skit", "speech": [{"who": "Hannibal", "text": "x", "audio": str(line), "seconds": 1.0}]}]
     out = sa.mix_into_narration(nar, segs, [(0.0, 6.0)], tmp_path / "m.wav")
     chans = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "a", "-show_entries", "stream=channels",
                             "-of", "csv=p=0", str(out)], capture_output=True, text=True, check=True).stdout
@@ -89,7 +89,7 @@ def test_narrator_is_silent_while_a_character_speaks(tmp_path):
     nar, line = tmp_path / "n.wav", tmp_path / "l.wav"
     _tone(nar, 6.0, 200)
     _tone(line, 1.0, 800)
-    segs = [{"scene": "skit", "speech": [{"who": "dash", "text": "x", "audio": str(line), "seconds": 1.0}]}]
+    segs = [{"scene": "skit", "speech": [{"who": "Hannibal", "text": "x", "audio": str(line), "seconds": 1.0}]}]
     out = sa.mix_into_narration(nar, segs, [(0.0, 6.0)], tmp_path / "m.wav")
     raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(out), "-f", "s16le", "-ac", "1", "-ar", "48000", "-"],
                          capture_output=True, check=True).stdout
