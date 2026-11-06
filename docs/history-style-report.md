@@ -103,8 +103,8 @@ YouTube normalises loudness, so OS-WW1's -26.7 is a quiet upload, not a target. 
 ## Visual style
 
 - **Characters**: simple flat vector bodies with big hands and expressive faces. EH-Genghis puts a **letter badge**
-  on each character's chest (H, Y, T...) so viewers can tell similar figures apart; the host stands at a lectern
-  between chapters. OS gives each nation or faction a colour, flag or headwear.
+  on each character's chest (H, Y, T...) so viewers can tell similar figures apart; chapter cards mark each new chapter.
+  OS gives each nation or faction a colour, flag or headwear.
 - **Maps**: coloured political maps with zoom, arrows, flag icons for armies, a place-name label that appears as
   the narrator says it. A satellite-style map for travel and terrain.
 - **Props as icons**: a coat, a shovel, earrings, a calendar being crossed out for passing time, a button panel for

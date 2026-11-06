@@ -9,8 +9,8 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFilter
 
+from studio.history import cast, wardrobe
 from studio.history import render as R
-from studio.history import wardrobe
 
 TW, TH = 1280, 720
 YELLOW, WHITE, BLACK = (255, 214, 10), (255, 255, 255), (12, 10, 20)
@@ -30,7 +30,8 @@ def _cast_of(pkg: dict) -> list[str]:
     for s in pkg.get("segments", []):
         if s.get("scene") == "skit" and s.get("cast"):
             return list(s["cast"])[:2]
-    return ["blunder", "dash"]
+    named = [str(c["name"]) for c in pkg.get("characters") or [] if isinstance(c, dict) and c.get("name")]
+    return named[:2] or [cast.GENERIC]
 
 
 def make(pkg: dict, texts: list[str], work: Path) -> list[Image.Image]:
@@ -52,7 +53,8 @@ def make(pkg: dict, texts: list[str], work: Path) -> list[Image.Image]:
     b = R._map_base().copy().filter(ImageFilter.GaussianBlur(2))  # noqa: SLF001
     d = ImageDraw.Draw(b)
     d.text((930, 330), "?", font=R.font(560), fill=R.RED, anchor="mm", stroke_width=18, stroke_fill=BLACK)
-    b.paste(cst.sprite("quill", 420, 0.4, 0, True, era=era), (20, 330), cst.sprite("quill", 420, 0.4, 0, True, era=era))
+    spr_b = cst.sprite(who[-1], 420, 0.4, 0, True, era=era)
+    b.paste(spr_b, (20, 330), spr_b)
     _text(b, texts[2] or texts[1] or "Which pass?", (50, 150), 130)
 
     # C: silhouette against the night sky

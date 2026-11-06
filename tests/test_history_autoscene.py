@@ -39,10 +39,10 @@ def test_skit_has_cast_and_short_speech():
 
 
 def test_existing_scene_keys_are_kept():
-    segs = [{"narration": "Anything at all happens here today.", "scene": "easel", "cast": ["coin"],
+    segs = [{"narration": "Anything at all happens here today.", "scene": "easel", "cast": ["Hannibal"],
              "scene_data": {"items": ["a"]}}]
     assert autoscene.assign(segs) == 0
-    assert segs[0]["scene"] == "easel" and segs[0]["cast"] == ["coin"]
+    assert segs[0]["scene"] == "easel" and segs[0]["cast"] == ["Hannibal"]
 
 
 def test_plain_word_scene_is_replaced():
@@ -66,12 +66,6 @@ def test_persist_keeps_other_fields(tmp_path):
     autoscene.persist(p, segs)
     raw = json.loads(p.read_text())
     assert raw["title"] == "T" and raw["segments"][0]["extra"] == 1 and raw["segments"][0]["scene"] == "skit"
-
-
-def test_pil_character_draws_without_cairo():
-    for c in cast.ROSTER.values():
-        im = r.pil_character(c["body"], c["headwear"], c["prop"], c["badge"], 200, True, True)
-        assert im.size == (200, 200) and im.getchannel("A").getbbox() is not None
 
 
 def test_font_is_a_real_truetype_font():

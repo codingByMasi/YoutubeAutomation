@@ -1,7 +1,7 @@
 """Character voices for skit speech lines.
 
-Every `speech` line of a skit is spoken in its character's own voice (`cast.voice_for`; historical figures get a
-stable voice picked from the roster's voices). The lines are synthesised once in `visuals` (after the scenes are
+Every `speech` line of a skit is spoken in its character's own voice (`voice_for`: described by the script, else a
+stable voice picked from the name). The lines are synthesised once in `visuals` (after the scenes are
 assigned), saved under `projects/<id>/speech/`, and their real length is stored in the line (`seconds`, `audio`).
 The scene renderer shows each bubble and moves the speaker's mouth with that audio; `build` mixes the lines into
 the narration track, with the narrator silent while a character speaks (`line_times` is shared by both).
@@ -13,7 +13,6 @@ import hashlib
 import subprocess
 from pathlib import Path
 
-from studio.history import cast
 from studio.providers import voices
 from studio.util import ffmpeg as ff
 from studio.util.logging import get_logger
@@ -24,7 +23,7 @@ LEAD = 0.5  # seconds before the first line
 DUCK = 0.0  # narrator volume while a character speaks (silent: two voices must never overlap)
 
 
-# Voices by what the script says about a character (all ids are used by the recurring cast, so they exist).
+# Voices by what the script says about a character (Kokoro and edge-tts voice ids).
 _MALE = [("bm_george", "en-GB-RyanNeural"), ("am_adam", "en-US-GuyNeural"), ("bm_lewis", "en-GB-ThomasNeural"),
          ("am_fenrir", "en-US-ChristopherNeural"), ("bm_daniel", "en-IE-ConnorNeural"), ("am_onyx", "en-US-EricNeural")]
 _FEMALE = [("bf_emma", "en-GB-SoniaNeural"), ("bf_isabella", "en-GB-LibbyNeural"), ("af_heart", "en-CA-ClaraNeural")]
@@ -56,21 +55,12 @@ def voice_from_spec(spec: dict) -> dict:
 
 
 def voice_for(who: str, characters: list[dict] | None = None) -> dict:
-    """The voice dict for a roster id or name, a character the script describes, or (stable by name) anyone else."""
+    """The voice dict for a character the script describes, or (stable by name) anyone else."""
     low = (who or "").strip().lower()
-    if low in cast.ROSTER:
-        return cast.voice_for(low)
-    for cid, c in cast.ROSTER.items():
-        if low == c["name"].lower():
-            return cast.voice_for(cid)
     for c in characters or []:
         if isinstance(c, dict) and str(c.get("name", "")).strip().lower() == low:
             return voice_from_spec(c)
-    h = int(hashlib.sha1(low.encode()).hexdigest(), 16)
-    pool = [c["voice"] for c in cast.ROSTER.values()]
-    base = dict(pool[h % len(pool)])
-    base["speed"] = round(min(1.3, max(0.7, float(base.get("speed", 1.0)) + ((h >> 8) % 7 - 3) * 0.02)), 2)
-    return voices.check(base, who)
+    return voice_from_spec({"name": who})  # stable by name, never a fixed cast voice
 
 
 def line_times(speech: list[dict], dur: float) -> list[float]:

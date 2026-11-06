@@ -13,11 +13,11 @@ class _S:  # the bits of Settings that ask_json is replaced for in these tests
 
 
 def _answer(n):
-    rows = [{"n": i + 1, "scene": "skit", "cast": ["quill", "dusty"], "speech": [{"who": "quill", "text": "Short line."}],
+    rows = [{"n": i + 1, "scene": "skit", "cast": ["Gaius", "Odo"], "speech": [{"who": "Gaius", "text": "Short line."}],
              "scene_data": {}} for i in range(n)]
-    rows[2] = {"n": 3, "scene": "lectern", "cast": ["quill"], "scene_data": {"title": "x"}}
-    rows[4] = {"n": 5, "scene": "lectern", "cast": ["quill"], "scene_data": {"title": "x"}}
-    rows[1] = {"n": 2, "scene": "map", "cast": ["vex"], "scene_data": {"points": [
+    rows[2] = {"n": 3, "scene": "title", "cast": ["Gaius"], "scene_data": {"title": "x"}}
+    rows[4] = {"n": 5, "scene": "title", "cast": ["Gaius"], "scene_data": {"title": "x"}}
+    rows[1] = {"n": 2, "scene": "map", "cast": ["Odo"], "scene_data": {"points": [
         {"x": 9, "y": 9, "label": "Spain"}, {"x": 9, "y": 9, "label": "Rome"}, {"x": 9, "y": 9, "label": "Atlantis"}]}}
     return {"segments": rows}
 

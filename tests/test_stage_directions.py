@@ -3,8 +3,8 @@ from studio.story import narration as nar
 
 
 def test_stage_directions_are_not_spoken():
-    text = ("The loan was paid off in 2015. Quill states it plainly. No jokes here. Dash puts down the pen. "
-            "Nobody speaks for a moment. Then Dash closes the ledger. The debt was real.")
+    text = ("The loan was paid off in 2015. She states it plainly. No jokes here. He puts down the pen. "
+            "Nobody speaks for a moment. Then he closes the ledger. The debt was real.")
     assert nar.spoken(text) == "The loan was paid off in 2015. The debt was real."
 
 
@@ -18,4 +18,4 @@ def test_plain_history_is_untouched():
 
 
 def test_all_direction_text_is_kept_not_emptied():
-    assert nar.spoken("Quill states it plainly.") == "Quill states it plainly."
+    assert nar.spoken("She states it plainly.") == "She states it plainly."

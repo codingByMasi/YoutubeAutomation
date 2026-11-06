@@ -8,8 +8,8 @@ def _scene(tmp_path, seg, dur=10.0):
     return r.Scene(seg, dur, r.Cast(tmp_path), [1.0] * int(dur * r.FPS), 0)
 
 
-SKIT = {"scene": "skit", "narration": "The mercenary army gathered in the snow of the Alps.", "cast": ["blunder", "dusty"],
-        "speech": [{"who": "blunder", "text": "Where is our pay?"}, {"who": "dusty", "text": "Ask Rome."}]}
+SKIT = {"scene": "skit", "narration": "The mercenary army gathered in the snow of the Alps.", "cast": ["Gaius", "Odo"],
+        "speech": [{"who": "Gaius", "text": "Where is our pay?"}, {"who": "Odo", "text": "Ask Rome."}]}
 
 
 def test_backdrop_follows_the_words():
@@ -21,12 +21,13 @@ def test_backdrop_follows_the_words():
         assert r.backdrop(name).size == (r.W, r.H)
 
 
-def test_crowd_scene_draws_and_extras_do_not_shift_figure_colours(tmp_path):
+def test_crowd_scene_draws_with_varied_extras(tmp_path):
     sc = _scene(tmp_path, {**SKIT, "scene_data": {**SKIT.get("scene_data", {}), "crowd": 14}})
     assert sc.crowd and sc.back == "snow"
-    before = dict(sc.cast.figs)
     img = sc.frame(2.0)
-    assert img.size == (r.W, r.H) and sc.cast.figs == before
+    assert img.size == (r.W, r.H)
+    looks = {sc.cast.extra(0, i, "#C0392B", 120, 0.0).tobytes() for i in range(4)}
+    assert len(looks) == 4  # four different background people, not one copied figure
 
 
 def test_no_background_crowd_unless_the_script_asks(tmp_path):
@@ -39,7 +40,7 @@ def test_camera_cuts_between_wide_and_close_up(tmp_path):
     assert wide[0] < 1.1 and close[0] > 1.25
     short = _scene(tmp_path, dict(SKIT), dur=4.0)
     assert short.camera(3.0)[0] < 1.1  # short scenes never cut
-    lectern = _scene(tmp_path, {"scene": "lectern", "cast": ["quill"], "scene_data": {"title": "t"}})
+    lectern = _scene(tmp_path, {"scene": "lectern", "cast": ["Odo"], "scene_data": {"title": "t"}})  # older scripts
     assert lectern.camera(6.0)[0] < 1.1  # the chapter card must stay fully in frame
 
 
@@ -49,7 +50,7 @@ def test_cast_channels_do_not_burn_captions():
 
 
 def test_map_scene_draws_territories_and_a_marching_army(tmp_path):
-    seg = {"scene": "map", "narration": "x", "cast": ["quill"], "scene_data": {"title": "218 BC", "troops": 38000, "points": [
+    seg = {"scene": "map", "narration": "x", "cast": ["Hannibal"], "scene_data": {"title": "218 BC", "troops": 38000, "points": [
         {"x": 0.14, "y": 0.58, "label": "Spain"}, {"x": 0.58, "y": 0.30, "label": "Alps"}]}}
     sc = _scene(tmp_path, seg, 10.0)
     early, late = sc.frame(1.0), sc.frame(9.0)

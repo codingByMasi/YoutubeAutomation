@@ -10,7 +10,7 @@ from __future__ import annotations
 MAX_CHARTS = 3
 MIN_CHART_GAP = 3        # segments between two charts
 STOCK_STILL_MAX = 2      # stock photos per video outside script-requested photo scenes
-DEFAULT_CAST_SCENE = "lectern"
+DEFAULT_CAST_SCENE = "title"
 
 
 def limit_charts(segs: list[dict]) -> list[str]:

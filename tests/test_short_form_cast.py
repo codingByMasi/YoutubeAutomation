@@ -61,14 +61,14 @@ needs_cairo = pytest.mark.skipif(not sprites.available(), reason="cairosvg/cairo
 
 @needs_cairo
 @pytest.mark.parametrize("kind,data", [
-    ("lectern", {"title": "Autumn, 218 BC", "question": "Which pass?"}),
+    ("lectern", {"title": "Autumn, 218 BC", "question": "Which pass?"}),  # older scripts: drawn as a title card
     ("skit", {}), ("map", {"points": [{"label": "A", "x": 0.2, "y": 0.5}, {"label": "B", "x": 0.7, "y": 0.4}]}),
     ("diagram", {"steps": ["a", "b", "c"], "disputed": True}), ("calendar", {"days": 16, "title": "Days"}),
     ("easel", {"title": "List", "items": ["one", "two"]}), ("archive", {"title": "A"}),
     ("silhouette", {"title": "Who?"}), ("title", {"title": "Next"})])
 def test_every_cast_scene_draws_a_full_frame(tmp_path, kind, data):
-    seg = {"scene": kind, "scene_data": data, "cast": ["quill", "Hannibal"], "chapter": "c",
-           "speech": [{"who": "quill", "text": "Hello there"}], "visual_keywords": ["alps"]}
+    seg = {"scene": kind, "scene_data": data, "cast": ["Scipio", "Hannibal"], "chapter": "c",
+           "speech": [{"who": "Scipio", "text": "Hello there"}], "visual_keywords": ["alps"]}
     sc = render.Scene(seg, 6.0, render.Cast(tmp_path), render.envelope(None, 144))
     for t in (0.2, 3.0, 5.9):
         assert sc.frame(t).size == (1280, 720)
@@ -77,7 +77,7 @@ def test_every_cast_scene_draws_a_full_frame(tmp_path, kind, data):
 @needs_cairo
 @pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg missing")
 def test_render_scene_makes_a_clip_and_reuses_it(tmp_path):
-    seg = {"scene": "lectern", "scene_data": {"title": "T"}, "cast": ["quill"]}
+    seg = {"scene": "title", "scene_data": {"title": "T"}, "cast": ["Hannibal"]}
     out = tmp_path / "s.mp4"
     render.render_scene(seg, 1.0, out, tmp_path)
     assert out.exists() and out.stat().st_size > 1000
@@ -89,11 +89,12 @@ def test_render_scene_makes_a_clip_and_reuses_it(tmp_path):
 
 
 @needs_cairo
-def test_historical_figure_keeps_its_faction_colour_and_cast_thumbnails_are_1280x720(tmp_path):
+def test_characters_differ_and_cast_thumbnails_are_1280x720(tmp_path):
     cst = render.Cast(tmp_path)
-    a = cst.key("Hannibal")
-    assert a == cst.key("Hannibal") and cst.key("Scipio") != a and cst.key("Captain Blunder") == "blunder"
-    pkg = {"segments": [{"scene": "skit", "cast": ["blunder", "dash"]}]}
+    a = cst.sprite("Hannibal", 200, 0.0, 0, False)
+    assert a.tobytes() == cst.sprite("Hannibal", 200, 0.0, 0, False).tobytes()
+    assert cst.sprite("Scipio", 200, 0.0, 0, False).tobytes() != a.tobytes()
+    pkg = {"segments": [{"scene": "skit", "cast": ["Hannibal", "Scipio"]}]}
     imgs = thumb.make(pkg, ["Rome laughed", "x", "Which pass?"], tmp_path)
     assert len(imgs) == 3 and all(isinstance(i, Image.Image) and i.size == (1280, 720) for i in imgs)
 
@@ -135,18 +136,9 @@ def test_kids_roster_has_ten_with_voices_and_sprites() -> None:
     assert cast.voice_for("nobody")["edge"]
 
 
-def test_history_cast_has_ten_valid_distinct_characters(tmp_path) -> None:
+def test_history_has_no_fixed_cast_or_shared_template() -> None:
     from studio.history import cast
-    assert len(cast.ROSTER) == 10 and {"brine", "hindsight", "ironhand", "alma"} <= set(cast.ROSTER)
-    cast.check_roster()
-    assert len({c["body"] for c in cast.ROSTER.values()}) == 10
-    for f in cast.export_roster(tmp_path):
-        assert not sprites.missing_groups(f.read_text(encoding="utf-8")), f.name
-    assert cast.voice_for("dash")["rate"] == 18 and cast.build_svg(shape="tall") != cast.build_svg()
-    with pytest.raises(ValueError):
-        cast.build_svg(shape="giant")
-    # generated figures still draw only from the base headwear/props, so old videos do not change
-    assert "bicorn" not in cast.HEADWEAR and "telescope" not in cast.PROPS
+    assert not hasattr(cast, "ROSTER") and not hasattr(cast, "build_svg") and not hasattr(render, "pil_character")
 
 
 def test_voice_check_reports_what_to_fix() -> None:
@@ -160,12 +152,12 @@ def test_voice_check_reports_what_to_fix() -> None:
 
 
 @needs_cairo
-def test_empty_easel_shows_the_lectern_and_silhouette_moves(tmp_path):
-    base = {"cast": ["quill"], "chapter": "c", "speech": []}
+def test_empty_easel_shows_a_title_card_and_silhouette_moves(tmp_path):
+    base = {"cast": ["Hannibal"], "chapter": "c", "speech": []}
     cst = render.Cast(tmp_path)
     env = render.envelope(None, 144)
     easel = render.Scene({**base, "scene": "easel", "scene_data": {}}, 6.0, cst, env)
-    lect = render.Scene({**base, "scene": "lectern", "scene_data": {}}, 6.0, cst, env)
+    lect = render.Scene({**base, "scene": "lectern", "scene_data": {}}, 6.0, cst, env)  # older scripts
     assert easel.frame(1.0).tobytes() == lect.frame(1.0).tobytes()  # not a blank board
     sil = render.Scene({**base, "scene": "silhouette", "scene_data": {"title": "x"}}, 20.0, cst, env)
     assert sil.frame(1.0).tobytes() != sil.frame(19.0).tobytes()  # a long silhouette is never a still

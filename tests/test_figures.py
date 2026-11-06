@@ -2,7 +2,7 @@
 """Characters are described by the script and composed from attributes; any role works."""
 import subprocess
 
-from studio.history import autoscene, figures, scene_plan
+from studio.history import autoscene, cast, figures, scene_plan
 from studio.history import render as r
 from studio.history import speech_audio as sa
 
@@ -49,12 +49,13 @@ def test_era_supplies_clothes_only_when_the_script_gives_none():
     assert n["clothing"] == "apron"
 
 
-def test_cast_draws_described_characters_but_keeps_the_recurring_host(tmp_path):
-    cst = r.Cast(tmp_path, [SOLDIER, {"name": "Quill", "gender": "female"}])
+def test_cast_draws_described_characters_and_old_fixed_names_from_their_own_words(tmp_path):
+    cst = r.Cast(tmp_path, [SOLDIER])
     assert cst.described("spearman") is SOLDIER
-    assert cst.described("quill") is None and cst.described("Quill") is None  # the host stays the recurring cast
+    assert cst.described("Quill") == {"name": "Quill", "role": "Quill"}  # old scripts: no fixed art, no crash
     spr = cst.sprite("Spearman", 200, 0.0, 0, False)
     assert spr.size == (200, 200) and not _same(spr, cst.sprite("Quill", 200, 0.0, 0, False))
+    assert cst.sprite("Dusty", 120, 0.0, 0, True).size == (120, 120)
 
 
 def test_scene_renders_with_script_characters(tmp_path):
@@ -109,25 +110,24 @@ def test_unusual_roles_are_drawn_from_their_own_description_not_the_fixed_cast(t
     assert cst.described("Mapmaker Odo") is mapmaker
     assert cst.described("mapmaker") is mapmaker  # a short role name finds the described character
     assert cst.described("fisherwoman") is fisher
-    spy = cst.described("Mir Jafar")  # never described: still its own person, not a roster member
+    spy = cst.described("Mir Jafar")  # never described: still its own person
     assert spy == {"name": "Mir Jafar", "role": "Mir Jafar"}
-    assert cst.described("Quill") is None and cst.described("dusty") is None  # host and undescribed roster keep their art
     a, b, c = (cst.sprite(n, 200, 0.0, 0, False) for n in ("mapmaker", "fisherwoman", "Mir Jafar"))
     assert not _same(a, b) and not _same(b, c)
 
 
 def test_describe_asks_only_for_names_the_script_has_not_described():
-    segs = [{"scene": "skit", "cast": ["coin", "Mir Jafar", "quill"], "speech": [{"who": "Ramesh", "text": "x"}]},
-            {"scene": "map", "cast": ["brine"]}]
-    assert scene_plan.undescribed(segs, None) == ["coin", "Mir Jafar", "Ramesh"]
-    assert scene_plan.undescribed(segs, [{"name": "Madame Coin"}, {"name": "Mir Jafar"}]) == ["Ramesh"]
+    segs = [{"scene": "skit", "cast": ["Coin", "Mir Jafar"], "speech": [{"who": "Ramesh", "text": "x"}]},
+            {"scene": "skit", "cast": ["Admiral"]}]
+    assert scene_plan.undescribed(segs, None) == ["Coin", "Mir Jafar", "Ramesh", "Admiral"]
+    assert scene_plan.undescribed(segs, [{"name": "Madame Coin"}, {"name": "Mir Jafar"}]) == ["Ramesh", "Admiral"]
 
 
 def test_rule_fallback_casts_only_people_the_script_names_never_the_fixed_cast():
     from studio.history import autoscene
     text = "Hannibal paid the tax and counted the silver."
     assert autoscene._pick_cast(text, ["Hannibal"], 0) == ["Hannibal"]  # noqa: SLF001
-    assert autoscene._pick_cast("Why did the taxes rise?", [], 3) == ["quill"]  # noqa: SLF001
+    assert autoscene._pick_cast("Why did the taxes rise?", [], 3) == [cast.GENERIC]  # noqa: SLF001
 
 
 def test_characters_in_one_video_get_different_faces():
