@@ -684,3 +684,5 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 
 ## 2026-11-07: Shorts open on a story scene (fix/shorts-start-on-a-story-scene)
 - `shorts` could start a Short on a title card, calendar page, map or diagram that only makes sense after the segment before it (the Moscow Short opened on "Who started the fires? Disputed." with no context). A run now does not start on such a scene when another start is possible; videos without cast scenes are unchanged.
+
+- Diagram steps (same PR): a long step was cut to three lines and its words could run past the box edge (found on the British and Roman Empire videos: "Four: use the ..." and "Picture a bathtub" touching the border). A step now gets the largest font at which every word fits inside its box, up to four lines; no word is dropped.
