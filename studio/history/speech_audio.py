@@ -91,6 +91,29 @@ def line_times(speech: list[dict], dur: float) -> list[float]:
     return [round(LEAD + k * (dur - 1.2) / n, 3) for k in range(n)]
 
 
+def make_room(segments: list[dict]) -> int:
+    """Give every voiced skit time for its lines BEFORE the narrator speaks, so nothing is muted or cut off.
+
+    The skit's dialogue plays from `LEAD`; the segment's own narration (its set-up or tag) is delayed by
+    `lead_seconds` and `real_seconds` grows by the same amount. Safe to repeat: `narr_seconds` remembers the
+    narration's own length. Returns how many segments were lengthened."""
+    changed = 0
+    for seg in segments:
+        sp = seg.get("speech") or []
+        if seg.get("scene") != "skit" or not sp or not all(s.get("audio") and s.get("seconds") for s in sp):
+            continue
+        cur = float(seg.get("real_seconds") or 0)
+        if not cur:
+            continue
+        had = float(seg.get("lead_seconds") or 0)
+        done = had and abs(cur - float(seg.get("narr_seconds", 0)) - had) < 0.01
+        narr = float(seg["narr_seconds"]) if done else cur
+        lead = round(LEAD + sum(float(s["seconds"]) for s in sp) + GAP * (len(sp) - 1) + 0.3, 3)
+        seg["narr_seconds"], seg["lead_seconds"], seg["real_seconds"] = round(narr, 3), lead, round(narr + lead, 3)
+        changed += 1
+    return changed
+
+
 def _engines(settings, voice: dict) -> list:
     from studio.providers.tts import EdgeTTS, KokoroOnnxTTS
     out: list = []

@@ -281,8 +281,8 @@ def persist(script_json, segments: list[dict], extra: dict | None = None) -> Non
         return  # the loader dropped or reshaped segments: leave the file alone rather than guess
     for row, seg in zip(rows, segments, strict=True):
         if isinstance(row, dict):
-            for k in ("scene", "cast", "speech", "scene_data"):
-                if k in seg and (k not in row or k == "speech"):  # speech also carries each line's audio and length
+            for k in ("scene", "cast", "speech", "scene_data", "real_seconds", "narr_seconds", "lead_seconds"):
+                if k in seg and (k not in row or k in ("speech", "real_seconds", "narr_seconds", "lead_seconds")):  # speech also carries each line's audio and length
                     row[k] = seg[k]
     for k, v in (extra or {}).items():
         if v:
