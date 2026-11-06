@@ -658,3 +658,6 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 
 ## 2026-11-06: hook first (fix/hook-first-start, builds on fix/skit-narration-first)
 - A story (cast) channel no longer gets the automatic 3 s silent 3D title card before the first line (it appeared whenever the renderer setting resolved to Blender, even though the video is drawn by the 2D cast renderer). The opening segment, narration plus any skit lines, is kept within 15 s: lines that do not fit are dropped so the narration carries the hook.
+
+## 2026-11-06: retention gaps are caught while the script is written (fix/retention-beat-gap)
+- A history script is now rejected (with the segment numbers) when 40 s or more of estimated narration pass without a retention beat or chart. Before, only the final quality gate looked, on the measured audio, and by then 45-64 s stretches were already in the video. The script prompt states the 40 s rule.
