@@ -102,3 +102,27 @@ def test_narrator_is_silent_while_a_character_speaks(tmp_path):
     assert level(a + 0.2, a + 0.8, 800) > 100  # the character is heard
     assert level(a + 0.2, a + 0.8, 200) < 5  # the narrator is not
     assert level(4.0, 5.5, 200) > 100  # narrator back after the line
+
+
+def test_make_room_puts_the_dialogue_before_the_narrator_and_is_repeatable():
+    segs = [{"scene": "skit", "real_seconds": 4.0,
+             "speech": [{"audio": "a.mp3", "seconds": 2.0}, {"audio": "b.mp3", "seconds": 1.5}]},
+            {"scene": "map", "real_seconds": 5.0, "speech": []}]
+    assert sa.make_room(segs) == 1
+    lead = segs[0]["lead_seconds"]
+    assert lead >= sa.LEAD + 3.5 + sa.GAP and segs[0]["real_seconds"] == round(4.0 + lead, 3)
+    assert segs[0]["narr_seconds"] == 4.0 and segs[1]["real_seconds"] == 5.0
+    sa.make_room(segs)  # running visuals again must not grow the segment twice
+    assert segs[0]["real_seconds"] == round(4.0 + lead, 3)
+    segs[0]["real_seconds"] = 6.0  # the voice stage re-ran with a new narration length
+    sa.make_room(segs)
+    assert segs[0]["narr_seconds"] == 6.0 and segs[0]["real_seconds"] == round(6.0 + lead, 3)
+    for t, line in zip(sa.line_times(segs[0]["speech"], segs[0]["real_seconds"]), segs[0]["speech"], strict=True):
+        assert t + line["seconds"] <= lead  # every line ends before the narration starts
+
+
+def test_fit_voice_delays_the_narration_by_the_lead(tmp_path):
+    from studio.stages.build import fit_voice_cmd
+    cmd = fit_voice_cmd(tmp_path / "v.mp3", 10.0, tmp_path / "o.wav", 4.0)
+    assert "adelay=4000:all=1,apad,atrim=end=10.000" in cmd[cmd.index("-af") + 1]
+    assert "adelay" not in fit_voice_cmd(tmp_path / "v.mp3", 10.0, tmp_path / "o.wav")[5]
