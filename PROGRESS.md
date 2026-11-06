@@ -681,3 +681,6 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 
 ## 2026-11-07: automatic scene checks for any story (fix/scene-checks)
 - New `studio/history/scene_check.py`, run inside `qa` (so `build` prints it) for story channels: draws two frames of every cast scene and reports, with the segment number, text that runs past the picture edge, text drawn over other text, a skit backdrop that contradicts the place in the scene's setting (or is not a known backdrop), and a figure whose mouth follows the narration instead of its own line. It found real defects on the existing videos: every map cut off the ocean name at the border (the name is now kept whole), and sea backdrops with no sea words in the setting (shore, coast and wave now count as sea words).
+
+## 2026-11-07: Shorts open on a story scene (fix/shorts-start-on-a-story-scene)
+- `shorts` could start a Short on a title card, calendar page, map or diagram that only makes sense after the segment before it (the Moscow Short opened on "Who started the fires? Disputed." with no context). A run now does not start on such a scene when another start is possible; videos without cast scenes are unchanged.

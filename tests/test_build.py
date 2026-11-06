@@ -148,3 +148,13 @@ def test_short_captions_never_run_past_the_frame_edges():
             plain = re.sub(r"\{[^}]*\}", "", m.group(1))
             widest = max(widest, f.getlength(plain) * 1.0)
         assert 0 < widest <= style.w - 100, (style.w, widest)
+
+def test_a_short_does_not_open_on_a_title_card_or_calendar_page():
+    kinds = ["skit", "title", "skit", "calendar", "skit", "map", "skit", "skit", "skit"]
+    beats = ["question", "reveal", "example", "reveal", "reveal", "reveal", "example", "question", None]
+    segs = [{"scene": k, "beat": b} for k, b in zip(kinds, beats)]
+    spans = [(i * 10.0, i * 10.0 + 10.0) for i in range(len(segs))]
+    wins = pick_short_windows(spans, segs, 2)
+    assert len(wins) == 2 and all(segs[i]["scene"] == "skit" for i, _ in wins)
+    plain = [{"beat": "reveal"}] * 9  # videos without cast scenes are unchanged
+    assert pick_short_windows(spans, plain, 2) == pick_short_windows(spans, [{"beat": "reveal"}] * 9, 2)
