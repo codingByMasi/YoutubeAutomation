@@ -35,6 +35,10 @@ SEA = (176, 205, 210)
 LAND = (222, 204, 160)
 LAND_EDGE = (150, 122, 76)
 RED = (192, 57, 43)
+SHOT = 3.6  # seconds between camera beats: something on screen changes at least this often
+MAX_ZOOM = {"title": 1.10, "calendar": 1.12, "diagram": 1.07, "easel": 1.14, "archive": 1.12, "silhouette": 1.12,
+            "map": 1.0}  # most a scene may zoom in: the widest text in it must still fit the cropped picture
+DEFAULT_MAX_ZOOM = 1.12
 BACKDROPS = ("parchment", "mountains", "hall", "night", "snow", "field", "market", "plain", "sea", "desert")
 DEFAULT_BACKDROP = {"lectern": "parchment", "skit": "hall", "map": "parchment", "diagram": "parchment",
                     "easel": "parchment", "archive": "parchment", "calendar": "parchment", "silhouette": "night",
@@ -485,12 +489,16 @@ class Scene:
         self.era = e if e in wardrobe.OUTFITS else wardrobe.DEFAULT
 
     def camera(self, t: float) -> tuple[float, float, float]:
-        """(zoom, focus x, focus y) at second t: a wide shot with a slow push, then hard cuts to a close-up of whoever
-        is speaking (the reference videos cut between wide and close angles every few seconds)."""
-        wide = (1.0 + 0.04 * (t / max(self.dur, 0.1)), 0.5, 0.5)
-        if self.kind != "skit" or self.dur < 5.5:
+        """(zoom, focus x, focus y) at second t. Nothing stays still: every scene gets a punch-in every `SHOT`
+        seconds that eases back while the whole shot keeps pushing in (never beyond `MAX_ZOOM` for its kind, so no
+        text near the edge is cut), and a skit cuts between a wide shot and close-ups of whoever is speaking."""
+        top = MAX_ZOOM.get(self.kind, DEFAULT_MAX_ZOOM)
+        phase = (t % SHOT) / SHOT
+        punch = (top - 1.0) * 0.55 * (1 - ease(phase * 1.6)) if phase < 0.625 else 0.0
+        wide = (min(top, 1.0 + (top - 1.0) * 0.4 * (t / max(self.dur, 0.1)) + punch), 0.5 + 0.015 * math.sin(t * 0.9), 0.5)
+        if self.kind != "skit" or self.dur < 5.5 or (self.data.get("cliff") and t > self.dur - 3.2):
             return wide
-        shot = 4.5
+        shot = SHOT
         k = int(t // shot)
         if k % 2 == 0:
             return wide
@@ -791,16 +799,16 @@ class Scene:
         self.actor(img, self.who[0] if self.who else cast.GENERIC, 640, 700 + push, 520 + 2 * push, t, 0, False,
                    silhouette=True)
         d = ImageDraw.Draw(img)
-        for k, ln in enumerate(wrap(str(self.data.get("title") or ""), font(48), 1100)[:3]):
+        for k, ln in enumerate(wrap(str(self.data.get("title") or ""), font(48), 1000)[:3]):
             centered(d, (640, 100 + k * 62), ln, font(48), fill=(255, 246, 214))
 
     def _title(self, img: Image.Image, t: float) -> None:
         d = ImageDraw.Draw(img)
         text = str(self.data.get("title") or self.seg.get("chapter", ""))
         size = 84
-        while size > 48 and len(wrap(text, font(size), 1100)) > 2:  # a long title gets smaller, then two lines
+        while size > 48 and len(wrap(text, font(size), 1000)) > 2:  # a long title gets smaller, then two lines
             size -= 6
-        lines = wrap(text, font(size), 1100)[:2]
+        lines = wrap(text, font(size), 1000)[:2]
         for k, ln in enumerate(lines):
             centered(d, (640, 300 - (len(lines) - 1) * size * 0.55 + k * size * 1.1), ln, font(size),
                      fill=(255, 246, 214), stroke=(20, 16, 40), sw=4)
