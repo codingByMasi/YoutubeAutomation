@@ -122,3 +122,14 @@ def test_whisper_words_decodes_with_ffmpeg_not_pyav(monkeypatch, tmp_path):
     monkeypatch.setattr(subprocess, "run", lambda *a, **k: types.SimpleNamespace(stdout=pcm))
     assert w.whisper_words(tmp_path / "a.wav") == [(0.0, 0.5, "hi")]
     assert isinstance(seen["audio"], np.ndarray) and seen["audio"].shape == (1600,)
+
+
+def test_a_short_does_not_open_on_a_title_card_or_calendar_page():
+    kinds = ["skit", "title", "skit", "calendar", "skit", "map", "skit", "skit", "skit"]
+    beats = ["question", "reveal", "example", "reveal", "reveal", "reveal", "example", "question", None]
+    segs = [{"scene": k, "beat": b} for k, b in zip(kinds, beats)]
+    spans = [(i * 10.0, i * 10.0 + 10.0) for i in range(len(segs))]
+    wins = pick_short_windows(spans, segs, 2)
+    assert len(wins) == 2 and all(segs[i]["scene"] == "skit" for i, _ in wins)
+    plain = [{"beat": "reveal"}] * 9  # videos without cast scenes are unchanged
+    assert pick_short_windows(spans, plain, 2) == pick_short_windows(spans, [{"beat": "reveal"}] * 9, 2)
