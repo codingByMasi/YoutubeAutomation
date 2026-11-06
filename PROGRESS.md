@@ -643,3 +643,6 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 - Removed the 10-character roster, the host Quill, `cast.build_svg` (shared body), `pil_character`, era SVG costumes, the `wardrobe` command and `studio/history/preview.py`. Every character is drawn from the script's description (`studio/history/figures.py`); crowd extras use the same drawer.
 - `lectern` is no longer a scene type; chapter cards are `title`. Older scripts that say `lectern` draw as a title card; old names (Dusty, Quill ...) are drawn from their own words and get a name-stable voice.
 - Channel art regenerated without characters; the channel name "Quill's Past" is unchanged (owner may want to rename).
+
+## 2026-11-07: the narrator is not a talking figure (fix/narrator-mouth)
+- On title, map, calendar, diagram, easel, archive and silhouette scenes, and on a skit with no speech lines, the first cast figure moved its mouth to the NARRATION, so it looked as if that character narrated (in a skit the same figure stays silent). Figures now move their mouth only for their own skit lines.
