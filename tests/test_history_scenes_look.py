@@ -108,3 +108,8 @@ def test_a_long_title_shrinks_or_wraps_to_stay_inside_its_banner():
     assert spilled.crop(outside).tobytes() == plain.crop(outside).tobytes()  # no text ran past the box
     x0, x1 = spilled.crop((290, 30, 990, 150)).convert("L").getextrema()
     assert x0 < 100  # the title is drawn inside it
+
+def test_a_cast_scene_is_written_into_a_folder_that_does_not_exist_yet(tmp_path):
+    out = tmp_path / "projects" / "9" / "cast" / "cast_001.mp4"
+    seg = {"scene": "title", "scene_data": {"title": "Hello"}, "cast": []}
+    assert r.render_scene(seg, 1.0, out, out.parent) == out and out.exists() and out.stat().st_size > 0

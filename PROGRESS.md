@@ -661,3 +661,6 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 
 ## 2026-11-06: retention gaps are caught while the script is written (fix/retention-beat-gap)
 - A history script is now rejected (with the segment numbers) when 40 s or more of estimated narration pass without a retention beat or chart. Before, only the final quality gate looked, on the measured audio, and by then 45-64 s stretches were already in the video. The script prompt states the 40 s rule.
+
+## 2026-11-06: new history projects could not draw scenes (fix/cast-folder-missing)
+- Found while rebuilding a story on a new project: PR 96 removed the line that created the project's `cast/` folder, so `visuals` failed on the first scene with "[Errno 22] Invalid argument" (ffmpeg could not write the clip). `render_scene` now creates the folder.

@@ -943,6 +943,7 @@ def render_scene(seg: dict, dur: float, out: Path, work: Path, audio: Path | Non
                  cst: Cast | None = None, characters: list[dict] | None = None) -> Path:
     """Render one cast scene to `out` (silent H.264 at the video profile size and frame rate, `dur` seconds). Reuses an identical earlier clip."""
     ff.ensure_ffmpeg()
+    out.parent.mkdir(parents=True, exist_ok=True)  # a new project has no cast/ folder yet
     stamp = out.with_suffix(".stamp")
     fp = fingerprint(seg, dur, audio, characters, cst.look_seed if cst else "")
     if out.exists() and stamp.exists() and stamp.read_text() == fp:
