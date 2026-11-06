@@ -693,3 +693,6 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 
 - Date page (same PR): with no date in the narration or `label`, the card repeated the title that the banner already showed; the banner is now left out in that case.
 - Scene check (same PR) also verifies diagram steps: every word of each step is drawn and stays inside its own box.
+
+## 2026-11-07: Shorts from cartoon videos are bigger and open on a title (fix/shorts-bigger-picture-and-hook, stacked on fix/shorts-start-on-a-story-scene)
+- For a video made of drawn scenes the Short crops the middle three quarters of the frame before placing it on the blurred background (figures a third bigger), and shows the opening sentence (or the chapter name when it is long) as a title over the first seconds.
