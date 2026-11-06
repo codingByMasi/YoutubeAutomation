@@ -156,3 +156,14 @@ def test_the_narrator_is_not_drawn_as_a_talking_character(tmp_path):
         loud = r.Scene(seg, 6.0, r.Cast(tmp_path), [1.0] * 200, 0).frame(3.3)
         quiet = r.Scene(seg, 6.0, r.Cast(tmp_path), [0.0] * 200, 0).frame(3.3)
         assert loud.tobytes() == quiet.tobytes(), kind
+
+def test_diagram_steps_show_every_word_inside_their_box(tmp_path):
+    steps = ["Here is how", "One, loot from conquered land", "Two, taxes from the farms", "Three, trade across the sea",
+             "Picture a bathtub"]
+    cw, _ = r.diagram_layout(len(steps))
+    for text in steps:
+        size, lines = r.diagram_text(text, cw)
+        assert " ".join(lines).split() == text.split()  # nothing dropped
+        assert all(r.font(size).getlength(ln) <= cw - 30 for ln in lines) and len(lines) <= 4
+    seg = {"scene": "diagram", "cast": [], "scene_data": {"title": "T", "steps": steps}, "narration": "x"}
+    assert r.Scene(seg, 8.0, r.Cast(tmp_path), [0.0] * 300, 0).frame(7.5).size == (r.W, r.H)

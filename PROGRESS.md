@@ -678,3 +678,5 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 
 ## 2026-11-07: automatic scene checks for any story (fix/scene-checks)
 - New `studio/history/scene_check.py`, run inside `qa` (so `build` prints it) for story channels: draws two frames of every cast scene and reports, with the segment number, text that runs past the picture edge, text drawn over other text, a skit backdrop that contradicts the place in the scene's setting (or is not a known backdrop), and a figure whose mouth follows the narration instead of its own line. It found real defects on the existing videos: every map cut off the ocean name at the border (the name is now kept whole), and sea backdrops with no sea words in the setting (shore, coast and wave now count as sea words).
+
+- Diagram steps (same PR): a long step was cut to three lines and its words could run past the box edge (found on the British and Roman Empire videos: "Four: use the ..." and "Picture a bathtub" touching the border). A step now gets the largest font at which every word fits inside its box, up to four lines; no word is dropped.

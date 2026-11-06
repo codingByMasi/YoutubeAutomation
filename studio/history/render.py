@@ -426,6 +426,22 @@ def setting_words(seg: dict) -> str:
                                      *(seg.get("visual_keywords") or [])])
 
 
+def diagram_layout(n: int) -> tuple[int, int]:
+    """(box width, left edge of the first box) for `n` step boxes."""
+    cw = min(300, (W - 200 - (n - 1) * 60) // n)
+    return cw, (W - (cw * n + 60 * (n - 1))) // 2
+
+
+def diagram_text(text: str, cw: int) -> tuple[int, list[str]]:
+    """Font size and lines that show a whole step inside a box `cw` wide and 250 tall: the largest size at which no
+    word is cut and at most four lines are needed (a long step gets a smaller font, never lost words)."""
+    for size in (38, 34, 30, 27, 24):
+        lines = wrap(text, font(size), cw - 36)
+        if len(lines) <= (3 if size >= 34 else 4) and all(font(size).getlength(w) <= cw - 36 for w in text.split()):
+            return size, lines
+    return 22, wrap(text, font(22), cw - 36)[:5]
+
+
 def _label_boxes(xy: list[tuple[float, float]], labels: list[str], f: ImageFont.FreeTypeFont) -> list[tuple]:
     """A box for each marker's name: above it, or higher / to either side when that would sit on an earlier name."""
     boxes: list[tuple] = []
@@ -659,8 +675,7 @@ class Scene:
             or [str(self.data.get("title") or self.seg.get("chapter") or "How it worked")]
         n = len(steps)
         banner(img, str(self.data.get("title") or self.seg.get("chapter", "")), 90, width=760)
-        cw = min(300, (W - 200 - (n - 1) * 60) // n)
-        x0 = (W - (cw * n + 60 * (n - 1))) // 2
+        cw, x0 = diagram_layout(n)
         for k, s in enumerate(steps):
             start = 0.7 + k * (self.dur * 0.6) / n
             if t < start:
@@ -672,8 +687,9 @@ class Scene:
             d = ImageDraw.Draw(img)
             d.ellipse([x + cw / 2 - 34, y - 34, x + cw / 2 + 34, y + 34], fill=hex_rgb(cast.faction_color(k)), outline=INK, width=4)
             centered(d, (x + cw / 2, y), str(k + 1), font(44), fill=(255, 255, 255))
-            for j, ln in enumerate(wrap(s, font(38), cw - 40)[:3]):
-                centered(d, (x + cw / 2, y + 100 + j * 50), ln, font(38))
+            size, lines = diagram_text(s, cw)
+            for j, ln in enumerate(lines):
+                centered(d, (x + cw / 2, y + 125 - (len(lines) - 1) * size * 0.65 + j * size * 1.3), ln, font(size))
             if k + 1 < n and t > start + 0.5:
                 _arrow_head(d, (x + cw + 6, y + 125), (x + cw + 54, y + 125), INK)
             if self.data.get("disputed") and k == 1:
