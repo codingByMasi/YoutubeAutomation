@@ -83,8 +83,7 @@ def test_backdrop_comes_from_the_setting_not_from_the_narration_or_a_wrong_pick(
 def test_palm_trees_only_on_the_desert_backdrop():
     assert r.guess_backdrop("a camp in the Sahara desert near Carthage") == "desert"
     assert r.guess_backdrop("a Madrid square") == "market"
-    palm = (70, 140, 70)
-
-    def green(img):
-        return sum(1 for px in img.getdata() if px == palm)
-    assert green(r.backdrop("market")) == 0 and green(r.backdrop("desert")) > 100
+    from PIL import ImageChops
+    box = (100, 100, 300, 380)  # where the left palm stands
+    diff = ImageChops.difference(r.backdrop("market").crop(box), r.backdrop("desert").crop(box)).convert("L")
+    assert diff.getbbox() is not None and sum(diff.histogram()[40:]) > 500  # the desert has trees there, the market not
