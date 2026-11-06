@@ -643,3 +643,6 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 - Removed the 10-character roster, the host Quill, `cast.build_svg` (shared body), `pil_character`, era SVG costumes, the `wardrobe` command and `studio/history/preview.py`. Every character is drawn from the script's description (`studio/history/figures.py`); crowd extras use the same drawer.
 - `lectern` is no longer a scene type; chapter cards are `title`. Older scripts that say `lectern` draw as a title card; old names (Dusty, Quill ...) are drawn from their own words and get a name-stable voice.
 - Channel art regenerated without characters; the channel name "Quill's Past" is unchanged (owner may want to rename).
+
+## 2026-11-07: Shorts open on a story scene (fix/shorts-start-on-a-story-scene)
+- `shorts` could start a Short on a title card, calendar page, map or diagram that only makes sense after the segment before it (the Moscow Short opened on "Who started the fires? Disputed." with no context). A run now does not start on such a scene when another start is possible; videos without cast scenes are unchanged.
