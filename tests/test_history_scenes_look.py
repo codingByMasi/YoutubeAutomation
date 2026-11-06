@@ -64,3 +64,9 @@ def test_lectern_card_gets_a_line_from_the_narration_when_it_has_no_question():
     assert r.card_question("It is 1600. A charter is signed.", "Rewind") == "A charter is signed."
     assert r.card_question("What Comes Next.", "What Comes Next") == ""  # never repeats the title
     assert r.card_question("A sentence far too long to fit on a chapter card " * 3, "T") == ""
+
+
+def test_a_cast_scene_is_written_into_a_folder_that_does_not_exist_yet(tmp_path):
+    out = tmp_path / "projects" / "9" / "cast" / "cast_001.mp4"
+    seg = {"scene": "title", "scene_data": {"title": "Hello"}, "cast": []}
+    assert r.render_scene(seg, 1.0, out, out.parent) == out and out.exists() and out.stat().st_size > 0
