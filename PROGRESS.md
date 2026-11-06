@@ -655,3 +655,6 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 
 ## 2026-11-06: calendar scenes (fix/calendar-scene-text)
 - Long scene titles (banner) shrink, then wrap to two lines instead of being cut off. A calendar with no `days` count now shows one page with the date the narration or `label` gives (it used to draw seven crossed-out boxes titled "Days"). With a day count, the cross is thin and the day number stays readable; the closing "?" appears only when the script sets `scene_data.question`.
+
+## 2026-11-06: hook first (fix/hook-first-start, builds on fix/skit-narration-first)
+- A story (cast) channel no longer gets the automatic 3 s silent 3D title card before the first line (it appeared whenever the renderer setting resolved to Blender, even though the video is drawn by the 2D cast renderer). The opening segment, narration plus any skit lines, is kept within 15 s: lines that do not fit are dropped so the narration carries the hook.

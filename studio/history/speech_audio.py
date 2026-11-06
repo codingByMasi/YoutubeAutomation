@@ -22,6 +22,7 @@ log = get_logger("speech_audio")
 GAP = 0.35  # seconds between two spoken lines
 LEAD = 0.5  # seconds before the first line
 PAUSE = 0.4  # seconds between the end of the narration and the first character line
+HOOK_SECONDS = 15.0  # the opening segment (narration plus any lines) is the hook and stays within this
 MAX_INTERJECTION = 6.0  # seconds of character dialogue per skit: the narrator carries the story, the skit only reacts
 DUCK = 0.0  # narrator volume while a character speaks (silent: two voices must never overlap)
 
@@ -91,37 +92,45 @@ def make_room(segments: list[dict]) -> int:
 
     The narration keeps its own length (`narr_seconds`); the lines start at `lines_at` (its end plus `PAUSE`) and
     `real_seconds` grows to hold them. Dialogue beyond `MAX_INTERJECTION` seconds is dropped (the first line always
-    stays), so the skit is an interjection, not a second script. Safe to repeat: `narr_seconds` remembers the
-    narration's own length. Returns how many segments were laid out."""
+    stays), so the skit is an interjection, not a second script. The first segment is the hook: narration and lines
+    together stay within `HOOK_SECONDS`, so lines that do not fit are dropped and the narration carries the hook.
+    Safe to repeat: `narr_seconds` remembers the narration's own length. Returns how many segments were laid out."""
     changed = 0
-    for seg in segments:
+    for pos, seg in enumerate(segments):
         sp = seg.get("speech") or []
         if seg.get("scene") != "skit" or not sp or not all(s.get("audio") and s.get("seconds") for s in sp):
             continue
-        keep, used = [], 0.0
-        for s in sp:
-            used += float(s["seconds"]) + (GAP if keep else 0.0)
-            if keep and used > MAX_INTERJECTION:
-                break
-            keep.append(s)
-        seg["speech"] = sp = keep
         cur = float(seg.get("real_seconds") or 0)
         if not cur:
             continue
-        talk = sum(float(s["seconds"]) for s in sp) + GAP * (len(sp) - 1) + 0.3
-        at = float(seg.get("lines_at") or 0)
-        old = float(seg.get("narr_seconds") or 0)
-        if at and abs(cur - (at + talk)) < 0.01:
+        at, old = float(seg.get("lines_at") or 0), float(seg.get("narr_seconds") or 0)
+        if at and abs(cur - (at + _talk(sp))) < 0.01:
             narr = old  # already laid out
         elif seg.get("lead_seconds") and old:
             narr = old  # an older build put the lines first: the narration length was kept
         else:
             narr = cur
-        at = round(narr + PAUSE, 3)
-        seg["narr_seconds"], seg["lines_at"], seg["lead_seconds"] = round(narr, 3), at, 0
-        seg["real_seconds"] = round(at + talk, 3)
+        room = MAX_INTERJECTION if pos else min(MAX_INTERJECTION, HOOK_SECONDS - narr - PAUSE - 0.3)
+        keep, used = [], 0.0
+        for s in sp:
+            used += float(s["seconds"]) + (GAP if keep else 0.0)
+            if used > room and (keep or pos == 0):
+                break
+            keep.append(s)
+        seg["speech"] = keep
+        if not keep:  # the hook has no room for a line: the narration alone carries it
+            seg.update(narr_seconds=round(narr, 3), lines_at=0, lead_seconds=0, real_seconds=round(narr, 3))
+        else:
+            at = round(narr + PAUSE, 3)
+            seg["narr_seconds"], seg["lines_at"], seg["lead_seconds"] = round(narr, 3), at, 0
+            seg["real_seconds"] = round(at + _talk(keep), 3)
         changed += 1
     return changed
+
+
+def _talk(speech: list[dict]) -> float:
+    """Seconds the lines take one after another, with the gaps between them and a short tail."""
+    return sum(float(s["seconds"]) for s in speech) + GAP * (len(speech) - 1) + 0.3
 
 
 def _engines(settings, voice: dict) -> list:

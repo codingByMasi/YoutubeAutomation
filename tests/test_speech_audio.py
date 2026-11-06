@@ -156,3 +156,20 @@ def test_fit_voice_delays_the_narration_by_the_lead(tmp_path):
     cmd = fit_voice_cmd(tmp_path / "v.mp3", 10.0, tmp_path / "o.wav", 4.0)
     assert "adelay=4000:all=1,apad,atrim=end=10.000" in cmd[cmd.index("-af") + 1]
     assert "adelay" not in fit_voice_cmd(tmp_path / "v.mp3", 10.0, tmp_path / "o.wav")[5]
+
+
+def test_the_hook_segment_stays_within_fifteen_seconds_even_when_it_is_a_skit():
+    def line(sec):
+        return {"audio": "a.mp3", "seconds": sec}
+    # 8 s of narration + pause leaves 6.3 s: a 2.5 s line fits, a second does not
+    segs = [{"scene": "skit", "real_seconds": 8.0, "speech": [line(2.5), line(2.5), line(2.5)]}]
+    sa.make_room(segs)
+    assert len(segs[0]["speech"]) == 2 and segs[0]["real_seconds"] <= sa.HOOK_SECONDS
+    full = [{"scene": "skit", "real_seconds": 14.0, "speech": [line(2.0)]}]  # the narration fills the hook: no lines
+    sa.make_room(full)
+    assert full[0]["speech"] == [] and full[0]["real_seconds"] == 14.0
+    sa.make_room(full)  # repeatable
+    assert full[0]["real_seconds"] == 14.0
+    later = [{"scene": "map", "real_seconds": 5.0}, {"scene": "skit", "real_seconds": 14.0, "speech": [line(2.0)]}]
+    sa.make_room(later)
+    assert later[1]["speech"] and later[1]["real_seconds"] > 14.0  # only the first segment is the hook
