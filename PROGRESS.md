@@ -649,3 +649,6 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 
 ## 2026-11-06: character looks differ per story (fix/character-looks-per-story)
 - Face parts the script leaves out were picked from the character's NAME alone, so Napoleon or the Pope looked identical in every video. The pick now also uses the character's role and the video's own seed (topic + project), still identical across every scene of one video. The thumbnail draws the script's own character descriptions with the same seed, and the history prompt asks for descriptions written fresh for this story's role and era.
+
+## 2026-11-06: skit backdrops follow the script's location (fix/backdrop-from-script-location)
+- A skit's backdrop was guessed from loose substrings of its narration ("frozen" with shock or "pass" inside "bypass" gave snow; a ship in the story gave sea). It now comes from the script's own `scene_data.backdrop` when given (a known name), else from whole words in the scene's setting only (`visual_intent.must_show`, `staging`, `visual_keywords`), else the hall. The script and scene-plan prompts ask for a backdrop per skit.
