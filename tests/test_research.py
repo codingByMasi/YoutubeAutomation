@@ -66,6 +66,17 @@ def test_approve_creates_video_once(ctx):
     assert ctx.session.get(Idea, ideas[0].id).status == "approved"
 
 
+def test_approved_topic_can_be_researched_and_used_again(ctx):
+    s, c = fake_sources([])
+    first = r.run(ctx, "hotels", suggest=s, competitors=c)
+    r.approve(ctx, first[0].id)
+    again = r.run(ctx, "hotels", force=True, suggest=s, competitors=c)
+    fresh = [i for i in again if i.status != "approved"]
+    same = [i for i in fresh if i.topic == first[0].topic]
+    assert same  # the used topic is offered again
+    assert r.approve(ctx, same[0].id).id != r.approve(ctx, first[0].id).id
+
+
 def test_clean_topics_dedupes_and_drops_off_channel():
     from studio.stages.discover import clean_topics
     raw = ["how cruise ships make money", "how do cruise ships make money", "how does cruise ships make money",
