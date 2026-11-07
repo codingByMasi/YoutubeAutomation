@@ -660,7 +660,8 @@ class Scene:
                 if y > 150 and clear_of_strip and clear_of_chip and all(abs(x - mx) > 190 or abs(y - my) > 110 for mx, my in marks):
                     centered(d, (x, y), name, font(30, False), fill=(250, 246, 230), stroke=(30, 36, 50), sw=3)
         d = ImageDraw.Draw(img)
-        centered(d, (W - 200, 170 if self.data.get("cliff") else H - 52), "Approximate map", font(24, False), fill=(235, 240, 245), stroke=(20, 40, 70), sw=2)
+        if not (self.data.get("cliff") and t >= self.dur - 3.0):  # the strip needs that corner for its last 3 s
+            centered(d, (W - 200, H - 52), "Approximate map", font(24, False), fill=(235, 240, 245), stroke=(20, 40, 70), sw=2)
         n = len(pts)
         if n:
             prog = min(1.0, max(0.0, (t - 0.4) / max(1.0, self.dur * 0.72))) * (n - 1 if n > 1 else 1)
