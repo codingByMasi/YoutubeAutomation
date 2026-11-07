@@ -215,3 +215,19 @@ def test_counter_chip_and_strip_stay_inside_the_zoomed_picture_and_clear_of_the_
             scene.frame(7.5)
         zoom = r.MAX_ZOOM.get(kind, r.DEFAULT_MAX_ZOOM)
         assert sc.text_problems(items, zoom=zoom) == [], kind
+
+
+def test_the_map_caption_moves_out_from_under_the_strip_and_the_chip_hides_in_close_ups(tmp_path):
+    from studio.history import scene_check as sc
+    seg = {"scene": "map", "cast": [], "narration": "x", "scene_data": {"region": "europe", "title": "T",
+           "points": [{"label": "Paris"}], "cliff": "Will he reach Moscow?"}}
+    with sc.record_text() as items:
+        r.Scene(seg, 8.0, r.Cast(tmp_path), [0.0] * 300, 0).frame(7.5)
+    caption = next(box for text, box in items if text == "Approximate map")
+    assert caption[3] < 260  # at the top, not under the strip at the bottom
+    skit = {"scene": "skit", "cast": ["A", "B"], "narration": "x", "speech": [{"who": "A", "text": "Hi."}]}
+    plain = r.Scene(skit, 12.0, r.Cast(tmp_path), [0.0] * 400, 0)
+    chip = r.Scene({**skit, "scene_data": {"counter": {"n": 1, "of": 3, "label": "D"}}}, 12.0, r.Cast(tmp_path),
+                   [0.0] * 400, 0)
+    close = next(t / 10 for t in range(0, 120) if chip.camera(t / 10)[0] > 1.25)
+    assert plain.frame(close).tobytes() == chip.frame(close).tobytes()  # nothing drawn over the speech bubble
