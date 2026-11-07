@@ -44,3 +44,13 @@ def test_unknown_labels_do_not_crash_and_planner_keeps_known_regional_labels():
     scene_plan.merge(segs, {"segments": [{"scene": "map", "cast": ["Hannibal"],
                                           "scene_data": {"points": [{"label": "Plassey"}, {"label": "Calcutta"}]}}]})
     assert [p["label"] for p in segs[0]["scene_data"]["points"]] == ["Plassey", "Calcutta"]
+
+
+def test_europe_map_is_only_chosen_explicitly_and_places_land_in_view(tmp_path):
+    assert maps.pick_region({"points": [{"label": "Paris"}]}, "Napoleon marches on Moscow") == "world"  # default untouched
+    assert maps.pick_region({"region": "europe"}) == "europe"
+    pts = maps.resolve_points("europe", [{"label": "Paris"}, {"label": "Moscow"}, {"label": "Trafalgar"}, {"label": "Nowhere"}])
+    assert [p["label"] for p in pts] == ["Paris", "Moscow", "Trafalgar"]
+    assert all(0 < p["x"] < 1 and 0 < p["y"] < 1 for p in pts)
+    assert pts[0]["x"] < pts[1]["x"] and pts[2]["y"] > pts[0]["y"]  # Moscow east of Paris, Trafalgar south of it
+    assert r._geo_base("europe").size == (r.W, r.H)

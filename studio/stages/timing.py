@@ -70,6 +70,18 @@ NEEDS_CONTEXT = ("title", "calendar", "silhouette", "easel", "diagram", "map", "
 
 def pick_short_windows(spans: list[tuple[float, float]], segs: list[dict], count: int,
                        min_len: float = 15.0, max_len: float = 58.0) -> list[tuple[int, int]]:
+    """The `count` best non-overlapping runs (see `ranked_short_windows`), in video order."""
+    chosen: list[tuple[int, int]] = []
+    for i, j in ranked_short_windows(spans, segs, count, min_len, max_len):
+        if all(j < a or i > b for a, b in chosen):
+            chosen.append((i, j))
+        if len(chosen) == count:
+            break
+    return sorted(chosen)
+
+
+def ranked_short_windows(spans: list[tuple[float, float]], segs: list[dict], count: int,
+                         min_len: float = 15.0, max_len: float = 58.0) -> list[tuple[int, int]]:
     """Choose up to `count` non-overlapping runs of whole segments (first, last index) for Shorts.
 
     Runs are 15-58 s; they are scored by reveals, questions and charts, skipping the final CTA segment. A run does
@@ -105,10 +117,4 @@ def pick_short_windows(spans: list[tuple[float, float]], segs: list[dict], count
     if len(opens_ok) >= count:
         cands = opens_ok
     cands.sort(key=lambda c: (-c[0], -c[1]))
-    chosen: list[tuple[int, int]] = []
-    for _, _, i, j in cands:
-        if all(j < a or i > b for a, b in chosen):
-            chosen.append((i, j))
-        if len(chosen) == count:
-            break
-    return sorted(chosen)
+    return [(i, j) for _, _, i, j in cands]
