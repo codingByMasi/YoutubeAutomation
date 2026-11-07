@@ -710,3 +710,5 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 
 ## 2026-11-07: Shorts open on the hook (fix/retention-shorts, stacked on fix/retention-script-rules)
 - `pick_short_windows` now prefers a run that opens with the video's own hook (it may be 12 s), a question or a counted promise; a Short's title is the first question or sentence (up to 48 characters, wrapped to fit the narrow frame) instead of just the chapter name.
+
+- Found by the new scene check on the rebuilt French Empire video: the counter chip and the chapter-end strip were cut by the camera zoom, the strip covered map sea names, and "waves a ledger" turned a throne room into a sea backdrop. The chip now sits inside the zoomed picture under the title banner, the strip stays inside it, map names under the strip or chip are skipped, and "wave" is no longer a sea word.
