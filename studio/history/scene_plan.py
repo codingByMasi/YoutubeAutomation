@@ -144,10 +144,14 @@ def assign(settings: Settings, work_dir: Path, segments: list[dict], say=print, 
     return "claude"
 
 
-def undescribed(segments: list[dict], characters: list[dict] | None) -> list[str]:
-    """Names on screen (skit cast and speakers) that the script has not described yet."""
+def undescribed(segments: list[dict], characters: list[dict] | None, extra: list | None = None) -> list[str]:
+    """Names on screen (skit cast and speakers, and the script's narrator) that the script has not described yet."""
     have = [str(c.get("name", "")).strip().lower() for c in characters or [] if isinstance(c, dict)]
     out: list[str] = []
+    for n in extra or []:
+        low = str(n or "").strip().lower()
+        if low and not any(low == h for h in have):
+            out.append(str(n))
     for s in segments:
         if s.get("scene") != "skit":
             continue
@@ -161,11 +165,11 @@ def undescribed(segments: list[dict], characters: list[dict] | None) -> list[str
 
 
 def describe(settings: Settings, work_dir: Path, segments: list[dict], characters: list[dict] | None,
-             say=print) -> list[dict]:
+             say=print, extra: list | None = None) -> list[dict]:
     """Ask Claude once to describe every on-screen character the script names but has not described (look follows
     the script: role, gender, age, build, clothing, era, props). Returns the full character list; a failed answer
     returns the list unchanged and those names are drawn from their own words."""
-    names = undescribed(segments, characters)
+    names = undescribed(segments, characters, extra)
     if not names:
         return list(characters or [])
     say("Characters in this script have no descriptions yet.")

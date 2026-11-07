@@ -451,11 +451,11 @@ def skit_places(layout: str, n: int) -> list[tuple[float, float, float]]:
     if n == 1:
         return [(W / 2, 650, 520)]
     if n == 2 and layout == "face":
-        return [(W * 0.30, 690, 520), (W * 0.70, 690, 520)]
+        return [(W * 0.36, 690, 500), (W * 0.72, 690, 500)]
     if n == 2 and layout == "near_far":
-        return [(W * 0.25, 705, 560), (W * 0.74, 600, 250)]
+        return [(W * 0.34, 705, 520), (W * 0.76, 600, 250)]
     if n == 2 and layout == "walk_in":
-        return [(W * 0.32, 660, 450), (W * 0.68, 660, 450)]
+        return [(W * 0.36, 660, 440), (W * 0.70, 660, 440)]
     if layout == "stagger" or n > 2 and layout != "side":
         return [(W * (i + 1) / (n + 1), 650 if i % 2 == 0 else 595, (440 if n <= 2 else 340) * (1.0 if i % 2 == 0 else 0.85))
                 for i in range(n)]
@@ -512,6 +512,9 @@ class Scene:
         self.faction0 = faction0
         given = str(self.data.get("layout") or "")
         self.layout = given if given in LAYOUTS else (seg.get("_layout") if seg.get("_layout") in LAYOUTS else "side")
+        self.narrator = str(seg.get("_narrator") or "")
+        self.corner = self.narrator or (self.who[0] if self.kind != "skit" and self.who else "")
+        self.narr_end = float(seg.get("narr_seconds") or dur)
         self.starts = speech_audio.line_times(self.speech, dur, seg.get("lines_at"))
         self.line_env: list[list[float] | None] = []
         for sp in self.speech:  # a voiced line moves its speaker's mouth with its own audio
@@ -530,7 +533,8 @@ class Scene:
         phase = (t % SHOT) / SHOT
         punch = (top - 1.0) * 0.55 * (1 - ease(phase * 1.6)) if phase < 0.625 else 0.0
         wide = (min(top, 1.0 + (top - 1.0) * 0.4 * (t / max(self.dur, 0.1)) + punch), 0.5 + 0.015 * math.sin(t * 0.9), 0.5)
-        if self.kind != "skit" or self.dur < 5.5 or (self.data.get("cliff") and t > self.dur - 3.2):
+        if self.kind != "skit" or self.dur < 5.5 or (self.data.get("cliff") and t > self.dur - 3.2) or \
+                (self.narrator and t < self.narr_end):
             return wide
         shot = SHOT
         k = int(t // shot)
@@ -557,18 +561,71 @@ class Scene:
         return speaking and bool(self.env) and self.env[i] > 0.28 and t < self.dur - 0.25
 
     def actor(self, img: Image.Image, who: str, cx: float, bottom: float, px: int, t: float, i: int, talking: bool,
-              enter: float = 0.0, silhouette: bool = False) -> None:
+              enter: float = 0.0, silhouette: bool = False, role: str = "") -> None:
+        """Draw one figure. A figure is never still: the speaker leans in, tilts and pulses with the voice, a
+        listener turns toward them with a slow nod, an idle figure sways. `role` is talk, listen or idle."""
         rise = (1 - ease((t - enter) / 0.5)) * 160 if t >= enter else 400
         bob = math.sin((t + i * 0.6) * 2.4) * 4 if t > enter + 0.5 else 0
         if talking and t > enter + 0.5:  # a little hop on every syllable-ish burst
             bob -= 5 * abs(math.sin(t * 11 + i))
+        role = role or ("talk" if talking else "idle")
         spr = self.cast.sprite(who, px, t, i, talking, silhouette, self.era)
-        paste(img, spr, cx, bottom + rise + bob)
+        ang, grow, dx = 0.0, 1.0, 0.0
+        if t > enter + 0.5 and not silhouette:
+            ph = t * 1.7 + i * 1.3
+            if role == "talk":
+                ang, grow = 4.0 * math.sin(t * 5.2 + i), 1.06 + 0.03 * abs(math.sin(t * 9 + i))
+                dx = (W / 2 - cx) * 0.04
+            elif role == "listen":
+                ang = (-2.5 if cx < W / 2 else 2.5) + 1.5 * math.sin(ph)  # turned a little toward the speaker
+            else:
+                ang = 2.0 * math.sin(ph)
+        if ang or grow != 1.0:
+            before = spr.height
+            if grow != 1.0:
+                spr = spr.resize((int(spr.width * grow), int(spr.height * grow)), Image.BICUBIC)
+            spr = spr.rotate(ang, resample=Image.BICUBIC, center=(spr.width / 2, spr.height * 0.84))
+            bob -= 0.1 * (spr.height - before)  # keep the feet where they were after scaling
+        paste(img, spr, cx + dx, bottom + rise + bob)
+
+    def narrating(self, t: float) -> bool:
+        """True while the narrator speaks (the narration plays from the start; a skit's lines come after it)."""
+        return t < self.narr_end and self.mouth(t)
+
+    def _corner(self, img: Image.Image, x: float, y: float, px: int, t: float) -> None:
+        """The narrator (the script's own narrator character, else the scene's first figure) in the corner, its mouth
+        moving with the narration, so the voice always has a face."""
+        talking = self.narrating(t)
+        self.actor(img, self.corner, x, y, px, t, 0, talking, role="talk" if t < self.narr_end else "idle")
+
+    def _narrator_panel(self, img: Image.Image, t: float) -> None:
+        """In a skit the narrator sits in a small panel in the bottom-left corner while the narration plays."""
+        if self.kind != "skit" or not self.narrator:
+            return
+        box = (18, 468, 262, 708)
+        shadowed_box(img, box, (246, 236, 212), outline=WOOD, radius=18, width=4, alpha=235)
+        self.actor(img, self.narrator, 140, 726, 250, t, 9, self.narrating(t), role="talk" if t < self.narr_end else "idle")
+
+    def _place(self, img: Image.Image, t: float) -> None:
+        """`scene_data.place`: where and when this scene is set, as a tag in the top-right corner."""
+        text = str(self.data.get("place") or "").strip()
+        if not text or self.camera(t)[0] > 1.2:
+            return
+        f = font(26, False)
+        w = int(f.getlength(text.upper())) + 34
+        x1 = W - int(W * (1 - 1 / MAX_ZOOM.get(self.kind, DEFAULT_MAX_ZOOM)) / 2) - 16
+        pop = ease(t / 0.4)
+        y0 = 30 + int(W * 0.0) - int(40 * (1 - pop))
+        box = (x1 - w, y0, x1, y0 + 46)
+        shadowed_box(img, box, (30, 24, 52), outline=(255, 214, 90), radius=14, width=3, alpha=235)
+        centered(ImageDraw.Draw(img), ((box[0] + box[2]) / 2, (box[1] + box[3]) / 2), text.upper(), f, fill=(255, 246, 214))
 
     def frame(self, t: float) -> Image.Image:
         fn = getattr(self, f"_{self.kind}", self._title)
         img = backdrop(self.back).copy()
         fn(img, t)
+        self._narrator_panel(img, t)
+        self._place(img, t)
         self._counter(img, t)
         self._cliff(img, t)
         return img
@@ -638,7 +695,8 @@ class Scene:
                      ]
             active = self._active_line(t)
             talk = active is not None and active in lines and self._line_mouth(active, t)
-            self.actor(img, w, cx, feet, size, t, i, talk, enter=0.1 * i)
+            role = "talk" if (active is not None and active in lines) else ("listen" if active is not None else "idle")
+            self.actor(img, w, cx, feet, size, t, i, talk, enter=0.1 * i, role=role)
         act = self._active_line(t)
         for k, s in enumerate(self.speech):
             start = self._line_start(k)
@@ -748,8 +806,8 @@ class Scene:
         title = self.data.get("title")
         if title:
             banner(img, str(title), 78, width=700)
-        if self.who:
-            self.actor(img, self.who[0], 1160, 650, 260, t, 0, False)  # the narrator is not this figure
+        if self.corner:
+            self._corner(img, 1160, 650, 260, t)
 
     # -- diagram: numbered steps appear one after another
     def _diagram(self, img: Image.Image, t: float) -> None:
@@ -780,8 +838,8 @@ class Scene:
         if self.data.get("disputed") and t > 2:
             centered(ImageDraw.Draw(img), (W / 2, 535), "Told by Livy. Historians dispute this.", font(34, False),
                      fill=(110, 84, 52))
-        if self.who:  # standing below the step boxes (they end at y=500), not in front of the first one
-            self.actor(img, self.who[0], 130, 740, 250, t, 0, False)  # the narrator is not this figure
+        if self.corner:
+            self._corner(img, 130, 740, 250, t)
 
     # -- calendar: days cross off one by one
     def _calendar(self, img: Image.Image, t: float) -> None:
@@ -811,8 +869,8 @@ class Scene:
             s = ease((t - self.dur * 0.78) / 0.4)
             centered(ImageDraw.Draw(img), (W - 150, 600), str(q) if isinstance(q, str) else "?", font(int(40 + 130 * s)),
                      fill=RED, stroke=PAPER, sw=6)
-        if self.who:
-            self.actor(img, self.who[0], 120, 650, 250, t, 0, False)  # the narrator is not this figure
+        if self.corner:
+            self._corner(img, 120, 650, 250, t)
 
     def _date_page(self, img: Image.Image, t: float) -> None:
         """One calendar page with the date from the script (`label`, else a date in the narration, else the title)."""
@@ -832,8 +890,8 @@ class Scene:
         while size > 40 and font(size).getlength(date) > 520:
             size -= 6
         centered(d, (640, int(410 + 30 * (1 - rise))), date, font(size))
-        if self.who:
-            self.actor(img, self.who[0], 120, 650, 250, t, 0, False)  # the narrator is not this figure
+        if self.corner:
+            self._corner(img, 120, 650, 250, t)
 
     # -- easel: a list or short chart on an easel
     def _easel(self, img: Image.Image, t: float) -> None:
@@ -850,8 +908,8 @@ class Scene:
             if t > 0.5 + k * 0.7:
                 d.ellipse([360, 238 + k * 44 - 8, 376, 238 + k * 44 + 8], fill=hex_rgb(cast.faction_color(k)))
                 d.text((392, 238 + k * 44), it, font=font(32, False), fill=INK, anchor="lm")
-        if self.who:
-            self.actor(img, self.who[0], 1090, 650, 400, t, 0, False)  # the narrator is not this figure
+        if self.corner:
+            self._corner(img, 1090, 650, 400, t)
 
     def _archive(self, img: Image.Image, t: float) -> None:
         d = ImageDraw.Draw(img)
@@ -865,8 +923,8 @@ class Scene:
             d.rectangle([360, 140, 920, 470], fill=(206, 190, 150))
             centered(d, (640, 305), "archive picture", font(40, False), fill=(120, 100, 70))
         centered(d, (640, 540), str(self.data.get("title") or ""), font(36, False), fill=(110, 84, 52))
-        if self.who:
-            self.actor(img, self.who[0], 1100, 650, 360, t, 0, False)  # the narrator is not this figure
+        if self.corner:
+            self._corner(img, 1100, 650, 360, t)
 
     def _silhouette(self, img: Image.Image, t: float) -> None:
         push = 40 * min(1.0, t / max(self.dur, 1.0))  # a slow push-in so a long silhouette is never a still
@@ -886,8 +944,8 @@ class Scene:
         for k, ln in enumerate(lines):
             centered(d, (640, 300 - (len(lines) - 1) * size * 0.55 + k * size * 1.1), ln, font(size),
                      fill=(255, 246, 214), stroke=(20, 16, 40), sw=4)
-        if self.who:
-            self.actor(img, self.who[0], 640, 700, 360, t, 0, False)  # the narrator is not this figure
+        if self.corner:
+            self._corner(img, 640, 700, 360, t)
 
 
 # ---------------------------------------------------------------- map base and small shapes
@@ -1059,7 +1117,7 @@ def look_seed(pkg: dict, project_dir: Path) -> str:
 def fingerprint(seg: dict, dur: float, audio: Path | None, characters: list[dict] | None = None,
                 seed: str = "") -> str:
     """Hash of everything that decides how a scene looks (re-render only when it changes)."""
-    keys = {k: seg.get(k) for k in ("scene", "scene_data", "cast", "speech", "chapter", "era", "_layout")}
+    keys = {k: seg.get(k) for k in ("scene", "scene_data", "cast", "speech", "chapter", "era", "_layout", "_narrator")}
     names = {str(n).lower() for n in seg.get("cast") or []} | {str(x.get("who", "")).lower()
                                                                for x in seg.get("speech") or [] if isinstance(x, dict)}
     keys["characters"] = [c for c in characters or [] if str(c.get("name", "")).lower() in names]

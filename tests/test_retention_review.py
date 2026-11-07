@@ -63,3 +63,14 @@ def test_review_scores_and_qa_and_the_app_report_carry_it():
     assert rev["score"] < 8 and {i["id"] for i in rev["items"]} >= {"uncounted_promise", "hook_card", "long_cards"}
     rep = quality_report({"segments": segs})
     assert rep["retention"]["score"] == rev["score"] and any(w.startswith("Retention:") for w in rep["warnings"])
+
+
+def test_a_missing_narrator_and_untagged_skits_are_reported():
+    segs = [seg("a", scene="skit") for _ in range(4)]
+    items = {i["id"]: i for i in rr.review({"segments": segs})["items"]}
+    assert "no_narrator" in items and "narrator" in items["no_narrator"]["fix"]
+    assert "no_places" in items and items["no_places"]["segments"] == [1, 2, 3, 4]
+    tagged = [seg("a", scene="skit", scene_data={"place": "Paris, 1804"}) for _ in range(4)]
+    ids = {i["id"] for i in rr.review({"narrator": "Storyteller", "segments": tagged})["items"]}
+    assert "no_narrator" not in ids and "no_places" not in ids
+    assert rr.no_narrator({"segments": []}, [seg("a", scene=None)]) == []  # a video with no drawn scenes needs none

@@ -166,10 +166,10 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
             autoscene.persist(out / "script.json", pkg["segments"], {"characters": pkg["characters"]})
             who = "Claude" if how == "claude" else "the built-in rules"
             typer.echo(f"Scenes assigned by {who} and saved in the script.")
-        if cast_on and scene_plan.undescribed(pkg["segments"], pkg.get("characters")):
+        if cast_on and scene_plan.undescribed(pkg["segments"], pkg.get("characters"), [pkg.get("narrator")]):
             # characters the script names but never described: Claude describes them once (saved in the script)
             pkg["characters"] = scene_plan.describe(ctx.settings, out, pkg["segments"], pkg.get("characters"),
-                                                    typer.echo)
+                                                    typer.echo, [pkg.get("narrator")])
             autoscene.persist(out / "script.json", pkg["segments"], {"characters": pkg["characters"]})
         if cast_on and speech_audio.synth_lines(ctx.settings, out, pkg["segments"], typer.echo,
                                                         pkg.get("characters")):
@@ -214,7 +214,7 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
                 audio = Path(rows[pos].audio_path) if pos in rows and rows[pos].audio_path else None
                 # same face and voice, story-era costume
                 seg = {**seg, "scene": cast_kind, "era": cast_wardrobe.era_for(seg, pkg),
-                       "_layout": layouts.get(pos - 1)}
+                       "_layout": layouts.get(pos - 1), "_narrator": pkg.get("narrator") or ""}
                 try:
                     drawn = cast_render.render_scene(seg, duration, out / "cast" / f"cast_{pos:03d}.mp4", out / "cast",
                                                      audio, faction0, cast_stage, pkg.get("characters"))
