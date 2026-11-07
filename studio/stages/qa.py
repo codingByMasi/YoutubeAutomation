@@ -83,6 +83,9 @@ def quality_report(pkg: dict, profile: dict | None = None) -> dict:
         avg = sum(len(s.split()) for s in sentences) / max(len(sentences), 1)
         if avg > MAX_SENTENCE_WORDS:
             warnings.append(f"Sentences average {avg:.0f} words: spoken scripts work best under {MAX_SENTENCE_WORDS}.")
+    from studio.quality import retention_review
+    retention = retention_review.review(pkg)  # judged as a first-time viewer: hook, promises, cards, jokes, peaks
+    warnings += retention_review.lines(retention)
     if (profile or {}).get("flags", {}).get("cast_scenes"):  # drawn scenes: text fit, overlaps, backdrop, mouths
         from studio.history import scene_check
         warnings += [f"Scene check: {w}" for w in scene_check.check_package(pkg)]
@@ -105,13 +108,31 @@ def quality_report(pkg: dict, profile: dict | None = None) -> dict:
     score = max(0, 100 - 8 * len(warnings))
     spans = timeline(segs)
     return {"score": score, "warnings": warnings, "segments": {str(k): v for k, v in per_seg.items()},
-            "minutes": round(spans[-1][1] / 60, 1) if spans else 0}
+            "minutes": round(spans[-1][1] / 60, 1) if spans else 0, "retention": retention}
 
 
 def write_report(out: Path, report: dict) -> Path:
     path = out / "qa.json"
     path.write_text(json.dumps(report, indent=2), encoding="utf-8")
     return path
+
+
+def run_retention(ctx: Ctx, video_id: int) -> dict:
+    """Print the retention review of a video's script with a fix for every finding; saved as retention.json."""
+    from studio.quality import retention_review
+    get_video(ctx.session, video_id)
+    pkg = load_package(ctx, video_id)
+    rev = retention_review.review(pkg)
+    (ctx.settings.project_dir(video_id) / "retention.json").write_text(json.dumps(rev, indent=2), encoding="utf-8")
+    colour = typer.colors.GREEN if rev["score"] >= 8 else typer.colors.YELLOW
+    typer.secho(f"Retention review: {rev['score']}/10.", fg=colour)
+    for i in rev["items"]:
+        typer.secho(f"  [{i['severity']}] {i['issue']}", fg=typer.colors.YELLOW)
+        typer.echo(f"      Why: {i['why']}")
+        typer.echo(f"      Fix: {i['fix']}")
+    if not rev["items"]:
+        typer.echo("  Nothing to change: the hook, promises, cards, skits and chapter ends hold up.")
+    return rev
 
 
 def run(ctx: Ctx, video_id: int) -> dict:

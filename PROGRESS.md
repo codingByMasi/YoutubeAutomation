@@ -701,6 +701,10 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 - Every cast scene now moves: a camera beat (punch-in that eases back, plus a slow push) every 3.6 s, capped per scene kind so no text near the edge is cut (maps included, with their names and caption kept clear of the cropped edge); a skit cuts between wide and close-ups every 3.6 s.
 - `scene_data.counter` ({"n": 1, "of": 3, "label": "Decision"}) draws a corner chip that counts out a promise the hook made; `scene_data.cliff` shows the question a chapter ends on as a strip over the last 3 s (the camera stays wide for it).
 - Scene check (qa) now also flags a picture that holds still for 5 s or more, and judges text against the picture the viewer sees after the zoom.
+
+## 2026-11-07: retention review inside the app (fix/retention-review, stacked on fix/retention-motion)
+- New step `python -m studio.cli retention <video_id>` (and automatically inside `qa`, `build` and the app's "Check script quality" panel): judges the script as a first-time viewer and lists, per finding, the issue, why it loses viewers and what to change: a hook that promises "three decisions" but never counts them, a still hook card, backstory in the first 30 s, still cards over 6 s, skits with one line, chapters that end flat, no emotional peak. Score 0-10 in `retention.json` and `qa.json`.
+
 - Found by the new scene check on the rebuilt French Empire video: the counter chip and the chapter-end strip were cut by the camera zoom, the strip covered map sea names, and "waves a ledger" turned a throne room into a sea backdrop. The chip now sits inside the zoomed picture under the title banner, the strip stays inside it, map names under the strip or chip are skipped, and "wave" is no longer a sea word.
 - Also found in the final frame check: the map caption "Approximate map" sat under the chapter-end strip (it moves to the top when a map has a strip), and the counter chip sat on a speech bubble in close-up shots (it is hidden while the camera is zoomed in).
 - The map caption "Approximate map" is hidden while the chapter-end strip is up (last 3 s): moving it elsewhere collided with a map name.

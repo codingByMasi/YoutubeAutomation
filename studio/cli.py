@@ -203,6 +203,14 @@ def qa(video_id: int) -> None:
 
 
 @app.command()
+def retention(video_id: int) -> None:
+    """Retention review: judge the script as a first-time viewer (hook, counted promises, still cards, jokes,
+    cliffhangers, peaks), list what to change and write retention.json (read-only)."""
+    from studio.stages import qa as m
+    m.run_retention(_ctx(), video_id)
+
+
+@app.command()
 def gate(video_id: int, thumb: int = typer.Option(1, help="Thumbnail variant to check (1-3).")) -> None:
     """Score script, hook, pacing, visuals, audio and metadata for this channel's type; pass, warn or block."""
     from studio.quality import gate as m
