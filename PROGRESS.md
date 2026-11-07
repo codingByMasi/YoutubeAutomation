@@ -707,3 +707,4 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 
 - Found by the new scene check on the rebuilt French Empire video: the counter chip and the chapter-end strip were cut by the camera zoom, the strip covered map sea names, and "waves a ledger" turned a throne room into a sea backdrop. The chip now sits inside the zoomed picture under the title banner, the strip stays inside it, map names under the strip or chip are skipped, and "wave" is no longer a sea word.
 - Also found in the final frame check: the map caption "Approximate map" sat under the chapter-end strip (it moves to the top when a map has a strip), and the counter chip sat on a speech bubble in close-up shots (it is hidden while the camera is zoomed in).
+- The map caption "Approximate map" is hidden while the chapter-end strip is up (last 3 s): moving it elsewhere collided with a map name.
