@@ -399,7 +399,7 @@ _DATE = re.compile(r"\b\d{1,2} (?:January|February|March|April|May|June|July|Aug
 # ---------------------------------------------------------------- the scene drawers
 _BACK_WORDS = [("snow", ("snow", "snowy", "alps", "blizzard", "winter", "frost")),
                ("sea", ("ship", "fleet", "sail", "harbour", "harbor", "naval", "sea", "ocean", "shore", "shoreline", "coast",
-                       "coastline", "wave")),
+                       "coastline")),
                ("field", ("battle", "plain", "river", "field", "march", "army", "legion", "camp", "valley", "elephant")),
                ("market", ("tax", "silver", "coin", "market", "trade", "merchant", "debt", "mercenary", "wage",
                            "square")),
@@ -548,8 +548,11 @@ class Scene:
         text = f"{str(c.get('label') or '').strip()} {int(c['n'])}/{int(c['of'])}".strip().upper()
         f = font(28, False)
         w = int(f.getlength(text)) + 30
+        z = MAX_ZOOM.get(self.kind, DEFAULT_MAX_ZOOM)
+        x0 = int(W * (1 - 1 / z) / 2) + 14  # inside what the camera still shows, below the title banner
         pop = ease(t / 0.35)
-        box = (24, int(24 - 40 * (1 - pop)), 24 + w, int(24 - 40 * (1 - pop)) + 48)
+        y0 = 142 - int(40 * (1 - pop))
+        box = (x0, y0, x0 + w, y0 + 48)
         shadowed_box(img, box, (255, 214, 90), outline=INK, radius=14, width=4)
         centered(ImageDraw.Draw(img), ((box[0] + box[2]) / 2, (box[1] + box[3]) / 2), text, f, fill=INK)
 
@@ -562,7 +565,8 @@ class Scene:
         lines = wrap(q, f, 900)[:2]
         h = 28 + 46 * len(lines)
         rise = ease((t - (self.dur - 3.0)) / 0.4)
-        y0 = int(H - 30 - h + 60 * (1 - rise))
+        z = MAX_ZOOM.get(self.kind, DEFAULT_MAX_ZOOM)
+        y0 = int(H - int(H * (1 - 1 / z) / 2) - 16 - h + 60 * (1 - rise))
         shadowed_box(img, (170, y0, W - 170, y0 + h), (30, 24, 52), outline=(255, 214, 90), radius=16, width=4, alpha=235)
         d = ImageDraw.Draw(img)
         for k, ln in enumerate(lines):
@@ -651,7 +655,9 @@ class Scene:
                 x, y = (v * k for v, k in zip(maps.project(region, lon, lat), (W, H)))
                 half = font(30, False).getlength(name) / 2 + 50  # clear of the cropped edge
                 x = min(max(x, half), W - half)  # a name near the border stays whole
-                if y > 150 and all(abs(x - mx) > 190 or abs(y - my) > 110 for mx, my in marks):
+                clear_of_strip = not self.data.get("cliff") or y < H - 200  # the chapter-end strip needs the bottom
+                clear_of_chip = not self.data.get("counter") or not (x < 400 and y < 220)  # the corner counter chip
+                if y > 150 and clear_of_strip and clear_of_chip and all(abs(x - mx) > 190 or abs(y - my) > 110 for mx, my in marks):
                     centered(d, (x, y), name, font(30, False), fill=(250, 246, 230), stroke=(30, 36, 50), sw=3)
         d = ImageDraw.Draw(img)
         centered(d, (W - 200, H - 52), "Approximate map", font(24, False), fill=(235, 240, 245), stroke=(20, 40, 70), sw=2)

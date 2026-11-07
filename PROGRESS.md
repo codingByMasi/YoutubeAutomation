@@ -707,3 +707,5 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 
 ## 2026-11-07: retention rules in the script prompt and at script time (fix/retention-script-rules, stacked on fix/retention-review)
 - The history script prompt now asks for: a hook that SHOWS its moment in a skit, no backstory in the first 30 s, counted promises with `scene_data.counter`, still cards of at most 6 s, 2-3 line skits with a setup, a twist and a punch (the skit budget is 8 s), a `scene_data.cliff` question at each chapter end and a held emotional peak. Script validation rejects a title, calendar, easel, silhouette or archive card longer than 6 s.
+
+- Found by the new scene check on the rebuilt French Empire video: the counter chip and the chapter-end strip were cut by the camera zoom, the strip covered map sea names, and "waves a ledger" turned a throne room into a sea backdrop. The chip now sits inside the zoomed picture under the title banner, the strip stays inside it, map names under the strip or chip are skipped, and "wave" is no longer a sea word.
