@@ -67,7 +67,8 @@ def test_a_still_card_longer_than_six_seconds_is_rejected_at_script_time():
     probs = cast.scene_problems({"segments": [seg]})
     assert any("calendar card" in p and "6 s" in p for p in probs)
     assert not any("card" in p for p in cast.scene_problems({"segments": [{**seg, "est_seconds": 5}]}))
-    assert not any("card" in p for p in cast.scene_problems({"segments": [{**seg, "scene": "diagram", "est_seconds": 14}]}))
+    diagram = {**seg, "scene": "diagram", "est_seconds": 14}
+    assert not any("card" in p for p in cast.scene_problems({"segments": [diagram]}))
 
 
 def test_the_history_script_prompt_carries_the_retention_rules():
