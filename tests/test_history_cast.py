@@ -59,3 +59,19 @@ def test_no_fixed_cast_or_host_is_offered_to_the_writer():
 
 def test_faction_colors_wrap():
     assert cast.faction_color(0) == cast.faction_color(len(cast.FACTION_COLORS))
+
+
+def test_a_still_card_longer_than_six_seconds_is_rejected_at_script_time():
+    from studio.history import cast
+    seg = {"scene": "calendar", "est_seconds": 14, "narration": "x"}
+    probs = cast.scene_problems({"segments": [seg]})
+    assert any("calendar card" in p and "6 s" in p for p in probs)
+    assert not any("card" in p for p in cast.scene_problems({"segments": [{**seg, "est_seconds": 5}]}))
+    assert not any("card" in p for p in cast.scene_problems({"segments": [{**seg, "scene": "diagram", "est_seconds": 14}]}))
+
+
+def test_the_history_script_prompt_carries_the_retention_rules():
+    from pathlib import Path
+    text = (Path(__file__).parents[1] / "studio" / "prompts" / "history" / "script.md").read_text(encoding="utf-8")
+    for must in ("scene_data.counter", "scene_data.cliff", "at most 6 seconds", "a setup, a twist"):
+        assert must in text

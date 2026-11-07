@@ -704,3 +704,6 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 
 ## 2026-11-07: retention review inside the app (fix/retention-review, stacked on fix/retention-motion)
 - New step `python -m studio.cli retention <video_id>` (and automatically inside `qa`, `build` and the app's "Check script quality" panel): judges the script as a first-time viewer and lists, per finding, the issue, why it loses viewers and what to change: a hook that promises "three decisions" but never counts them, a still hook card, backstory in the first 30 s, still cards over 6 s, skits with one line, chapters that end flat, no emotional peak. Score 0-10 in `retention.json` and `qa.json`.
+
+## 2026-11-07: retention rules in the script prompt and at script time (fix/retention-script-rules, stacked on fix/retention-review)
+- The history script prompt now asks for: a hook that SHOWS its moment in a skit, no backstory in the first 30 s, counted promises with `scene_data.counter`, still cards of at most 6 s, 2-3 line skits with a setup, a twist and a punch (the skit budget is 8 s), a `scene_data.cliff` question at each chapter end and a held emotional peak. Script validation rejects a title, calendar, easel, silhouette or archive card longer than 6 s.

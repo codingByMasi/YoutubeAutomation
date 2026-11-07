@@ -23,7 +23,7 @@ GAP = 0.35  # seconds between two spoken lines
 LEAD = 0.5  # seconds before the first line
 PAUSE = 0.4  # seconds between the end of the narration and the first character line
 HOOK_SECONDS = 15.0  # the opening segment (narration plus any lines) is the hook and stays within this
-MAX_INTERJECTION = 6.0  # seconds of character dialogue per skit: the narrator carries the story, the skit only reacts
+MAX_INTERJECTION = 8.0  # seconds of character dialogue per skit: the narrator carries the story, the skit only reacts
 DUCK = 0.0  # narrator volume while a character speaks (silent: two voices must never overlap)
 
 

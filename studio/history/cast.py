@@ -76,6 +76,9 @@ def scene_problems(pkg: dict, profile: dict | None = None) -> list[str]:
             n = len(str(line.get("text", "")).split()) if isinstance(line, dict) else 99
             if n > MAX_SPEECH_WORDS:
                 out.append(f"segment {i}: a speech line has {n} words; keep each under {MAX_SPEECH_WORDS + 1}")
+        if scene in ("title", "calendar", "easel", "silhouette", "archive") and float(s.get("est_seconds") or 0) > 6.0:
+            out.append(f"segment {i}: a {scene} card would hold the screen for about {float(s['est_seconds']):.0f} s; keep "
+                       "it to 6 s (about 15 words) or use a skit, map or diagram scene")
         if scene == "skit" and not (s.get("cast") or []):
             out.append(f"segment {i}: a skit needs `cast` (at least one character)")
     return out
