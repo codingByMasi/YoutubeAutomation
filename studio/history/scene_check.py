@@ -110,15 +110,36 @@ def backdrop_problems(seg: dict) -> list[str]:
 
 
 def mouth_problems(seg: dict, dur: float, cast: R.Cast) -> list[str]:
-    """A figure's mouth must follow only its own skit line, never the narration."""
+    """The narration needs a visible speaker whose mouth moves with it (the narrator), and in a skit no other figure
+    may move its mouth to the narration."""
     n = int(dur * R.FPS) + 2
     loud = R.Scene(seg, dur, cast, [1.0] * n, 0)
     quiet = R.Scene(seg, dur, cast, [0.0] * n, 0)
     first = loud.starts[0] if loud.starts else dur
-    t = min(dur * 0.5, max(0.3, first - 0.4))  # narration only: no skit line is being spoken yet
-    if loud.frame(t).tobytes() != quiet.frame(t).tobytes():
-        return ["a figure's mouth moves to the narration instead of to its own line"]
+    t = min(dur * 0.5, max(0.3, min(first, loud.narr_end) - 0.4))  # narration only: no skit line yet
+    a, b = loud.frame(t), quiet.frame(t)
+    if a.tobytes() == b.tobytes():
+        return ["the narration has no visible speaker: nobody on screen moves their mouth to it "
+                "(add a narrator character to the script)"]
+    if seg.get("scene") == "skit" and loud.narrator:
+        box = (270, 0, R.W, R.H)  # everything but the narrator's corner panel
+        if a.crop(box).tobytes() != b.crop(box).tobytes():
+            return ["a figure in the scene moves its mouth to the narration instead of to its own line"]
     return []
+
+
+def speaker_problems(seg: dict) -> list[str]:
+    """Every skit line must be spoken by someone who is on screen."""
+    if seg.get("scene") != "skit":
+        return []
+    cast = [str(c).strip().lower() for c in seg.get("cast") or []][:4]
+    out = []
+    for line in seg.get("speech") or []:
+        who = str(line.get("who", "")).strip().lower() if isinstance(line, dict) else ""
+        if who and not any(who == c or who in c or c in who for c in cast):
+            names = ", ".join(cast) or "none"
+            out.append(f"a line is spoken by {line.get('who')!r}, who is not on screen (cast: {names})")
+    return out
 
 
 STILL_SECONDS = 5.0  # a picture may not hold still longer than this
@@ -163,9 +184,9 @@ def check_package(pkg: dict) -> list[str]:
             continue
         dur = float(seg.get("real_seconds") or seg.get("est_seconds") or 6.0)
         where = f"Segment {pos} ({seg['scene']}, {str(seg.get('chapter') or '')[:30]})"
-        found = backdrop_problems(seg)
+        found = backdrop_problems(seg) + speaker_problems(seg)
         try:
-            seg = {**seg, "_layout": layouts.get(pos - 1)}
+            seg = {**seg, "_layout": layouts.get(pos - 1), "_narrator": pkg.get("narrator") or ""}
             scene = R.Scene({**seg, "era": seg.get("era") or "default"}, dur, cast, [0.0] * (int(dur * R.FPS) + 2), 0)
             for t in (dur * 0.5, dur * 0.9):  # each frame on its own: a text may legitimately move
                 with record_text() as items:

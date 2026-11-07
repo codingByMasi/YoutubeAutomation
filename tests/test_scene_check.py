@@ -25,20 +25,34 @@ def test_backdrop_must_fit_the_place_the_script_describes():
     assert sc.backdrop_problems({"scene": "map"}) == []
 
 
-def test_a_figure_that_mouths_the_narration_is_reported(tmp_path, monkeypatch):
-    seg = {"scene": "title", "cast": ["Odo"], "scene_data": {"title": "T"}, "narration": "x"}
+def test_the_narration_needs_a_visible_speaker_and_nobody_else_may_mouth_it(tmp_path, monkeypatch):
+    seg = {"scene": "title", "cast": [], "scene_data": {"title": "T"}, "narration": "x"}
     cast = r.Cast(tmp_path)
-    assert sc.mouth_problems(seg, 6.0, cast) == []
+    assert sc.mouth_problems({**seg, "_narrator": "Storyteller"}, 6.0, cast) == []
+    monkeypatch.setattr(r.Scene, "narrating", lambda self, t: False)  # nobody's mouth follows the voice
+    assert any("no visible speaker" in p for p in sc.mouth_problems(seg, 6.0, cast))
+    monkeypatch.undo()
+    skit = {"scene": "skit", "cast": ["A", "B"], "narration": "x", "_narrator": "Storyteller", "narr_seconds": 6.0,
+            "lines_at": 6.4, "speech": [{"who": "A", "text": "Hi."}]}
+    assert sc.mouth_problems(skit, 10.0, cast) == []
     real = r.Scene.actor
 
-    def chatty(self, img, who, cx, bottom, px, t, i, talking, *a, **k):  # the old behaviour: talk to the narration
-        return real(self, img, who, cx, bottom, px, t, i, self.mouth(t), *a, **k)
+    def chatty(self, img, who, cx, bottom, px, t, i, talking, *a, **k):  # a cast figure talks to the narration
+        return real(self, img, who, cx, bottom, px, t, i, self.mouth(t) if who in ("A", "B") else talking, *a, **k)
     monkeypatch.setattr(r.Scene, "actor", chatty)
-    assert sc.mouth_problems(seg, 6.0, cast)
+    assert any("figure in the scene" in p for p in sc.mouth_problems(skit, 10.0, cast))
+
+
+def test_a_line_spoken_by_someone_who_is_not_on_screen_is_reported():
+    seg = {"scene": "skit", "cast": ["Napoleon", "Pope Pius VII"],
+           "speech": [{"who": "Pope", "text": "x"}, {"who": "Joseph", "text": "y"}]}
+    probs = sc.speaker_problems(seg)
+    assert len(probs) == 1 and "Joseph" in probs[0]  # "Pope" matches "Pope Pius VII"
+    assert sc.speaker_problems({"scene": "map"}) == []
 
 
 def test_check_package_is_clean_for_good_scenes_and_names_the_bad_one():
-    good = {"segments": [
+    good = {"narrator": "Storyteller", "segments": [
         {"scene": "title", "chapter": "A", "scene_data": {"title": "Who started the fires? Disputed."}, "cast": [],
          "real_seconds": 6.0},
         {"scene": "map", "chapter": "B", "cast": [], "real_seconds": 6.0,
@@ -46,7 +60,8 @@ def test_check_package_is_clean_for_good_scenes_and_names_the_bad_one():
         {"scene": "skit", "chapter": "C", "cast": ["A", "B"], "real_seconds": 8.0, "staging": "A harbour at sea.",
          "scene_data": {"backdrop": "sea"}, "speech": [{"who": "A", "text": "Hi."}]}]}
     assert sc.check_package(good) == []
-    bad = {"segments": [good["segments"][2] | {"staging": "An office.", "chapter": "Office"}]}
+    office = good["segments"][2] | {"staging": "An office.", "chapter": "Office"}
+    bad = {"narrator": "Storyteller", "segments": [office]}
     probs = sc.check_package(bad)
     assert len(probs) == 1 and probs[0].startswith("Segment 1 (skit, Office)") and "'sea'" in probs[0]
     plain = {"segments": [{"narration": "plain", "est_seconds": 5}]}

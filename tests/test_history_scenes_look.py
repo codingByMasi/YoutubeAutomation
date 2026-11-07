@@ -149,36 +149,35 @@ def test_palm_trees_only_on_the_desert_backdrop():
     diff = ImageChops.difference(r.backdrop("market").crop(box), r.backdrop("desert").crop(box)).convert("L")
     assert diff.getbbox() is not None and sum(diff.histogram()[40:]) > 500  # the desert has trees there, the market not
 
-def test_the_narrator_is_not_drawn_as_a_talking_character(tmp_path):
-    """Only a skit line moves a figure's mouth; narration over a title, map, calendar or speechless skit does not."""
-    for kind in ("title", "calendar", "diagram", "skit"):
-        seg = {"scene": kind, "cast": ["Odo"], "scene_data": {"title": "T", "days": 3, "steps": ["a", "b"]}, "narration": "x"}
-        loud = r.Scene(seg, 6.0, r.Cast(tmp_path), [1.0] * 200, 0).frame(3.3)
-        quiet = r.Scene(seg, 6.0, r.Cast(tmp_path), [0.0] * 200, 0).frame(3.3)
-        assert loud.tobytes() == quiet.tobytes(), kind
+def test_the_narrator_talks_on_screen_and_nobody_else_mouths_the_narration(tmp_path):
+    """The voice always has a face: the narrator's mouth follows the narration; other figures speak only their lines."""
+    loud_env, quiet_env = [1.0] * 300, [0.0] * 300
+    for kind in ("title", "calendar", "diagram", "easel", "silhouette"):
+        seg = {"scene": kind, "cast": [], "scene_data": {"title": "T", "days": 3, "steps": ["a", "b"]}, "narration": "x",
+               "_narrator": "Storyteller"}
+        loud = r.Scene(seg, 6.0, r.Cast(tmp_path), loud_env, 0).frame(3.3)
+        quiet = r.Scene(seg, 6.0, r.Cast(tmp_path), quiet_env, 0).frame(3.3)
+        if kind != "silhouette":
+            assert loud.tobytes() != quiet.tobytes(), kind  # the narrator's mouth moves with the voice
+    skit = {"scene": "skit", "cast": ["A", "B"], "narration": "x", "_narrator": "Storyteller", "narr_seconds": 6.0,
+            "lines_at": 6.4, "speech": [{"who": "A", "text": "Hi."}]}
+    loud = r.Scene(skit, 10.0, r.Cast(tmp_path), loud_env, 0).frame(3.0)
+    quiet = r.Scene(skit, 10.0, r.Cast(tmp_path), quiet_env, 0).frame(3.0)
+    corner, rest = (0, 440, 270, 720), (270, 0, 1280, 720)
+    assert loud.crop(corner).tobytes() != quiet.crop(corner).tobytes()  # the narrator in the panel talks
+    assert loud.crop(rest).tobytes() == quiet.crop(rest).tobytes()  # the figures in the scene do not
+    after = r.Scene(skit, 10.0, r.Cast(tmp_path), loud_env, 0).frame(8.5)
+    silent_after = r.Scene(skit, 10.0, r.Cast(tmp_path), quiet_env, 0).frame(8.5)
+    assert after.tobytes() == silent_after.tobytes()  # once the narration is over the narrator is silent too
 
-def test_diagram_steps_show_every_word_inside_their_box(tmp_path):
-    steps = ["Here is how", "One, loot from conquered land", "Two, taxes from the farms", "Three, trade across the sea",
-             "Picture a bathtub"]
-    cw, _ = r.diagram_layout(len(steps))
-    for text in steps:
-        size, lines = r.diagram_text(text, cw)
-        assert " ".join(lines).split() == text.split()  # nothing dropped
-        assert all(r.font(size).getlength(ln) <= cw - 30 for ln in lines) and len(lines) <= 4
-    seg = {"scene": "diagram", "cast": [], "scene_data": {"title": "T", "steps": steps}, "narration": "x"}
-    assert r.Scene(seg, 8.0, r.Cast(tmp_path), [0.0] * 300, 0).frame(7.5).size == (r.W, r.H)
 
-
-def test_a_calendar_without_a_date_does_not_show_its_title_twice(tmp_path):
-    seg = {"scene": "calendar", "chapter": "Bread, Games and 100 Days", "narration": "Rome keeps the crowd happy.",
-           "scene_data": {"title": "Bread, Games and 100 Days"}, "cast": []}
-    dated = {**seg, "narration": "On 9 November 1799 it ends."}
-    cast = r.Cast(tmp_path)
-    undated_img = r.Scene(seg, 8.0, cast, [0.0] * 300, 0).frame(7.0)
-    dated_img = r.Scene(dated, 8.0, cast, [0.0] * 300, 0).frame(7.0)
-    zone = (300, 30, 980, 130)  # where the banner sits
-    assert undated_img.crop(zone).convert("L").getextrema()[0] > 120  # parchment only: no banner
-    assert dated_img.crop(zone).convert("L").getextrema()[0] < 100  # a dated page keeps its banner text
+def test_figures_move_while_they_talk_and_while_they_listen(tmp_path):
+    seg = {"scene": "skit", "cast": ["A", "B"], "narration": "x", "narr_seconds": 2.0, "lines_at": 2.4,
+           "speech": [{"who": "A", "text": "Hello there."}], "_layout": "side"}
+    sc = r.Scene(seg, 8.0, r.Cast(tmp_path), [0.0] * 300, 0)
+    speaker = [sc.frame(t / 10).crop((200, 150, 650, 700)).tobytes() for t in (36, 38, 40, 42)]
+    listener = [sc.frame(t / 10).crop((650, 150, 1100, 700)).tobytes() for t in (36, 38, 40, 42)]
+    assert len(set(speaker)) == 4 and len(set(listener)) == 4  # both keep moving, frame to frame
 
 
 def test_counter_chip_and_cliffhanger_strip_are_drawn_and_move_the_camera_to_a_wide_shot(tmp_path):

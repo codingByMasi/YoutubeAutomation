@@ -155,11 +155,36 @@ def no_peak(segs: list[dict]) -> list[dict]:
                   "'warm', one held shot, at most one line, no joke.")]
 
 
+def no_narrator(pkg: dict, segs: list[dict]) -> list[dict]:
+    """Drawn scenes need the narrator on screen: a voice with no face is the first thing viewers notice."""
+    if not any(s.get("scene") for s in segs) or str(pkg.get("narrator") or "").strip():
+        return []
+    return [_item("no_narrator", "major", "The narration has no visible speaker: no narrator character is set.",
+                  "Viewers hear a voice for most of the video and see nobody talking, so the picture and the voice "
+                  "feel unrelated.",
+                  "Add a top-level `narrator` (the name of a character the script describes, for example the "
+                  "storyteller) so it is shown on screen with its mouth moving to the narration.")]
+
+
+def no_places(segs: list[dict]) -> list[dict]:
+    """Skits should say where and when they happen, so the backdrop and the line belong together."""
+    skits = [(i, s) for i, s in enumerate(segs, 1) if s.get("scene") == "skit"]
+    if len(skits) < 3:
+        return []
+    bare = [i for i, s in skits if not (isinstance(s.get("scene_data"), dict) and s["scene_data"].get("place"))]
+    if len(bare) * 2 <= len(skits):
+        return []
+    return [_item("no_places", "minor", f"{len(bare)} of {len(skits)} skits have no place and date tag.",
+                  "Without a tag the viewer cannot tell where a scene is, so a generic hall or field means nothing.",
+                  "Add scene_data.place to each skit (for example \"Notre-Dame, Paris, 1804\"); it is shown in the "
+                  "corner of the scene.", bare)]
+
+
 def review(pkg: dict) -> dict:
     """{score (0-10), items} for a script package. Each item: id, severity, issue, why, fix, segments."""
     segs = [s for s in (pkg.get("segments") or []) if isinstance(s, dict)]
     items = (uncounted_promise(segs) + weak_start(segs) + long_cards(segs) + flat_skits(segs) + no_cliffhangers(segs)
-             + no_peak(segs))
+             + no_peak(segs) + no_narrator(pkg, segs) + no_places(segs))
     score = max(0.0, 10.0 - sum(WEIGHT[i["severity"]] for i in items))
     return {"score": round(score, 1), "items": items}
 
