@@ -79,6 +79,13 @@ def _qa_panel(ctx, v) -> None:
         (st.success if rep["score"] >= 80 else st.warning)(msg)
         for w in rep.get("warnings", [])[:8]:
             st.caption(f"• {w}")
+        ret = rep.get("retention")
+        if ret:  # the retention review: what would make a first-time viewer leave, and what to change
+            (st.success if ret["score"] >= 8 else st.warning)(f"Retention review: {ret['score']}/10.")
+            for it in ret.get("items", []):
+                with st.expander(f"{it['severity'].upper()}: {it['issue']}"):
+                    st.write(f"**Why it loses viewers:** {it['why']}")
+                    st.write(f"**What to change:** {it['fix']}")
 
 
 BLOCK_BELOW = 55  # quality-gate block line for explainer and story channels (studio/quality/profiles.py)

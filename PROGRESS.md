@@ -701,3 +701,6 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 - Every cast scene now moves: a camera beat (punch-in that eases back, plus a slow push) every 3.6 s, capped per scene kind so no text near the edge is cut (maps included, with their names and caption kept clear of the cropped edge); a skit cuts between wide and close-ups every 3.6 s.
 - `scene_data.counter` ({"n": 1, "of": 3, "label": "Decision"}) draws a corner chip that counts out a promise the hook made; `scene_data.cliff` shows the question a chapter ends on as a strip over the last 3 s (the camera stays wide for it).
 - Scene check (qa) now also flags a picture that holds still for 5 s or more, and judges text against the picture the viewer sees after the zoom.
+
+## 2026-11-07: retention review inside the app (fix/retention-review, stacked on fix/retention-motion)
+- New step `python -m studio.cli retention <video_id>` (and automatically inside `qa`, `build` and the app's "Check script quality" panel): judges the script as a first-time viewer and lists, per finding, the issue, why it loses viewers and what to change: a hook that promises "three decisions" but never counts them, a still hook card, backstory in the first 30 s, still cards over 6 s, skits with one line, chapters that end flat, no emotional peak. Score 0-10 in `retention.json` and `qa.json`.
