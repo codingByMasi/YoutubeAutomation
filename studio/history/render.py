@@ -535,7 +535,38 @@ class Scene:
         fn = getattr(self, f"_{self.kind}", self._title)
         img = backdrop(self.back).copy()
         fn(img, t)
+        self._counter(img, t)
+        self._cliff(img, t)
         return img
+
+    def _counter(self, img: Image.Image, t: float) -> None:
+        """`scene_data.counter` {"n": 1, "of": 3, "label": "Decision"}: a corner chip that counts out a promise the
+        hook made ("three decisions"), so the viewer always knows how far in they are."""
+        c = self.data.get("counter")
+        if not isinstance(c, dict) or not c.get("n") or not c.get("of"):
+            return
+        text = f"{str(c.get('label') or '').strip()} {int(c['n'])}/{int(c['of'])}".strip().upper()
+        f = font(28, False)
+        w = int(f.getlength(text)) + 30
+        pop = ease(t / 0.35)
+        box = (24, int(24 - 40 * (1 - pop)), 24 + w, int(24 - 40 * (1 - pop)) + 48)
+        shadowed_box(img, box, (255, 214, 90), outline=INK, radius=14, width=4)
+        centered(ImageDraw.Draw(img), ((box[0] + box[2]) / 2, (box[1] + box[3]) / 2), text, f, fill=INK)
+
+    def _cliff(self, img: Image.Image, t: float) -> None:
+        """`scene_data.cliff`: the question this chapter ends on, shown as a strip over the last 3 seconds."""
+        q = str(self.data.get("cliff") or "").strip()
+        if not q or t < self.dur - 3.0:
+            return
+        f = font(36, False)
+        lines = wrap(q, f, 900)[:2]
+        h = 28 + 46 * len(lines)
+        rise = ease((t - (self.dur - 3.0)) / 0.4)
+        y0 = int(H - 30 - h + 60 * (1 - rise))
+        shadowed_box(img, (170, y0, W - 170, y0 + h), (30, 24, 52), outline=(255, 214, 90), radius=16, width=4, alpha=235)
+        d = ImageDraw.Draw(img)
+        for k, ln in enumerate(lines):
+            centered(d, (W / 2, y0 + 14 + 23 + k * 46), ln, f, fill=(255, 246, 214))
 
     def _lectern(self, img: Image.Image, t: float) -> None:
         """Older scripts used a host-at-a-lectern scene; it is now a plain title card (there is no host)."""
