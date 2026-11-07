@@ -704,3 +704,5 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 
 ## 2026-11-07: retention review inside the app (fix/retention-review, stacked on fix/retention-motion)
 - New step `python -m studio.cli retention <video_id>` (and automatically inside `qa`, `build` and the app's "Check script quality" panel): judges the script as a first-time viewer and lists, per finding, the issue, why it loses viewers and what to change: a hook that promises "three decisions" but never counts them, a still hook card, backstory in the first 30 s, still cards over 6 s, skits with one line, chapters that end flat, no emotional peak. Score 0-10 in `retention.json` and `qa.json`.
+
+- Found by the new scene check on the rebuilt French Empire video: the counter chip and the chapter-end strip were cut by the camera zoom, the strip covered map sea names, and "waves a ledger" turned a throne room into a sea backdrop. The chip now sits inside the zoomed picture under the title banner, the strip stays inside it, map names under the strip or chip are skipped, and "wave" is no longer a sea word.

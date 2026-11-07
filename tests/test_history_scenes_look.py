@@ -187,7 +187,7 @@ def test_counter_chip_and_cliffhanger_strip_are_drawn_and_move_the_camera_to_a_w
     plain = cast.frame(2.0)
     with_chip = r.Scene({**base, "scene_data": {"counter": {"n": 1, "of": 3, "label": "Decision"}}}, 8.0,
                         r.Cast(tmp_path), [0.0] * 300, 0).frame(2.0)
-    assert plain.crop((20, 20, 260, 80)).tobytes() != with_chip.crop((20, 20, 260, 80)).tobytes()  # the chip
+    assert plain.crop((60, 130, 330, 200)).tobytes() != with_chip.crop((60, 130, 330, 200)).tobytes()  # the chip
     cliff = r.Scene({**base, "scene_data": {"cliff": "But who will stop him?"}}, 8.0, r.Cast(tmp_path), [0.0] * 300, 0)
     assert cliff.frame(7.5).crop((170, 560, 1110, 700)).tobytes() != plain.crop((170, 560, 1110, 700)).tobytes()
     assert cliff.camera(7.5)[0] < 1.2  # no close-up while the strip is up
@@ -201,3 +201,17 @@ def test_every_scene_kind_moves_at_least_every_few_seconds(tmp_path):
         zooms = [sc.camera(t / 10)[0] for t in range(0, 120)]
         assert max(zooms) - min(zooms) > 0.02, kind  # a beat, not a still
         assert max(zooms) <= max(r.MAX_ZOOM.get(kind, r.DEFAULT_MAX_ZOOM), 1.4 if kind == "skit" else 0) + 1e-6, kind
+
+
+def test_counter_chip_and_strip_stay_inside_the_zoomed_picture_and_clear_of_the_map_names(tmp_path):
+    from studio.history import scene_check as sc
+    for kind in ("diagram", "easel", "title", "calendar", "map"):
+        seg = {"scene": kind, "cast": [], "narration": "x", "scene_data": {
+            "title": "T", "steps": ["a", "b", "c"], "items": ["a"], "region": "europe",
+            "points": [{"label": "Paris"}], "counter": {"n": 2, "of": 3, "label": "Decision"},
+            "cliff": "Will he reach Moscow?"}}
+        scene = r.Scene(seg, 8.0, r.Cast(tmp_path), [0.0] * 300, 0)
+        with sc.record_text() as items:
+            scene.frame(7.5)
+        zoom = r.MAX_ZOOM.get(kind, r.DEFAULT_MAX_ZOOM)
+        assert sc.text_problems(items, zoom=zoom) == [], kind
