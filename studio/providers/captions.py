@@ -7,6 +7,7 @@ timings: each segment's real duration is shared between its words by length, wit
 from __future__ import annotations
 
 import re
+import textwrap
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -116,8 +117,12 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     for start, title in chapters or []:
         if lo <= start < hi and title:
             a = start - base + offset
+            text = _clean(title)
+            if st.shorts:  # no wrapping in the style: break a long title into lines that fit the narrow frame
+                width = max(10, int((st.w - 160) / (round(st.size * 0.8) * 0.78)))
+                text = "\\N".join(textwrap.wrap(text, width)[:3])
             lines.append(f"Dialogue: 1,{_ts(a)},{_ts(a + BANNER_SECONDS)},Banner,,0,0,0,,"
-                         f"{{\\fad(250,300)}} {_clean(title)} ")
+                         f"{{\\fad(250,300)}} {text} ")
     for ph in phrases([w for w in words if w[1] > lo and w[0] < hi], min(MAX_PHRASE_CHARS, st.max_chars)):
         for i, (s, e, _) in enumerate(ph):
             nxt = ph[i + 1][0] if i + 1 < len(ph) else e  # no gap inside a phrase: it never flickers

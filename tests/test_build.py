@@ -168,3 +168,18 @@ def test_short_command_zooms_for_cartoon_scenes_and_the_hook_is_the_first_senten
     assert hook_text({"narration": "Money buys ships. And ships matter.", "chapter": "X"}) == "Money buys ships."
     assert hook_text({"narration": "A very long opening sentence that does not fit on a title card at all.",
                       "chapter": "Trafalgar: no way across"}) == "Trafalgar: no way across"
+
+
+def test_a_short_can_open_on_the_videos_hook_and_its_title_wraps_to_fit():
+    from studio.providers import captions
+    from studio.stages.shorts import hook_text
+    first = "How does a man crown himself emperor? Ten years."
+    segs = [{"scene": "skit", "beat": "question", "narration": first}, {"scene": "map", "beat": "reveal"}] + \
+        [{"scene": "skit", "beat": "reveal"}] * 4 + [{"scene": "skit"}]
+    spans = [(0, 13.0)] + [(13.0 + i * 12.0, 25.0 + i * 12.0) for i in range(6)]
+    assert pick_short_windows(spans, segs, 2)[0][0] == 0  # the first Short is the hook
+    assert hook_text(segs[0]) == "How does a man crown himself emperor?"
+    words = [(0.0, 0.5, "hi")]
+    ass = captions.to_ass(words, captions.CaptionStyle(1080, 1920, shorts=True),
+                          chapters=[(0.0, "How does a man crown himself emperor?")])
+    assert "\\N" in ass.split("Banner,,0,0,0,,")[1].split("\n")[0]
