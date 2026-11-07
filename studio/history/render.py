@@ -543,8 +543,8 @@ class Scene:
         """`scene_data.counter` {"n": 1, "of": 3, "label": "Decision"}: a corner chip that counts out a promise the
         hook made ("three decisions"), so the viewer always knows how far in they are."""
         c = self.data.get("counter")
-        if not isinstance(c, dict) or not c.get("n") or not c.get("of"):
-            return
+        if not isinstance(c, dict) or not c.get("n") or not c.get("of") or self.camera(t)[0] > 1.2:
+            return  # (no chip during a close-up: it would sit on a speech bubble)
         text = f"{str(c.get('label') or '').strip()} {int(c['n'])}/{int(c['of'])}".strip().upper()
         f = font(28, False)
         w = int(f.getlength(text)) + 30
@@ -660,7 +660,7 @@ class Scene:
                 if y > 150 and clear_of_strip and clear_of_chip and all(abs(x - mx) > 190 or abs(y - my) > 110 for mx, my in marks):
                     centered(d, (x, y), name, font(30, False), fill=(250, 246, 230), stroke=(30, 36, 50), sw=3)
         d = ImageDraw.Draw(img)
-        centered(d, (W - 200, H - 52), "Approximate map", font(24, False), fill=(235, 240, 245), stroke=(20, 40, 70), sw=2)
+        centered(d, (W - 200, 170 if self.data.get("cliff") else H - 52), "Approximate map", font(24, False), fill=(235, 240, 245), stroke=(20, 40, 70), sw=2)
         n = len(pts)
         if n:
             prog = min(1.0, max(0.0, (t - 0.4) / max(1.0, self.dur * 0.72))) * (n - 1 if n > 1 else 1)
