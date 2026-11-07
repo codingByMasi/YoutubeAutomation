@@ -83,3 +83,14 @@ def test_a_diagram_step_with_text_cut_or_over_the_box_edge_is_reported():
     assert any("step 2" in p and "cut short" in p for p in sc.diagram_problems(seg, cut))
     over = [ok[0], ("bathtub", (x0 + 20, 340, x0 + cw + 12, 370)), ok[2]]
     assert any("step 1" in p and "edge" in p for p in sc.diagram_problems(seg, over))
+
+
+def test_a_picture_that_holds_still_is_reported(tmp_path, monkeypatch):
+    seg = {"scene": "title", "cast": [], "scene_data": {"title": "Hello"}, "narration": "x"}
+    moving = r.Scene(seg, 12.0, r.Cast(tmp_path), [0.0] * 400, 0)
+    assert sc.still_problems(moving, 12.0) == []  # the camera beats keep it alive
+    frozen = r.Scene(seg, 12.0, r.Cast(tmp_path), [0.0] * 400, 0)
+    monkeypatch.setattr(frozen, "camera", lambda t: (1.0, 0.5, 0.5))
+    monkeypatch.setattr(frozen, "frame", lambda t: r.backdrop("night").copy())
+    probs = sc.still_problems(frozen, 12.0)
+    assert probs and "holds still" in probs[0]

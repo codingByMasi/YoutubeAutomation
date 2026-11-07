@@ -696,3 +696,8 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 
 ## 2026-11-07: Shorts from cartoon videos are bigger and open on a title (fix/shorts-bigger-picture-and-hook, stacked on fix/shorts-start-on-a-story-scene)
 - For a video made of drawn scenes the Short crops the middle two thirds of the frame before placing it on the blurred background (figures half again as big), and shows the opening sentence (or the chapter name when it is long) as a centred title over the first seconds.
+
+## 2026-11-07: retention pass 1, motion and on-screen promises (fix/retention-motion)
+- Every cast scene now moves: a camera beat (punch-in that eases back, plus a slow push) every 3.6 s, capped per scene kind so no text near the edge is cut (maps included, with their names and caption kept clear of the cropped edge); a skit cuts between wide and close-ups every 3.6 s.
+- `scene_data.counter` ({"n": 1, "of": 3, "label": "Decision"}) draws a corner chip that counts out a promise the hook made; `scene_data.cliff` shows the question a chapter ends on as a strip over the last 3 s (the camera stays wide for it).
+- Scene check (qa) now also flags a picture that holds still for 5 s or more, and judges text against the picture the viewer sees after the zoom.

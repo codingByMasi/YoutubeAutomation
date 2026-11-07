@@ -37,7 +37,7 @@ LAND_EDGE = (150, 122, 76)
 RED = (192, 57, 43)
 SHOT = 3.6  # seconds between camera beats: something on screen changes at least this often
 MAX_ZOOM = {"title": 1.10, "calendar": 1.12, "diagram": 1.07, "easel": 1.14, "archive": 1.12, "silhouette": 1.12,
-            "map": 1.0}  # most a scene may zoom in: the widest text in it must still fit the cropped picture
+            "map": 1.06}  # most a scene may zoom in: the widest text in it must still fit the cropped picture
 DEFAULT_MAX_ZOOM = 1.12
 BACKDROPS = ("parchment", "mountains", "hall", "night", "snow", "field", "market", "plain", "sea", "desert")
 DEFAULT_BACKDROP = {"lectern": "parchment", "skit": "hall", "map": "parchment", "diagram": "parchment",
@@ -649,12 +649,12 @@ class Scene:
             marks = [(p["x"] * (W - 160) + 80, p["y"] * (H - 220) + 130) for p in pts]
             for name, (lon, lat) in maps.REGIONS[region]["labels"].items():  # real names, clear of the markers and title
                 x, y = (v * k for v, k in zip(maps.project(region, lon, lat), (W, H)))
-                half = font(30, False).getlength(name) / 2 + 10
+                half = font(30, False).getlength(name) / 2 + 50  # clear of the cropped edge
                 x = min(max(x, half), W - half)  # a name near the border stays whole
                 if y > 150 and all(abs(x - mx) > 190 or abs(y - my) > 110 for mx, my in marks):
                     centered(d, (x, y), name, font(30, False), fill=(250, 246, 230), stroke=(30, 36, 50), sw=3)
         d = ImageDraw.Draw(img)
-        centered(d, (W - 190, H - 22), "Approximate map", font(24, False), fill=(235, 240, 245), stroke=(20, 40, 70), sw=2)
+        centered(d, (W - 200, H - 52), "Approximate map", font(24, False), fill=(235, 240, 245), stroke=(20, 40, 70), sw=2)
         n = len(pts)
         if n:
             prog = min(1.0, max(0.0, (t - 0.4) / max(1.0, self.dur * 0.72))) * (n - 1 if n > 1 else 1)
@@ -1048,7 +1048,7 @@ def render_scene(seg: dict, dur: float, out: Path, work: Path, audio: Path | Non
         for f in range(n):
             t = f / fps
             img = scene.frame(t)
-            z, fx, fy = scene.camera(t) if scene.kind != "map" else (1.0, 0.5, 0.5)
+            z, fx, fy = scene.camera(t)
             cw, ch = W / max(z, 1.0), H / max(z, 1.0)
             x0 = min(max(fx * W - cw / 2, 0), W - cw)
             y0 = min(max(fy * H - ch / 2, 0), H - ch)

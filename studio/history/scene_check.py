@@ -48,11 +48,12 @@ def record_text():
         ImageDraw.ImageDraw.text = original
 
 
-def text_problems(items: list[tuple[str, tuple]], width: int = R.W, height: int = R.H) -> list[str]:
-    """Texts cut off by the picture edge, and texts drawn over each other."""
+def text_problems(items: list[tuple[str, tuple]], width: int = R.W, height: int = R.H, zoom: float = 1.0) -> list[str]:
+    """Texts cut off by the picture edge (as seen after the camera zooms in), and texts drawn over each other."""
     out: list[str] = []
+    ix, iy = width * (1 - 1 / zoom) / 2, height * (1 - 1 / zoom) / 2
     for text, (x0, y0, x1, y1) in items:
-        if x0 < -MARGIN or y0 < -MARGIN or x1 > width + MARGIN or y1 > height + MARGIN:
+        if x0 < ix - MARGIN or y0 < iy - MARGIN or x1 > width - ix + MARGIN or y1 > height - iy + MARGIN:
             out.append(f"the text {text[:40]!r} runs past the edge of the picture")
     seen: set[tuple] = set()
     for i, (ta, a) in enumerate(items):
@@ -120,6 +121,35 @@ def mouth_problems(seg: dict, dur: float, cast: R.Cast) -> list[str]:
     return []
 
 
+STILL_SECONDS = 5.0  # a picture may not hold still longer than this
+STILL_DIFF = 0.6  # mean change (0-255) between two samples half a second apart that counts as "nothing moved"
+
+
+def _view(scene: R.Scene, t: float):
+    """The picture as the viewer sees it at second t (after the camera), small and grey."""
+    import numpy as np
+    from PIL import Image
+    img = scene.frame(t)
+    z, fx, fy = scene.camera(t)
+    cw, ch = R.W / max(z, 1.0), R.H / max(z, 1.0)
+    x0, y0 = min(max(fx * R.W - cw / 2, 0), R.W - cw), min(max(fy * R.H - ch / 2, 0), R.H - ch)
+    return np.asarray(img.resize((128, 72), Image.BILINEAR, box=(x0, y0, x0 + cw, y0 + ch)).convert("L"), dtype=float)
+
+
+def still_problems(scene: R.Scene, dur: float) -> list[str]:
+    """Stretches where the picture does not change at all for `STILL_SECONDS` or more."""
+    import numpy as np
+    times = [k * 0.5 for k in range(int(dur * 2))]
+    frames = [_view(scene, t) for t in times]
+    run = 0.0
+    for a, b, t in zip(frames, frames[1:], times[1:]):
+        run = run + 0.5 if float(np.abs(a - b).mean()) < STILL_DIFF else 0.0
+        if run >= STILL_SECONDS:
+            return [f"the picture holds still for {run:.0f}+ s around {t:.0f}s: add movement (a cut, an action, a reveal) "
+                    "or shorten the scene"]
+    return []
+
+
 def check_package(pkg: dict) -> list[str]:
     """Plain-language problems found in the drawn scenes of a script package (empty when all is well)."""
     segs = pkg.get("segments") or []
@@ -139,8 +169,10 @@ def check_package(pkg: dict) -> list[str]:
                 with record_text() as items:
                     scene.frame(t)
                 more = diagram_problems(seg, items) if t == dur * 0.9 else []  # all steps are on screen by then
-                found += [p for p in text_problems(items) + more if p not in found]
+                zoom = R.MAX_ZOOM.get(seg["scene"], R.DEFAULT_MAX_ZOOM) if seg["scene"] != "skit" else 1.0
+                found += [p for p in text_problems(items, zoom=zoom) + more if p not in found]
             found += mouth_problems({**seg, "era": seg.get("era") or "default"}, dur, cast)
+            found += still_problems(scene, dur)
         except Exception as exc:  # noqa: BLE001 - a check must never stop a build
             found.append(f"could not be checked ({str(exc)[:80]})")
         out += [f"{where}: {f}" for f in found]
