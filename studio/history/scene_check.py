@@ -145,8 +145,8 @@ def still_problems(scene: R.Scene, dur: float) -> list[str]:
     for a, b, t in zip(frames, frames[1:], times[1:]):
         run = run + 0.5 if float(np.abs(a - b).mean()) < STILL_DIFF else 0.0
         if run >= STILL_SECONDS:
-            return [f"the picture holds still for {run:.0f}+ s around {t:.0f}s: add movement (a cut, an action, a reveal) "
-                    "or shorten the scene"]
+            return [f"the picture holds still for {run:.0f}+ s around {t:.0f}s: add movement (a cut, an action, "
+                    "a reveal) or shorten the scene"]
     return []
 
 
