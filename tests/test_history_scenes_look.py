@@ -9,7 +9,7 @@ def _scene(tmp_path, seg, dur=10.0):
 
 
 SKIT = {"scene": "skit", "narration": "The mercenary army gathered in the snow of the Alps.", "cast": ["Gaius", "Odo"],
-        "speech": [{"who": "Gaius", "text": "Where is our pay?"}, {"who": "Odo", "text": "Ask Rome."}]}
+        "staging": "A mercenary camp in the snow of the Alps.", "speech": [{"who": "Gaius", "text": "Where is our pay?"}, {"who": "Odo", "text": "Ask Rome."}]}
 
 
 def test_backdrop_follows_the_words():
@@ -17,6 +17,7 @@ def test_backdrop_follows_the_words():
     assert r.guess_backdrop("the fleet sailed from the harbour") == "sea"
     assert r.guess_backdrop("they argued about the tax") == "market"
     assert r.guess_backdrop("nothing special") is None
+    assert r.guess_backdrop("the pope frozen with shock; they bypass the guards") is None  # not snow
     for name in r.BACKDROPS:
         assert r.backdrop(name).size == (r.W, r.H)
 
@@ -64,3 +65,117 @@ def test_lectern_card_gets_a_line_from_the_narration_when_it_has_no_question():
     assert r.card_question("It is 1600. A charter is signed.", "Rewind") == "A charter is signed."
     assert r.card_question("What Comes Next.", "What Comes Next") == ""  # never repeats the title
     assert r.card_question("A sentence far too long to fit on a chapter card " * 3, "T") == ""
+
+
+def test_backdrop_comes_from_the_setting_not_from_the_narration_or_a_wrong_pick(tmp_path):
+    base = {"scene": "skit", "cast": ["A"], "narration": "A ship sinks in a winter storm; he is frozen with shock.",
+            "staging": "Two officials argue over a map in a candle-lit office.", "visual_keywords": ["map", "ledger"]}
+    sc = r.Scene(base, 5.0, r.Cast(tmp_path), [1.0] * 130, 0)
+    assert sc.back == "hall"  # the narration's ship, winter and frozen do not move a room to sea or snow
+    snowy = {**base, "visual_intent": {"must_show": "soldiers marching through deep snow"}}
+    assert r.Scene(snowy, 5.0, r.Cast(tmp_path), [1.0] * 130, 0).back == "snow"
+    given = {**base, "scene_data": {"backdrop": "market"}}
+    assert r.Scene(given, 5.0, r.Cast(tmp_path), [1.0] * 130, 0).back == "market"  # the script's own choice wins
+    bad = {**base, "scene_data": {"backdrop": "volcano"}}
+    assert r.Scene(bad, 5.0, r.Cast(tmp_path), [1.0] * 130, 0).back == "hall"  # unknown value is ignored
+
+def _cal(tmp_path, data, narration="The coup works. On 9 November 1799, the Directory falls.", dur=8.0):
+    seg = {"scene": "calendar", "narration": narration, "chapter": "Eighteenth of Brumaire", "cast": [],
+           "scene_data": data}
+    return r.Scene(seg, dur, r.Cast(tmp_path), [1.0] * int(dur * r.FPS), 0)
+
+
+def _red(img, box):
+    px = img.crop(box).convert("RGB").getdata()
+    return sum(1 for (a, b, c) in px if a > 170 and b < 90 and c < 90)
+
+
+def test_calendar_without_a_day_count_shows_the_date_and_no_crossed_boxes_or_question_mark(tmp_path):
+    page = _cal(tmp_path, {"title": "The Directory falls"}).frame(7.0)
+    assert page.size == (r.W, r.H)
+    assert _red(page, (1000, 480, 1280, 720)) == 0  # no "?"
+    days = _cal(tmp_path, {"title": "x", "days": 7}).frame(7.0)
+    assert _red(days, (1000, 480, 1280, 720)) == 0  # crossed days, but no "?" unless the script asks
+    asked = _cal(tmp_path, {"title": "x", "days": 7, "question": True}).frame(7.5)
+    assert _red(asked, (1000, 480, 1280, 720)) > 200
+
+
+def test_a_long_title_shrinks_or_wraps_to_stay_inside_its_banner():
+    long = "How the Directory fell and three consuls took over the whole of France in a single day"
+    plain, spilled = r.backdrop("parchment").copy(), r.backdrop("parchment").copy()
+    r.banner(spilled, long, 90, width=700)
+    outside = (0, 0, 280, 220)  # left of the 700px banner (it starts at x=290)
+    assert spilled.crop(outside).tobytes() == plain.crop(outside).tobytes()  # no text ran past the box
+    x0, x1 = spilled.crop((290, 30, 990, 150)).convert("L").getextrema()
+    assert x0 < 100  # the title is drawn inside it
+
+def test_a_cast_scene_is_written_into_a_folder_that_does_not_exist_yet(tmp_path):
+    out = tmp_path / "projects" / "9" / "cast" / "cast_001.mp4"
+    seg = {"scene": "title", "scene_data": {"title": "Hello"}, "cast": []}
+    assert r.render_scene(seg, 1.0, out, out.parent) == out and out.exists() and out.stat().st_size > 0
+
+
+def test_a_long_title_card_stays_inside_the_picture(tmp_path):
+    seg = {"scene": "title", "scene_data": {"title": "Who started the fires? Disputed."}, "cast": []}
+    img = r.Scene(seg, 5.0, r.Cast(tmp_path), [1.0] * 130, 0).frame(4.0)
+    light = img.convert("L").point(lambda v: 255 if v > 200 else 0)  # the cream title text
+    assert light.crop((0, 0, 6, r.H)).getbbox() is None and light.crop((r.W - 6, 0, r.W, r.H)).getbbox() is None
+    assert light.getbbox() is not None
+
+def test_map_labels_of_close_places_do_not_overlap_and_stay_in_frame():
+    f = r.font(36)
+    xy = [(500.0, 300.0), (520.0, 310.0), (545.0, 305.0), (60.0, 160.0)]
+    boxes = r._label_boxes(xy, ["Niemen", "Smolensk", "Moscow", "Paris"], f)
+    for i, a in enumerate(boxes):
+        assert a[0] >= 20 and a[2] <= r.W - 20 and a[1] >= 140 and a[3] <= r.H - 20
+        for b in boxes[:i]:
+            assert a[2] <= b[0] or b[2] <= a[0] or a[3] <= b[1] or b[3] <= a[1]
+
+
+def test_the_narrator_stands_below_the_diagram_boxes(tmp_path):
+    seg = {"scene": "diagram", "cast": ["A"], "scene_data": {"title": "T", "steps": ["One", "Two", "Three", "Four"]},
+           "narration": "x"}
+    img = r.Scene(seg, 8.0, r.Cast(tmp_path), [0.0] * 300, 0).frame(7.0)
+    dark = img.crop((100, 255, 330, 495)).convert("L").point(lambda v: 255 if v < 70 else 0)
+    # the first step box region holds only its own text: no big dark sprite block (hat, coat) in front of it
+    assert dark.getbbox() is None or (dark.getbbox()[3] - dark.getbbox()[1]) < 200 and dark.histogram()[255] < 6000
+
+
+def test_palm_trees_only_on_the_desert_backdrop():
+    assert r.guess_backdrop("a camp in the Sahara desert near Carthage") == "desert"
+    assert r.guess_backdrop("a Madrid square") == "market"
+    from PIL import ImageChops
+    box = (100, 100, 300, 380)  # where the left palm stands
+    diff = ImageChops.difference(r.backdrop("market").crop(box), r.backdrop("desert").crop(box)).convert("L")
+    assert diff.getbbox() is not None and sum(diff.histogram()[40:]) > 500  # the desert has trees there, the market not
+
+def test_the_narrator_is_not_drawn_as_a_talking_character(tmp_path):
+    """Only a skit line moves a figure's mouth; narration over a title, map, calendar or speechless skit does not."""
+    for kind in ("title", "calendar", "diagram", "skit"):
+        seg = {"scene": kind, "cast": ["Odo"], "scene_data": {"title": "T", "days": 3, "steps": ["a", "b"]}, "narration": "x"}
+        loud = r.Scene(seg, 6.0, r.Cast(tmp_path), [1.0] * 200, 0).frame(3.3)
+        quiet = r.Scene(seg, 6.0, r.Cast(tmp_path), [0.0] * 200, 0).frame(3.3)
+        assert loud.tobytes() == quiet.tobytes(), kind
+
+def test_diagram_steps_show_every_word_inside_their_box(tmp_path):
+    steps = ["Here is how", "One, loot from conquered land", "Two, taxes from the farms", "Three, trade across the sea",
+             "Picture a bathtub"]
+    cw, _ = r.diagram_layout(len(steps))
+    for text in steps:
+        size, lines = r.diagram_text(text, cw)
+        assert " ".join(lines).split() == text.split()  # nothing dropped
+        assert all(r.font(size).getlength(ln) <= cw - 30 for ln in lines) and len(lines) <= 4
+    seg = {"scene": "diagram", "cast": [], "scene_data": {"title": "T", "steps": steps}, "narration": "x"}
+    assert r.Scene(seg, 8.0, r.Cast(tmp_path), [0.0] * 300, 0).frame(7.5).size == (r.W, r.H)
+
+
+def test_a_calendar_without_a_date_does_not_show_its_title_twice(tmp_path):
+    seg = {"scene": "calendar", "chapter": "Bread, Games and 100 Days", "narration": "Rome keeps the crowd happy.",
+           "scene_data": {"title": "Bread, Games and 100 Days"}, "cast": []}
+    dated = {**seg, "narration": "On 9 November 1799 it ends."}
+    cast = r.Cast(tmp_path)
+    undated_img = r.Scene(seg, 8.0, cast, [0.0] * 300, 0).frame(7.0)
+    dated_img = r.Scene(dated, 8.0, cast, [0.0] * 300, 0).frame(7.0)
+    zone = (300, 30, 980, 130)  # where the banner sits
+    assert undated_img.crop(zone).convert("L").getextrema()[0] > 120  # parchment only: no banner
+    assert dated_img.crop(zone).convert("L").getextrema()[0] < 100  # a dated page keeps its banner text

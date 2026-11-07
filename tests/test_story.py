@@ -176,3 +176,15 @@ def test_qa_flags_cards_and_repeats():
     flags = qa.segment_flags(2, t)
     assert any("repetitive" in f for f in flags)
     assert any("plain title card" in f for f in qa.segment_flags(1, s))
+
+
+def test_retention_gap_is_reported_while_the_script_is_written():
+    from studio.story import checks
+    seg = lambda sec, beat=None: {"est_seconds": sec, "beat": beat}  # noqa: E731
+    ok = {"segments": [seg(15, "question"), seg(20), seg(15, "reveal"), seg(15), seg(8)]}
+    assert checks.retention_problems(ok) == []
+    long = {"segments": [seg(15, "question"), seg(25), seg(22), seg(18), seg(12, "reveal"), seg(30), seg(30)]}
+    probs = checks.retention_problems(long)
+    assert len(probs) == 2 and "segments 1-3" in probs[0] and "segments 5-6" in probs[1]
+    charted = {"segments": [seg(10, None), {"est_seconds": 30, "chart_data": {"type": "bar"}}]}
+    assert checks.retention_problems(charted) == []
