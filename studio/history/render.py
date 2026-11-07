@@ -395,7 +395,7 @@ _DATE = re.compile(r"\b\d{1,2} (?:January|February|March|April|May|June|July|Aug
 # ---------------------------------------------------------------- the scene drawers
 _BACK_WORDS = [("snow", ("snow", "snowy", "alps", "blizzard", "winter", "frost")),
                ("sea", ("ship", "fleet", "sail", "harbour", "harbor", "naval", "sea", "ocean", "shore", "shoreline", "coast",
-                       "coastline", "wave")),
+                       "coastline")),
                ("field", ("battle", "plain", "river", "field", "march", "army", "legion", "camp", "valley", "elephant")),
                ("market", ("tax", "silver", "coin", "market", "trade", "merchant", "debt", "mercenary", "wage",
                            "square")),
