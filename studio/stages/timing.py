@@ -63,11 +63,17 @@ def plan_segment(duration: float, backgrounds: list[Path], chart_frames: list[Pa
     return parts
 
 
+NEEDS_CONTEXT = ("title", "calendar", "silhouette", "easel", "diagram", "map", "archive")  # cast scenes that only
+# make sense after the segment before them: a Short must not open on one
+
+
 def pick_short_windows(spans: list[tuple[float, float]], segs: list[dict], count: int,
                        min_len: float = 15.0, max_len: float = 58.0) -> list[tuple[int, int]]:
     """Choose up to `count` non-overlapping runs of whole segments (first, last index) for Shorts.
 
-    Runs are 15-58 s; they are scored by reveals, questions and charts, skipping the final CTA segment.
+    Runs are 15-58 s; they are scored by reveals, questions and charts, skipping the final CTA segment. A run does
+    not start on a drawn scene that needs the one before it (a title card, a calendar page, a map ...) when another
+    start is possible, so a Short opens on a story moment, not in the middle of an explanation.
     """
     def score(i: int, j: int) -> float:
         sc = 0.0
@@ -85,6 +91,9 @@ def pick_short_windows(spans: list[tuple[float, float]], segs: list[dict], count
                 break
             if length >= min_len:
                 cands.append((score(i, j), length, i, j))
+    opens_ok = [c for c in cands if segs[c[2]].get("scene") not in NEEDS_CONTEXT]
+    if len(opens_ok) >= count:
+        cands = opens_ok
     cands.sort(key=lambda c: (-c[0], -c[1]))
     chosen: list[tuple[int, int]] = []
     for _, _, i, j in cands:

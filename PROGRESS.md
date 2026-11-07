@@ -643,3 +643,64 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 - Removed the 10-character roster, the host Quill, `cast.build_svg` (shared body), `pil_character`, era SVG costumes, the `wardrobe` command and `studio/history/preview.py`. Every character is drawn from the script's description (`studio/history/figures.py`); crowd extras use the same drawer.
 - `lectern` is no longer a scene type; chapter cards are `title`. Older scripts that say `lectern` draw as a title card; old names (Dusty, Quill ...) are drawn from their own words and get a name-stable voice.
 - Channel art regenerated without characters; the channel name "Quill's Past" is unchanged (owner may want to rename).
+
+## 2026-11-06: skits play the narration first (fix/skit-narration-first)
+- A voiced skit now plays its narration first and uncut; the characters' lines follow it after a short pause (`lines_at`), capped at about 6 s of dialogue per skit (the first line always stays). Before, 9-14 s of banter played ahead of the narrator and the picture held on the last line while the narrator spoke. Older scripts with the lines-first layout are converted on the next `visuals` run. The history script prompt now asks for 1-2 very short lines after the narrator's beat.
+
+## 2026-11-06: character looks differ per story (fix/character-looks-per-story)
+- Face parts the script leaves out were picked from the character's NAME alone, so Napoleon or the Pope looked identical in every video. The pick now also uses the character's role and the video's own seed (topic + project), still identical across every scene of one video. The thumbnail draws the script's own character descriptions with the same seed, and the history prompt asks for descriptions written fresh for this story's role and era.
+
+## 2026-11-06: skit backdrops follow the script's location (fix/backdrop-from-script-location)
+- A skit's backdrop was guessed from loose substrings of its narration ("frozen" with shock or "pass" inside "bypass" gave snow; a ship in the story gave sea). It now comes from the script's own `scene_data.backdrop` when given (a known name), else from whole words in the scene's setting only (`visual_intent.must_show`, `staging`, `visual_keywords`), else the hall. The script and scene-plan prompts ask for a backdrop per skit.
+
+## 2026-11-06: calendar scenes (fix/calendar-scene-text)
+- Long scene titles (banner) shrink, then wrap to two lines instead of being cut off. A calendar with no `days` count now shows one page with the date the narration or `label` gives (it used to draw seven crossed-out boxes titled "Days"). With a day count, the cross is thin and the day number stays readable; the closing "?" appears only when the script sets `scene_data.question`.
+
+## 2026-11-06: hook first (fix/hook-first-start, builds on fix/skit-narration-first)
+- A story (cast) channel no longer gets the automatic 3 s silent 3D title card before the first line (it appeared whenever the renderer setting resolved to Blender, even though the video is drawn by the 2D cast renderer). The opening segment, narration plus any skit lines, is kept within 15 s: lines that do not fit are dropped so the narration carries the hook.
+
+## 2026-11-06: retention gaps are caught while the script is written (fix/retention-beat-gap)
+- A history script is now rejected (with the segment numbers) when 40 s or more of estimated narration pass without a retention beat or chart. Before, only the final quality gate looked, on the measured audio, and by then 45-64 s stretches were already in the video. The script prompt states the 40 s rule.
+
+## 2026-11-06: new history projects could not draw scenes (fix/cast-folder-missing)
+- Found while rebuilding a story on a new project: PR 96 removed the line that created the project's `cast/` folder, so `visuals` failed on the first scene with "[Errno 22] Invalid argument" (ffmpeg could not write the clip). `render_scene` now creates the folder.
+
+- Long scene titles (banner) shrink, then wrap to two lines instead of being cut off. A calendar with no `days` count now shows one page with the date the narration or `label` gives (it used to draw seven crossed-out boxes titled "Days"). With a day count, the cross is thin and the day number stays readable; the closing "?" appears only when the script sets `scene_data.question`. The `title` scene card gets the same treatment (it ran off both edges for a title like "Who started the fires? Disputed.").
+
+## 2026-11-07: map labels and diagram narrator (fix/map-labels-and-diagram-sprite)
+- Map marker names for close places (London/Paris, Niemen/Smolensk/Moscow) sat on top of each other; each name now goes above its marker, or beside or below it when that would overlap an earlier name, and stays in the picture. On diagram scenes the narrator figure stood in front of the first step box; it now stands below the boxes.
+
+## 2026-11-07: palm trees only on a desert backdrop (added to fix/backdrop-from-script-location)
+- The `market` backdrop always drew two palm trees, so a Madrid square or a Portuguese harbour looked like an oasis. Palms are now only on a new `desert` backdrop (words: Carthage, desert, Africa, oasis, Sahara, Egypt); the script and scene-plan prompts list it.
+
+## 2026-11-07: the narrator is not a talking figure (fix/narrator-mouth)
+- On title, map, calendar, diagram, easel, archive and silhouette scenes, and on a skit with no speech lines, the first cast figure moved its mouth to the NARRATION, so it looked as if that character narrated (in a skit the same figure stays silent). Figures now move their mouth only for their own skit lines.
+
+## 2026-11-07: Shorts captions fit the frame (fix/shorts-caption-fit)
+- Short captions ran off both edges ("ANCE GETS THREE CONSU"): a phrase could be 26 characters, but at the Shorts size (84 px bold, ASS style without wrapping) only about 14 fit in 1080 px. The phrase length now follows the frame width and font size.
+
+## 2026-11-07: automatic scene checks for any story (fix/scene-checks)
+- New `studio/history/scene_check.py`, run inside `qa` (so `build` prints it) for story channels: draws two frames of every cast scene and reports, with the segment number, text that runs past the picture edge, text drawn over other text, a skit backdrop that contradicts the place in the scene's setting (or is not a known backdrop), and a figure whose mouth follows the narration instead of its own line. It found real defects on the existing videos: every map cut off the ocean name at the border (the name is now kept whole), and sea backdrops with no sea words in the setting (shore, coast and wave now count as sea words).
+
+## 2026-11-07: Shorts open on a story scene (fix/shorts-start-on-a-story-scene)
+- `shorts` could start a Short on a title card, calendar page, map or diagram that only makes sense after the segment before it (the Moscow Short opened on "Who started the fires? Disputed." with no context). A run now does not start on such a scene when another start is possible; videos without cast scenes are unchanged.
+
+- Diagram steps (same PR): a long step was cut to three lines and its words could run past the box edge (found on the British and Roman Empire videos: "Four: use the ..." and "Picture a bathtub" touching the border). A step now gets the largest font at which every word fits inside its box, up to four lines; no word is dropped.
+
+- Date page (same PR): with no date in the narration or `label`, the card repeated the title that the banner already showed; the banner is now left out in that case.
+
+- Diagram steps (same PR): a long step was cut to three lines and its words could run past the box edge (found on the British and Roman Empire videos: "Four: use the ..." and "Picture a bathtub" touching the border). A step now gets the largest font at which every word fits inside its box, up to four lines; no word is dropped.
+
+- Date page (same PR): with no date in the narration or `label`, the card repeated the title that the banner already showed; the banner is now left out in that case.
+- Scene check (same PR) also verifies diagram steps: every word of each step is drawn and stays inside its own box.
+
+## 2026-11-07: Shorts from cartoon videos are bigger and open on a title (fix/shorts-bigger-picture-and-hook, stacked on fix/shorts-start-on-a-story-scene)
+- For a video made of drawn scenes the Short crops the middle two thirds of the frame before placing it on the blurred background (figures half again as big), and shows the opening sentence (or the chapter name when it is long) as a centred title over the first seconds.
+
+## 2026-11-07: retention pass 1, motion and on-screen promises (fix/retention-motion)
+- Every cast scene now moves: a camera beat (punch-in that eases back, plus a slow push) every 3.6 s, capped per scene kind so no text near the edge is cut (maps included, with their names and caption kept clear of the cropped edge); a skit cuts between wide and close-ups every 3.6 s.
+- `scene_data.counter` ({"n": 1, "of": 3, "label": "Decision"}) draws a corner chip that counts out a promise the hook made; `scene_data.cliff` shows the question a chapter ends on as a strip over the last 3 s (the camera stays wide for it).
+- Scene check (qa) now also flags a picture that holds still for 5 s or more, and judges text against the picture the viewer sees after the zoom.
+- Found by the new scene check on the rebuilt French Empire video: the counter chip and the chapter-end strip were cut by the camera zoom, the strip covered map sea names, and "waves a ledger" turned a throne room into a sea backdrop. The chip now sits inside the zoomed picture under the title banner, the strip stays inside it, map names under the strip or chip are skipped, and "wave" is no longer a sea word.
+- Also found in the final frame check: the map caption "Approximate map" sat under the chapter-end strip (it moves to the top when a map has a strip), and the counter chip sat on a speech bubble in close-up shots (it is hidden while the camera is zoomed in).
+- The map caption "Approximate map" is hidden while the chapter-end strip is up (last 3 s): moving it elsewhere collided with a map name.

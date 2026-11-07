@@ -122,3 +122,49 @@ def test_whisper_words_decodes_with_ffmpeg_not_pyav(monkeypatch, tmp_path):
     monkeypatch.setattr(subprocess, "run", lambda *a, **k: types.SimpleNamespace(stdout=pcm))
     assert w.whisper_words(tmp_path / "a.wav") == [(0.0, 0.5, "hi")]
     assert isinstance(seen["audio"], np.ndarray) and seen["audio"].shape == (1600,)
+
+
+def test_a_story_channel_gets_no_automatic_title_card_intro(monkeypatch, tmp_path):
+    from studio.stages import build
+    from studio.story import profile as sprofile
+    made = []
+    monkeypatch.setattr(build, "_title_card", lambda *a: made.append(a) or tmp_path / "t.mp4")
+    assert build._generated_intro(None, {}, {}, tmp_path, sprofile.get("history")) is None and not made
+    assert build._generated_intro(None, {}, {}, tmp_path, sprofile.get("business")) == tmp_path / "t.mp4"
+
+def test_short_captions_never_run_past_the_frame_edges():
+    import re
+
+    from studio.providers import captions
+    from studio.util import fonts
+    text = ("the coup works on nine november seventeen ninety nine and france gets three consuls while napoleon is "
+            "first and the other two learn who is in charge of everything").split()
+    words = [(i * 0.3, i * 0.3 + 0.25, w) for i, w in enumerate(text)]
+    for style in (captions.CaptionStyle(1080, 1920, shorts=True), captions.CaptionStyle(1920, 1080)):
+        ass = captions.to_ass(words, style)
+        f = fonts.load(style.size, False)
+        widest = 0
+        for m in re.finditer(r"Dialogue: 0,[^,]*,[^,]*,Default,,0,0,0,,(.*)", ass):
+            plain = re.sub(r"\{[^}]*\}", "", m.group(1))
+            widest = max(widest, f.getlength(plain) * 1.0)
+        assert 0 < widest <= style.w - 100, (style.w, widest)
+
+def test_a_short_does_not_open_on_a_title_card_or_calendar_page():
+    kinds = ["skit", "title", "skit", "calendar", "skit", "map", "skit", "skit", "skit"]
+    beats = ["question", "reveal", "example", "reveal", "reveal", "reveal", "example", "question", None]
+    segs = [{"scene": k, "beat": b} for k, b in zip(kinds, beats)]
+    spans = [(i * 10.0, i * 10.0 + 10.0) for i in range(len(segs))]
+    wins = pick_short_windows(spans, segs, 2)
+    assert len(wins) == 2 and all(segs[i]["scene"] == "skit" for i, _ in wins)
+    plain = [{"beat": "reveal"}] * 9  # videos without cast scenes are unchanged
+    assert pick_short_windows(spans, plain, 2) == pick_short_windows(spans, [{"beat": "reveal"}] * 9, 2)
+
+def test_short_command_zooms_for_cartoon_scenes_and_the_hook_is_the_first_sentence():
+    from studio.stages.shorts import hook_text
+    plain = ff.vertical_cmd(P("c.mp4"), 1, 20, P("s.mp4"), None)
+    zoomed = ff.vertical_cmd(P("c.mp4"), 1, 20, P("s.mp4"), None, zoom=True)
+    assert "crop=iw*2/3:ih" in zoomed[zoomed.index("-filter_complex") + 1]
+    assert "crop=iw*2/3" not in plain[plain.index("-filter_complex") + 1]
+    assert hook_text({"narration": "Money buys ships. And ships matter.", "chapter": "X"}) == "Money buys ships."
+    assert hook_text({"narration": "A very long opening sentence that does not fit on a title card at all.",
+                      "chapter": "Trafalgar: no way across"}) == "Trafalgar: no way across"

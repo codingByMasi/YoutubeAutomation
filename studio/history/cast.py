@@ -35,7 +35,9 @@ def prompt_block(profile: dict) -> str:
              "the script. There is no fixed or recurring cast and no host: every character is one the story "
              "itself needs, named and described from the story."]
     lines.append("Historical figures: never a real likeness. Each one keeps the same described look for the whole "
-                 "video (its own face, build, clothes, headwear and props). Rules:")
+                 "video (its own face, build, clothes, headwear and props), written fresh for THIS story and the "
+                 "role the person plays in it (age, rank and costume of that moment); never reuse a description "
+                 "from another video, and give every character a different face. Rules:")
     lines += [f"- {r}" for r in dep.get("rules", [])]
     lines.append(wardrobe.prompt_line())
     lines.append(f"Scene types per segment: {', '.join(SCENE_TYPES)}. Add optional keys to each segment: `scene`, "

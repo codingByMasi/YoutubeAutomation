@@ -35,7 +35,11 @@ SEA = (176, 205, 210)
 LAND = (222, 204, 160)
 LAND_EDGE = (150, 122, 76)
 RED = (192, 57, 43)
-BACKDROPS = ("parchment", "mountains", "hall", "night", "snow", "field", "market", "plain", "sea")
+SHOT = 3.6  # seconds between camera beats: something on screen changes at least this often
+MAX_ZOOM = {"title": 1.10, "calendar": 1.12, "diagram": 1.07, "easel": 1.14, "archive": 1.12, "silhouette": 1.12,
+            "map": 1.06}  # most a scene may zoom in: the widest text in it must still fit the cropped picture
+DEFAULT_MAX_ZOOM = 1.12
+BACKDROPS = ("parchment", "mountains", "hall", "night", "snow", "field", "market", "plain", "sea", "desert")
 DEFAULT_BACKDROP = {"lectern": "parchment", "skit": "hall", "map": "parchment", "diagram": "parchment",
                     "easel": "parchment", "archive": "parchment", "calendar": "parchment", "silhouette": "night",
                     "title": "night"}
@@ -183,8 +187,8 @@ def _field() -> Image.Image:
     return _vignette(img, 0.25)
 
 
-def _market() -> Image.Image:
-    """A sunny sandy square: pale wall, banner posts, a wooden stage."""
+def _market(palms: bool = False) -> Image.Image:
+    """A sunny sandy square: pale wall, banner posts, a wooden stage (palms only in the desert variant)."""
     img = _gradient((250, 226, 172), (236, 204, 144))
     d = ImageDraw.Draw(img)
     d.rectangle([0, 0, W, int(H * 0.5)], fill=(176, 160, 138))
@@ -193,7 +197,7 @@ def _market() -> Image.Image:
     d.rectangle([0, int(H * 0.5), W, H], fill=(226, 200, 134))
     d.rectangle([80, int(H * 0.52), W - 80, int(H * 0.6)], fill=(214, 170, 96))
     d.rectangle([80, int(H * 0.6), W - 80, int(H * 0.64)], fill=(160, 118, 66))
-    for x in (160, W - 220):  # palms
+    for x in (160, W - 220) if palms else ():  # palms
         d.line([(x, int(H * 0.52)), (x - 10, int(H * 0.22))], fill=(120, 84, 48), width=12)
         for ang in range(-60, 70, 30):
             ex, ey = x - 10 + math.sin(math.radians(ang)) * 90, int(H * 0.22) + 40 - math.cos(math.radians(ang)) * 30
@@ -223,7 +227,7 @@ def _sea() -> Image.Image:
 
 
 _BACK = {"parchment": _parchment, "mountains": _mountains, "hall": _hall, "night": _night, "snow": _snow,
-         "field": _field, "market": _market, "plain": _plain, "sea": _sea}
+         "field": _field, "market": _market, "plain": _plain, "sea": _sea, "desert": lambda: _market(True)}
 _back_cache: dict[str, Image.Image] = {}
 
 
@@ -249,7 +253,8 @@ def card_question(narration: str, title: str = "", limit: int = 70) -> str:
 class Cast:
     """Sprites for the video's own characters, each drawn from the script's description of it."""
 
-    def __init__(self, work: Path, characters: list[dict] | None = None) -> None:
+    def __init__(self, work: Path, characters: list[dict] | None = None, look_seed: str = "") -> None:
+        self.look_seed = look_seed  # per video: unspecified face parts differ between stories, not between scenes
         # characters the script describes (name, gender, age, clothing, props ...): drawn from those attributes
         self.chars = {str(c.get("name", "")).strip().lower(): c for c in characters or []
                       if isinstance(c, dict) and str(c.get("name", "")).strip()}
@@ -279,6 +284,7 @@ class Cast:
     def _from_spec(self, spec: dict, px: int, closed: bool, talking: bool, era: str) -> Image.Image:
         key = (str(spec.get("name", "")).lower(), px, closed, talking, era)
         if key not in self._cs:
+            spec = {**spec, "look_seed": self.look_seed}
             self._cs[key] = figures.draw(spec, px, closed, talking, figures.ERA_STYLE.get(era))
         return self._cs[key]
 
@@ -370,33 +376,93 @@ def bubble(img: Image.Image, text: str, cx: float, tail_y: float, alpha: float =
 
 
 def banner(img: Image.Image, text: str, cy: int, sub: str = "", width: int = 880) -> None:
-    """Title banner across the top of a scene."""
-    box = (int((W - width) / 2), cy - 52, int((W + width) / 2), cy + (86 if sub else 52))
+    """Title banner across the top of a scene. A long title shrinks, then wraps to two lines, so it is never cut off."""
+    size = 56
+    while size > 34 and font(size).getlength(text) > width - 60:
+        size -= 4
+    lines = wrap(text, font(size), width - 60)[:2]
+    extra = (len(lines) - 1) * (size + 6)
+    box = (int((W - width) / 2), cy - 52 - extra // 2, int((W + width) / 2), cy + (86 if sub else 52) + extra // 2 + extra % 2)
     shadowed_box(img, box, (252, 244, 222), outline=WOOD, radius=18, width=5)
     d = ImageDraw.Draw(img)
-    centered(d, (W / 2, cy), text, font(56))
+    for k, ln in enumerate(lines):
+        centered(d, (W / 2, cy - extra // 2 + k * (size + 6)), ln, font(size))
     if sub:
-        centered(d, (W / 2, cy + 58), sub, font(30, serif=False), fill=(110, 84, 52))
+        centered(d, (W / 2, cy + 58 + extra // 2), sub, font(30, serif=False), fill=(110, 84, 52))
+
+
+_DATE = re.compile(r"\b\d{1,2} (?:January|February|March|April|May|June|July|August|September|October|November|December)"
+                   r"(?: \d{4})?\b|\b(?:January|February|March|April|May|June|July|August|September|October|November|"
+                   r"December) \d{4}\b")
 
 
 # ---------------------------------------------------------------- the scene drawers
-_BACK_WORDS = [("snow", ("snow", "alps", "blizzard", "winter", "frozen", "pass")),
-               ("sea", ("ship", "fleet", "sail", "harbour", "harbor", "naval", "sea ", "ocean", "island")),
+_BACK_WORDS = [("snow", ("snow", "snowy", "alps", "blizzard", "winter", "frost")),
+               ("sea", ("ship", "fleet", "sail", "harbour", "harbor", "naval", "sea", "ocean", "shore", "shoreline", "coast",
+                       "coastline")),
                ("field", ("battle", "plain", "river", "field", "march", "army", "legion", "camp", "valley", "elephant")),
-               ("market", ("tax", "silver", "coin", "market", "trade", "merchant", "pay", "debt", "mercenar", "wage",
-                           "city", "square", "carthage", "desert", "africa")),
+               ("market", ("tax", "silver", "coin", "market", "trade", "merchant", "debt", "mercenary", "wage",
+                           "square")),
+               ("desert", ("carthage", "desert", "africa", "oasis", "sahara", "egypt")),
                ("mountains", ("mountain", "cliff", "peak")),
-               ("night", ("night", "dark", "torch", "assassin", "secret", "plot")),
+               ("night", ("night", "dark", "torch", "assassin", "secret", "plot", "plotter", "candlelit")),
                ("plain", ("contract", "treaty", "gag", "paper", "list", "number"))]
 
 
 def guess_backdrop(text: str) -> str | None:
-    """A backdrop that fits the words around a skit (first matching group wins), or None for the default hall."""
+    """A backdrop that fits the place a skit is set in, or None for the default hall. Whole words only (so "pass" in
+    "bypass" or "frozen" in "frozen with shock" never picks snow) and the group with most hits wins."""
     low = text.lower()
+    best, top = None, 0
     for name, words in _BACK_WORDS:
-        if any(w in low for w in words):
-            return name
-    return None
+        hits = sum(len(re.findall(r"\b" + w + r"s?\b", low)) for w in words)
+        if hits > top:
+            best, top = name, hits
+    return best
+
+
+def setting_words(seg: dict) -> str:
+    """The words that say WHERE a scene happens: what the script says must be shown, the staging and the drawn
+    objects. The narration is left out on purpose: it talks about the events, not the room (a ship that sinks, a person
+    "frozen" with shock, a winter in another year), and picked sea or snow for skits that were not set there."""
+    intent = seg.get("visual_intent") if isinstance(seg.get("visual_intent"), dict) else {}
+    return " ".join(str(x) for x in [intent.get("must_show") or "", seg.get("staging") or "",
+                                     *(seg.get("visual_keywords") or [])])
+
+
+def diagram_layout(n: int) -> tuple[int, int]:
+    """(box width, left edge of the first box) for `n` step boxes."""
+    cw = min(300, (W - 200 - (n - 1) * 60) // n)
+    return cw, (W - (cw * n + 60 * (n - 1))) // 2
+
+
+def diagram_text(text: str, cw: int) -> tuple[int, list[str]]:
+    """Font size and lines that show a whole step inside a box `cw` wide and 250 tall: the largest size at which no
+    word is cut and at most four lines are needed (a long step gets a smaller font, never lost words)."""
+    for size in (38, 34, 30, 27, 24):
+        lines = wrap(text, font(size), cw - 36)
+        if len(lines) <= (3 if size >= 34 else 4) and all(font(size).getlength(w) <= cw - 36 for w in text.split()):
+            return size, lines
+    return 22, wrap(text, font(22), cw - 36)[:5]
+
+
+def _label_boxes(xy: list[tuple[float, float]], labels: list[str], f: ImageFont.FreeTypeFont) -> list[tuple]:
+    """A box for each marker's name: above it, or higher / to either side when that would sit on an earlier name."""
+    boxes: list[tuple] = []
+    for (x, y), text in zip(xy, labels):
+        bw = f.getlength(text) + 28
+        # above the marker first (the marching army is drawn just below it), then below the army
+        offs = [(dx, -92 - row * 58) for row in range(3) for dx in (-bw / 2, 30, -30 - bw, 40 + bw, -40 - 2 * bw)]
+        offs += [(dx, 110 + row * 58) for row in range(2) for dx in (-bw / 2, 30, -30 - bw)]
+        pick = None
+        for dx, dy in offs:
+            cx, cy = min(max(x + dx, 20), W - 20 - bw), min(max(y + dy, 140), H - 72)  # keep it in the picture
+            if all(cx + bw + 6 <= b[0] or b[2] + 6 <= cx or cy + 58 <= b[1] or b[3] + 6 <= cy for b in boxes):
+                pick = (cx, cy)
+                break
+        pick = pick or (min(max(x - bw / 2, 20), W - 20 - bw), min(max(y - 92, 140), H - 72))
+        boxes.append((int(pick[0]), int(pick[1]), int(pick[0] + bw), int(pick[1] + 52)))
+    return boxes
 
 
 class Scene:
@@ -408,11 +474,11 @@ class Scene:
         self.data = seg.get("scene_data") or {}
         self.who = list(seg.get("cast") or [cast.GENERIC])
         self.speech = [s for s in (seg.get("speech") or []) if isinstance(s, dict)]
-        kw = " ".join(str(k).lower() for k in [*(seg.get("visual_keywords") or []), seg.get("narration", "")])
-        guess = guess_backdrop(kw) if self.kind == "skit" else None
-        self.back = self.data.get("backdrop") or guess or DEFAULT_BACKDROP.get(self.kind, "parchment")
+        guess = guess_backdrop(setting_words(seg)) if self.kind == "skit" else None
+        given = str(self.data.get("backdrop") or "").lower()  # the script's own choice wins when it is a known one
+        self.back = given if given in BACKDROPS else guess or DEFAULT_BACKDROP.get(self.kind, "parchment")
         self.faction0 = faction0
-        self.starts = speech_audio.line_times(self.speech, dur)
+        self.starts = speech_audio.line_times(self.speech, dur, seg.get("lines_at"))
         self.line_env: list[list[float] | None] = []
         for sp in self.speech:  # a voiced line moves its speaker's mouth with its own audio
             a = sp.get("audio")
@@ -423,12 +489,16 @@ class Scene:
         self.era = e if e in wardrobe.OUTFITS else wardrobe.DEFAULT
 
     def camera(self, t: float) -> tuple[float, float, float]:
-        """(zoom, focus x, focus y) at second t: a wide shot with a slow push, then hard cuts to a close-up of whoever
-        is speaking (the reference videos cut between wide and close angles every few seconds)."""
-        wide = (1.0 + 0.04 * (t / max(self.dur, 0.1)), 0.5, 0.5)
-        if self.kind != "skit" or self.dur < 5.5:
+        """(zoom, focus x, focus y) at second t. Nothing stays still: every scene gets a punch-in every `SHOT`
+        seconds that eases back while the whole shot keeps pushing in (never beyond `MAX_ZOOM` for its kind, so no
+        text near the edge is cut), and a skit cuts between a wide shot and close-ups of whoever is speaking."""
+        top = MAX_ZOOM.get(self.kind, DEFAULT_MAX_ZOOM)
+        phase = (t % SHOT) / SHOT
+        punch = (top - 1.0) * 0.55 * (1 - ease(phase * 1.6)) if phase < 0.625 else 0.0
+        wide = (min(top, 1.0 + (top - 1.0) * 0.4 * (t / max(self.dur, 0.1)) + punch), 0.5 + 0.015 * math.sin(t * 0.9), 0.5)
+        if self.kind != "skit" or self.dur < 5.5 or (self.data.get("cliff") and t > self.dur - 3.2):
             return wide
-        shot = 4.5
+        shot = SHOT
         k = int(t // shot)
         if k % 2 == 0:
             return wide
@@ -465,7 +535,42 @@ class Scene:
         fn = getattr(self, f"_{self.kind}", self._title)
         img = backdrop(self.back).copy()
         fn(img, t)
+        self._counter(img, t)
+        self._cliff(img, t)
         return img
+
+    def _counter(self, img: Image.Image, t: float) -> None:
+        """`scene_data.counter` {"n": 1, "of": 3, "label": "Decision"}: a corner chip that counts out a promise the
+        hook made ("three decisions"), so the viewer always knows how far in they are."""
+        c = self.data.get("counter")
+        if not isinstance(c, dict) or not c.get("n") or not c.get("of") or self.camera(t)[0] > 1.2:
+            return  # (no chip during a close-up: it would sit on a speech bubble)
+        text = f"{str(c.get('label') or '').strip()} {int(c['n'])}/{int(c['of'])}".strip().upper()
+        f = font(28, False)
+        w = int(f.getlength(text)) + 30
+        z = MAX_ZOOM.get(self.kind, DEFAULT_MAX_ZOOM)
+        x0 = int(W * (1 - 1 / z) / 2) + 14  # inside what the camera still shows, below the title banner
+        pop = ease(t / 0.35)
+        y0 = 142 - int(40 * (1 - pop))
+        box = (x0, y0, x0 + w, y0 + 48)
+        shadowed_box(img, box, (255, 214, 90), outline=INK, radius=14, width=4)
+        centered(ImageDraw.Draw(img), ((box[0] + box[2]) / 2, (box[1] + box[3]) / 2), text, f, fill=INK)
+
+    def _cliff(self, img: Image.Image, t: float) -> None:
+        """`scene_data.cliff`: the question this chapter ends on, shown as a strip over the last 3 seconds."""
+        q = str(self.data.get("cliff") or "").strip()
+        if not q or t < self.dur - 3.0:
+            return
+        f = font(36, False)
+        lines = wrap(q, f, 900)[:2]
+        h = 28 + 46 * len(lines)
+        rise = ease((t - (self.dur - 3.0)) / 0.4)
+        z = MAX_ZOOM.get(self.kind, DEFAULT_MAX_ZOOM)
+        y0 = int(H - int(H * (1 - 1 / z) / 2) - 16 - h + 60 * (1 - rise))
+        shadowed_box(img, (170, y0, W - 170, y0 + h), (30, 24, 52), outline=(255, 214, 90), radius=16, width=4, alpha=235)
+        d = ImageDraw.Draw(img)
+        for k, ln in enumerate(lines):
+            centered(d, (W / 2, y0 + 14 + 23 + k * 46), ln, f, fill=(255, 246, 214))
 
     def _lectern(self, img: Image.Image, t: float) -> None:
         """Older scripts used a host-at-a-lectern scene; it is now a plain title card (there is no host)."""
@@ -496,7 +601,7 @@ class Scene:
                      ]
             active = self._active_line(t)
             talk = active is not None and active in lines and self._line_mouth(active, t)
-            self.actor(img, w, cx, 640, 430 if n <= 2 else 340, t, i, talk or (not self.speech and self.mouth(t)),
+            self.actor(img, w, cx, 640, 430 if n <= 2 else 340, t, i, talk,
                        enter=0.1 * i)
         act = self._active_line(t)
         for k, s in enumerate(self.speech):
@@ -548,10 +653,15 @@ class Scene:
             marks = [(p["x"] * (W - 160) + 80, p["y"] * (H - 220) + 130) for p in pts]
             for name, (lon, lat) in maps.REGIONS[region]["labels"].items():  # real names, clear of the markers and title
                 x, y = (v * k for v, k in zip(maps.project(region, lon, lat), (W, H)))
-                if y > 150 and all(abs(x - mx) > 190 or abs(y - my) > 110 for mx, my in marks):
+                half = font(30, False).getlength(name) / 2 + 50  # clear of the cropped edge
+                x = min(max(x, half), W - half)  # a name near the border stays whole
+                clear_of_strip = not self.data.get("cliff") or y < H - 200  # the chapter-end strip needs the bottom
+                clear_of_chip = not self.data.get("counter") or not (x < 400 and y < 220)  # the corner counter chip
+                if y > 150 and clear_of_strip and clear_of_chip and all(abs(x - mx) > 190 or abs(y - my) > 110 for mx, my in marks):
                     centered(d, (x, y), name, font(30, False), fill=(250, 246, 230), stroke=(30, 36, 50), sw=3)
         d = ImageDraw.Draw(img)
-        centered(d, (W - 190, H - 22), "Approximate map", font(24, False), fill=(235, 240, 245), stroke=(20, 40, 70), sw=2)
+        if not (self.data.get("cliff") and t >= self.dur - 3.0):  # the strip needs that corner for its last 3 s
+            centered(d, (W - 200, H - 52), "Approximate map", font(24, False), fill=(235, 240, 245), stroke=(20, 40, 70), sw=2)
         n = len(pts)
         if n:
             prog = min(1.0, max(0.0, (t - 0.4) / max(1.0, self.dur * 0.72))) * (n - 1 if n > 1 else 1)
@@ -563,6 +673,8 @@ class Scene:
                 _dashed(d, a, (a[0] + (b[0] - a[0]) * frac, a[1] + (b[1] - a[1]) * frac), RED, 9)
                 if frac > 0.02:
                     _arrow_head(d, a, (a[0] + (b[0] - a[0]) * frac, a[1] + (b[1] - a[1]) * frac), RED)
+            boxes = _label_boxes(xy, [str(p.get("label", "")) for p in pts], font(36))
+            shown: list[int] = []  # names are drawn last, on top of the marching army
             for k, (x, y) in enumerate(xy):
                 if k > prog + 0.05:
                     break
@@ -570,13 +682,7 @@ class Scene:
                 pop = ease((prog - k + 0.3) / 0.4)
                 r = int(16 + 6 * pop)
                 d.ellipse([x - r, y - r, x + r, y + r], fill=hex_rgb(col), outline=INK, width=4)
-                label = str(pts[k].get("label", ""))
-                f = font(36)
-                bw = f.getlength(label) + 28
-                shadowed_box(img, (int(x - bw / 2), int(y - 92), int(x + bw / 2), int(y - 40)), (252, 244, 222),
-                             outline=WOOD, radius=14, width=4)
-                d = ImageDraw.Draw(img)
-                centered(d, (x, y - 66), label, f)
+                shown.append(k)
             if n > 1:  # an army marches at the head of the route, with a troop counter that counts up
                 k0 = min(n - 2, int(prog))
                 fr = min(1.0, prog - k0)
@@ -593,6 +699,11 @@ class Scene:
                                  outline=WOOD, radius=12, width=4)
                     centered(ImageDraw.Draw(img), (hx, hy + 69), label, font(30, False))
                 d = ImageDraw.Draw(img)
+            for k in shown:
+                bx = boxes[k]
+                shadowed_box(img, bx, (252, 244, 222), outline=WOOD, radius=14, width=4)
+                d = ImageDraw.Draw(img)
+                centered(d, ((bx[0] + bx[2]) / 2, (bx[1] + bx[3]) / 2), str(pts[k].get("label", "")), font(36))
             ff_, ft = self.data.get("flag_from"), self.data.get("flag_to")
             if ff_ and prog >= 0:
                 _flag(d, xy[0][0] - 70, xy[0][1] + 40, cast.faction_color(self.faction0), str(ff_))
@@ -602,7 +713,7 @@ class Scene:
         if title:
             banner(img, str(title), 78, width=700)
         if self.who:
-            self.actor(img, self.who[0], 1160, 650, 260, t, 0, self.mouth(t))
+            self.actor(img, self.who[0], 1160, 650, 260, t, 0, False)  # the narrator is not this figure
 
     # -- diagram: numbered steps appear one after another
     def _diagram(self, img: Image.Image, t: float) -> None:
@@ -610,8 +721,7 @@ class Scene:
             or [str(self.data.get("title") or self.seg.get("chapter") or "How it worked")]
         n = len(steps)
         banner(img, str(self.data.get("title") or self.seg.get("chapter", "")), 90, width=760)
-        cw = min(300, (W - 200 - (n - 1) * 60) // n)
-        x0 = (W - (cw * n + 60 * (n - 1))) // 2
+        cw, x0 = diagram_layout(n)
         for k, s in enumerate(steps):
             start = 0.7 + k * (self.dur * 0.6) / n
             if t < start:
@@ -623,8 +733,9 @@ class Scene:
             d = ImageDraw.Draw(img)
             d.ellipse([x + cw / 2 - 34, y - 34, x + cw / 2 + 34, y + 34], fill=hex_rgb(cast.faction_color(k)), outline=INK, width=4)
             centered(d, (x + cw / 2, y), str(k + 1), font(44), fill=(255, 255, 255))
-            for j, ln in enumerate(wrap(s, font(38), cw - 40)[:3]):
-                centered(d, (x + cw / 2, y + 100 + j * 50), ln, font(38))
+            size, lines = diagram_text(s, cw)
+            for j, ln in enumerate(lines):
+                centered(d, (x + cw / 2, y + 125 - (len(lines) - 1) * size * 0.65 + j * size * 1.3), ln, font(size))
             if k + 1 < n and t > start + 0.5:
                 _arrow_head(d, (x + cw + 6, y + 125), (x + cw + 54, y + 125), INK)
             if self.data.get("disputed") and k == 1:
@@ -633,13 +744,16 @@ class Scene:
         if self.data.get("disputed") and t > 2:
             centered(ImageDraw.Draw(img), (W / 2, 535), "Told by Livy. Historians dispute this.", font(34, False),
                      fill=(110, 84, 52))
-        if self.who:
-            self.actor(img, self.who[0], 130, 650, 250, t, 0, self.mouth(t))
+        if self.who:  # standing below the step boxes (they end at y=500), not in front of the first one
+            self.actor(img, self.who[0], 130, 740, 250, t, 0, False)  # the narrator is not this figure
 
     # -- calendar: days cross off one by one
     def _calendar(self, img: Image.Image, t: float) -> None:
-        days = max(1, min(int(self.data.get("days", 7)), 31))
-        banner(img, str(self.data.get("title") or "Days"), 90, str(self.data.get("label") or ""), width=700)
+        if self.data.get("days") in (None, ""):  # no count of days: one page showing the date the script talks about
+            return self._date_page(img, t)
+        days = max(1, min(int(self.data.get("days") or 7), 31))
+        banner(img, str(self.data.get("title") or self.seg.get("chapter") or "Days"), 90,
+               str(self.data.get("label") or ""), width=900)
         cols = 8 if days > 10 else days
         cw, gap = 112, 14
         x0 = (W - (cols * cw + (cols - 1) * gap)) // 2
@@ -652,15 +766,38 @@ class Scene:
             shadowed_box(img, (x, y, x + cw, y + cw), (252, 244, 222) if not crossed else (236, 220, 190),
                          outline=WOOD, radius=14, width=4)
             d = ImageDraw.Draw(img)
-            centered(d, (x + cw / 2, y + cw / 2), str(k + 1), font(46), fill=INK if not crossed else (150, 128, 96))
-            if crossed:
-                d.line([(x + 14, y + 14), (x + cw - 14, y + cw - 14)], fill=RED, width=9)
-                d.line([(x + cw - 14, y + 14), (x + 14, y + cw - 14)], fill=RED, width=9)
-        if done >= days and t > self.dur * 0.78:
+            if crossed:  # a thin cross behind the number: the day stays readable
+                d.line([(x + 30, y + 30), (x + cw - 30, y + cw - 30)], fill=RED, width=5)
+                d.line([(x + cw - 30, y + 30), (x + 30, y + cw - 30)], fill=RED, width=5)
+            centered(d, (x + cw / 2, y + cw / 2), str(k + 1), font(46), fill=INK if not crossed else (120, 96, 64))
+        q = self.data.get("question")  # a closing "?" only when the script asks for one
+        if q and done >= days and t > self.dur * 0.78:
             s = ease((t - self.dur * 0.78) / 0.4)
-            centered(ImageDraw.Draw(img), (W - 150, 600), "?", font(int(40 + 130 * s)), fill=RED, stroke=PAPER, sw=6)
+            centered(ImageDraw.Draw(img), (W - 150, 600), str(q) if isinstance(q, str) else "?", font(int(40 + 130 * s)),
+                     fill=RED, stroke=PAPER, sw=6)
         if self.who:
-            self.actor(img, self.who[0], 120, 650, 250, t, 0, self.mouth(t))
+            self.actor(img, self.who[0], 120, 650, 250, t, 0, False)  # the narrator is not this figure
+
+    def _date_page(self, img: Image.Image, t: float) -> None:
+        """One calendar page with the date from the script (`label`, else a date in the narration, else the title)."""
+        text = " ".join(str(self.seg.get(k) or "") for k in ("narration",))
+        m = _DATE.search(text)
+        date = str(self.data.get("label") or (m.group(0) if m else "") or self.data.get("title") or
+                   self.seg.get("chapter") or "")
+        title = str(self.data.get("title") or self.seg.get("chapter") or "")
+        if date.lower() != title.lower():  # with no real date the card already carries the title: not twice
+            banner(img, title, 90, width=900)
+        rise = ease(t / 0.5)
+        shadowed_box(img, (340, int(230 + 30 * (1 - rise)), 940, int(520 + 30 * (1 - rise))), (252, 244, 222),
+                     outline=WOOD, radius=16, width=6)
+        d = ImageDraw.Draw(img)
+        d.rounded_rectangle([340, int(230 + 30 * (1 - rise)), 940, int(300 + 30 * (1 - rise))], 16, fill=RED)
+        size = 84
+        while size > 40 and font(size).getlength(date) > 520:
+            size -= 6
+        centered(d, (640, int(410 + 30 * (1 - rise))), date, font(size))
+        if self.who:
+            self.actor(img, self.who[0], 120, 650, 250, t, 0, False)  # the narrator is not this figure
 
     # -- easel: a list or short chart on an easel
     def _easel(self, img: Image.Image, t: float) -> None:
@@ -678,7 +815,7 @@ class Scene:
                 d.ellipse([360, 238 + k * 44 - 8, 376, 238 + k * 44 + 8], fill=hex_rgb(cast.faction_color(k)))
                 d.text((392, 238 + k * 44), it, font=font(32, False), fill=INK, anchor="lm")
         if self.who:
-            self.actor(img, self.who[0], 1090, 650, 400, t, 0, self.mouth(t))
+            self.actor(img, self.who[0], 1090, 650, 400, t, 0, False)  # the narrator is not this figure
 
     def _archive(self, img: Image.Image, t: float) -> None:
         d = ImageDraw.Draw(img)
@@ -693,22 +830,28 @@ class Scene:
             centered(d, (640, 305), "archive picture", font(40, False), fill=(120, 100, 70))
         centered(d, (640, 540), str(self.data.get("title") or ""), font(36, False), fill=(110, 84, 52))
         if self.who:
-            self.actor(img, self.who[0], 1100, 650, 360, t, 0, self.mouth(t))
+            self.actor(img, self.who[0], 1100, 650, 360, t, 0, False)  # the narrator is not this figure
 
     def _silhouette(self, img: Image.Image, t: float) -> None:
         push = 40 * min(1.0, t / max(self.dur, 1.0))  # a slow push-in so a long silhouette is never a still
         self.actor(img, self.who[0] if self.who else cast.GENERIC, 640, 700 + push, 520 + 2 * push, t, 0, False,
                    silhouette=True)
         d = ImageDraw.Draw(img)
-        for k, ln in enumerate(wrap(str(self.data.get("title") or ""), font(48), 1100)[:3]):
+        for k, ln in enumerate(wrap(str(self.data.get("title") or ""), font(48), 1000)[:3]):
             centered(d, (640, 100 + k * 62), ln, font(48), fill=(255, 246, 214))
 
     def _title(self, img: Image.Image, t: float) -> None:
         d = ImageDraw.Draw(img)
-        centered(d, (640, 300), str(self.data.get("title") or self.seg.get("chapter", "")), font(84),
-                 fill=(255, 246, 214), stroke=(20, 16, 40), sw=4)
+        text = str(self.data.get("title") or self.seg.get("chapter", ""))
+        size = 84
+        while size > 48 and len(wrap(text, font(size), 1000)) > 2:  # a long title gets smaller, then two lines
+            size -= 6
+        lines = wrap(text, font(size), 1000)[:2]
+        for k, ln in enumerate(lines):
+            centered(d, (640, 300 - (len(lines) - 1) * size * 0.55 + k * size * 1.1), ln, font(size),
+                     fill=(255, 246, 214), stroke=(20, 16, 40), sw=4)
         if self.who:
-            self.actor(img, self.who[0], 640, 700, 360, t, 0, self.mouth(t))
+            self.actor(img, self.who[0], 640, 700, 360, t, 0, False)  # the narrator is not this figure
 
 
 # ---------------------------------------------------------------- map base and small shapes
@@ -872,14 +1015,20 @@ def _flag(d: ImageDraw.ImageDraw, x: float, y: float, color: str, text: str) -> 
 _CODE_STAMP = hashlib.sha1(Path(__file__).read_bytes()).hexdigest()[:8]  # drawing code changed -> redraw
 
 
-def fingerprint(seg: dict, dur: float, audio: Path | None, characters: list[dict] | None = None) -> str:
+def look_seed(pkg: dict, project_dir: Path) -> str:
+    """What makes this video's characters differ from the same names in another video: its topic and project."""
+    return f"{pkg.get('topic', '')}|{Path(project_dir).name}"
+
+
+def fingerprint(seg: dict, dur: float, audio: Path | None, characters: list[dict] | None = None,
+                seed: str = "") -> str:
     """Hash of everything that decides how a scene looks (re-render only when it changes)."""
     keys = {k: seg.get(k) for k in ("scene", "scene_data", "cast", "speech", "chapter", "era")}
     names = {str(n).lower() for n in seg.get("cast") or []} | {str(x.get("who", "")).lower()
                                                                for x in seg.get("speech") or [] if isinstance(x, dict)}
     keys["characters"] = [c for c in characters or [] if str(c.get("name", "")).lower() in names]
     pf = ff.profile()
-    keys.update(size=[pf.w, pf.h, pf.fps], dur=round(dur, 2),
+    keys.update(look=seed, size=[pf.w, pf.h, pf.fps], dur=round(dur, 2),
                 audio=audio.stat().st_size if audio and Path(audio).exists() else 0, code=_CODE_STAMP)
     return hashlib.sha1(json.dumps(keys, sort_keys=True, default=str).encode()).hexdigest()[:12]
 
@@ -888,8 +1037,9 @@ def render_scene(seg: dict, dur: float, out: Path, work: Path, audio: Path | Non
                  cst: Cast | None = None, characters: list[dict] | None = None) -> Path:
     """Render one cast scene to `out` (silent H.264 at the video profile size and frame rate, `dur` seconds). Reuses an identical earlier clip."""
     ff.ensure_ffmpeg()
+    out.parent.mkdir(parents=True, exist_ok=True)  # a new project has no cast/ folder yet
     stamp = out.with_suffix(".stamp")
-    fp = fingerprint(seg, dur, audio, characters)
+    fp = fingerprint(seg, dur, audio, characters, cst.look_seed if cst else "")
     if out.exists() and stamp.exists() and stamp.read_text() == fp:
         return out
     pf = ff.profile()
@@ -905,7 +1055,7 @@ def render_scene(seg: dict, dur: float, out: Path, work: Path, audio: Path | Non
         for f in range(n):
             t = f / fps
             img = scene.frame(t)
-            z, fx, fy = scene.camera(t) if scene.kind != "map" else (1.0, 0.5, 0.5)
+            z, fx, fy = scene.camera(t)
             cw, ch = W / max(z, 1.0), H / max(z, 1.0)
             x0 = min(max(fx * W - cw / 2, 0), W - cw)
             y0 = min(max(fy * H - ch / 2, 0), H - ch)

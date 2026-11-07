@@ -36,7 +36,7 @@ def _cast_of(pkg: dict) -> list[str]:
 
 def make(pkg: dict, texts: list[str], work: Path) -> list[Image.Image]:
     """Three 1280x720 thumbnails for a history video."""
-    cst = R.Cast(work)
+    cst = R.Cast(work, pkg.get("characters"), R.look_seed(pkg, work))  # the same looks as in the video
     who = _cast_of(pkg)
     era = wardrobe.era_for({}, pkg)  # same characters, story-era costume
     texts = [*(texts or []), "", "", ""][:3]

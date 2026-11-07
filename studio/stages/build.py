@@ -84,6 +84,13 @@ def _title_card(ctx: Ctx, prod: dict, pkg: dict, tmp: Path) -> Path | None:
     return title_card.make(exe, title, prod["palette"], tmp / "title3d.mp4", tmp / "title3d_frames", (p.w, p.h))
 
 
+def _generated_intro(ctx: Ctx, prod: dict, pkg: dict, tmp: Path, sprof: dict) -> Path | None:
+    """The automatic 3D title intro, except on a cast (story) channel: that starts on its hook, with no silent
+    3 s title card before the first line."""
+    from studio.story import profile as sprofile
+    return None if sprofile.enabled(sprof, "cast_scenes") else _title_card(ctx, prod, pkg, tmp)
+
+
 def _identity_card(ctx: Ctx, kind: str, pkg: dict, video_id: int, tmp: Path) -> Path | None:
     """A branded intro/outro clip from the channel's theme and mascot when its theme asks for one, else None.
 
@@ -287,7 +294,7 @@ def run(ctx: Ctx, video_id: int, force: bool = False) -> None:
         stored = [g.get("words") for g in segs]
         words, ref = None, None
         if all(stored):  # word times straight from the voice engine (no extra model run)
-            lead = [float(g.get("lead_seconds") or 0) for g in segs]  # skit dialogue plays before the narration
+            lead = [float(g.get("lead_seconds") or 0) for g in segs]  # 0 now: older builds put skit lines first
             shifted = [[[a + d, b + d, t] for a, b, t in w] for w, d in zip(stored, lead, strict=True)]
             words, caption_source = nar.abs_words(shifted, spans), "tts"
         if sprofile.enabled(sprof_c, "caption_sync_check") or words is None:
@@ -370,7 +377,7 @@ def run(ctx: Ctx, video_id: int, force: bool = False) -> None:
                     pieces.append((kind, norm))
                     continue
             if not src and kind == "intro":
-                src = _title_card(ctx, prod, pkg, tmp)
+                src = _generated_intro(ctx, prod, pkg, tmp, sprof_c)
                 if src:
                     ff.run(normalize_cmd(src, norm, True), "preparing intro")
                     s.add(Asset(video_id=video_id, kind=kind, path=str(src), source="generated 3D title card",
