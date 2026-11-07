@@ -707,3 +707,6 @@ Short entries for merged PRs that had none or only a partial one above. Behaviou
 
 ## 2026-11-07: retention rules in the script prompt and at script time (fix/retention-script-rules, stacked on fix/retention-review)
 - The history script prompt now asks for: a hook that SHOWS its moment in a skit, no backstory in the first 30 s, counted promises with `scene_data.counter`, still cards of at most 6 s, 2-3 line skits with a setup, a twist and a punch (the skit budget is 8 s), a `scene_data.cliff` question at each chapter end and a held emotional peak. Script validation rejects a title, calendar, easel, silhouette or archive card longer than 6 s.
+
+## 2026-11-07: Shorts open on the hook (fix/retention-shorts, stacked on fix/retention-script-rules)
+- `pick_short_windows` now prefers a run that opens with the video's own hook (it may be 12 s), a question or a counted promise; a Short's title is the first question or sentence (up to 48 characters, wrapped to fit the narrow frame) instead of just the chapter name.

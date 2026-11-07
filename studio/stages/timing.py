@@ -63,6 +63,7 @@ def plan_segment(duration: float, backgrounds: list[Path], chart_frames: list[Pa
     return parts
 
 
+HOOK_RUN_MIN = 12.0  # seconds: a Short built on the video's own hook may be this short
 NEEDS_CONTEXT = ("title", "calendar", "silhouette", "easel", "diagram", "map", "archive")  # cast scenes that only
 # make sense after the segment before them: a Short must not open on one
 
@@ -82,6 +83,15 @@ def pick_short_windows(spans: list[tuple[float, float]], segs: list[dict], count
             sc += 2 if g.get("chart_data") else 0
         return sc / (j - i + 1)
 
+    def opens_on_a_hook(i: int) -> float:
+        """Bonus for a run that opens with the video's own hook, a question or a counted promise."""
+        first = str(segs[i].get("narration", "")).split("?")[0] if "?" in str(segs[i].get("narration", "")) else ""
+        bonus = 3.0 if i == 0 else 0.0
+        bonus += 2.0 if first and len(first.split()) <= 16 else 0.0
+        data = segs[i].get("scene_data") if isinstance(segs[i].get("scene_data"), dict) else {}
+        counter = data.get("counter")
+        return bonus + (1.0 if counter else 0.0)
+
     last = len(segs) - 2 if len(segs) > 2 else len(segs) - 1
     cands = []
     for i in range(last + 1):
@@ -89,8 +99,8 @@ def pick_short_windows(spans: list[tuple[float, float]], segs: list[dict], count
             length = spans[j][1] - spans[i][0]
             if length > max_len:
                 break
-            if length >= min_len:
-                cands.append((score(i, j), length, i, j))
+            if length >= min_len or (i == 0 and length >= HOOK_RUN_MIN):  # the hook alone may be a bit shorter
+                cands.append((score(i, j) + opens_on_a_hook(i), length, i, j))
     opens_ok = [c for c in cands if segs[c[2]].get("scene") not in NEEDS_CONTEXT]
     if len(opens_ok) >= count:
         cands = opens_ok

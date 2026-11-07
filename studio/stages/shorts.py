@@ -17,11 +17,14 @@ from studio.stages.timing import pick_short_windows
 from studio.util import ffmpeg as ff
 
 
-def hook_text(seg: dict, limit: int = 34) -> str:
-    """The opening line of a Short as a short title: the segment's first sentence when it is short enough, else
-    its chapter name."""
-    first = re.split(r"(?<=[.!?])\s+", str(seg.get("narration", "")).strip())[0]
-    return first if 3 <= len(first) <= limit else str(seg.get("chapter") or "")[:limit]
+def hook_text(seg: dict, limit: int = 48) -> str:
+    """The opening line of a Short as a short title: its first question, else its first sentence, when short enough;
+    otherwise the chapter name."""
+    parts = re.split(r"(?<=[.!?])\s+", str(seg.get("narration", "")).strip())
+    for pick in [next((p for p in parts if p.endswith("?")), ""), parts[0] if parts else ""]:
+        if 3 <= len(pick) <= limit:
+            return pick
+    return str(seg.get("chapter") or "")[:limit]
 
 
 def run(ctx: Ctx, video_id: int, count: int = 3, force: bool = False) -> list[Path]:
