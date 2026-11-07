@@ -176,6 +176,7 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
             speech_audio.make_room(pkg["segments"])  # the narrator plays first, uncut; the skit's short lines follow
             autoscene.persist(out / "script.json", pkg["segments"])  # keeps each line's audio file and length
         seed = cast_render.look_seed(pkg, out)  # this video's own faces
+        layouts = cast_render.assign_layouts(pkg["segments"]) if cast_on else {}
         cast_stage = cast_render.Cast(out / "cast", pkg.get("characters"), seed) if cast_on else None
         for pos, seg in enumerate(pkg["segments"], 1):
             left3d = None
@@ -212,7 +213,8 @@ def run(ctx: Ctx, video_id: int, force: bool = False, stock=UNSET, images=UNSET)
             elif cast_on and (cast_kind := visual_mix.cast_scene_for(seg, cast_mod.SCENE_TYPES)):
                 audio = Path(rows[pos].audio_path) if pos in rows and rows[pos].audio_path else None
                 # same face and voice, story-era costume
-                seg = {**seg, "scene": cast_kind, "era": cast_wardrobe.era_for(seg, pkg)}
+                seg = {**seg, "scene": cast_kind, "era": cast_wardrobe.era_for(seg, pkg),
+                       "_layout": layouts.get(pos - 1)}
                 try:
                     drawn = cast_render.render_scene(seg, duration, out / "cast" / f"cast_{pos:03d}.mp4", out / "cast",
                                                      audio, faction0, cast_stage, pkg.get("characters"))

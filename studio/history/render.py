@@ -35,6 +35,7 @@ SEA = (176, 205, 210)
 LAND = (222, 204, 160)
 LAND_EDGE = (150, 122, 76)
 RED = (192, 57, 43)
+LAYOUTS = ("side", "face", "near_far", "walk_in", "stagger")  # how a skit's figures stand: no two skits in a row alike
 SHOT = 3.6  # seconds between camera beats: something on screen changes at least this often
 MAX_ZOOM = {"title": 1.10, "calendar": 1.12, "diagram": 1.07, "easel": 1.14, "archive": 1.12, "silhouette": 1.12,
             "map": 1.06}  # most a scene may zoom in: the widest text in it must still fit the cropped picture
@@ -430,6 +431,37 @@ def setting_words(seg: dict) -> str:
                                      *(seg.get("visual_keywords") or [])])
 
 
+def assign_layouts(segments: list[dict]) -> dict[int, str]:
+    """A layout per skit (0-based segment index): the script's own `scene_data.layout`, else the next one in the
+    cycle, so two skits in a row never stand the same way."""
+    out, k, prev = {}, 0, ""
+    for i, seg in enumerate(segments):
+        if isinstance(seg, dict) and seg.get("scene") == "skit":
+            given = str((seg.get("scene_data") or {}).get("layout") or "") if isinstance(seg.get("scene_data"), dict) else ""
+            pick = given if given in LAYOUTS else LAYOUTS[k % len(LAYOUTS)]
+            if pick == prev and given not in LAYOUTS:
+                pick = LAYOUTS[(k + 1) % len(LAYOUTS)]
+            out[i], prev = pick, pick
+            k += 1
+    return out
+
+
+def skit_places(layout: str, n: int) -> list[tuple[float, float, float]]:
+    """(centre x, feet y, size) of each of `n` figures for a layout."""
+    if n == 1:
+        return [(W / 2, 650, 520)]
+    if n == 2 and layout == "face":
+        return [(W * 0.30, 690, 520), (W * 0.70, 690, 520)]
+    if n == 2 and layout == "near_far":
+        return [(W * 0.25, 705, 560), (W * 0.74, 600, 250)]
+    if n == 2 and layout == "walk_in":
+        return [(W * 0.32, 660, 450), (W * 0.68, 660, 450)]
+    if layout == "stagger" or n > 2 and layout != "side":
+        return [(W * (i + 1) / (n + 1), 650 if i % 2 == 0 else 595, (440 if n <= 2 else 340) * (1.0 if i % 2 == 0 else 0.85))
+                for i in range(n)]
+    return [(W * (i + 1) / (n + 1), 640, 430 if n <= 2 else 340) for i in range(n)]
+
+
 def diagram_layout(n: int) -> tuple[int, int]:
     """(box width, left edge of the first box) for `n` step boxes."""
     cw = min(300, (W - 200 - (n - 1) * 60) // n)
@@ -478,6 +510,8 @@ class Scene:
         given = str(self.data.get("backdrop") or "").lower()  # the script's own choice wins when it is a known one
         self.back = given if given in BACKDROPS else guess or DEFAULT_BACKDROP.get(self.kind, "parchment")
         self.faction0 = faction0
+        given = str(self.data.get("layout") or "")
+        self.layout = given if given in LAYOUTS else (seg.get("_layout") if seg.get("_layout") in LAYOUTS else "side")
         self.starts = speech_audio.line_times(self.speech, dur, seg.get("lines_at"))
         self.line_env: list[list[float] | None] = []
         for sp in self.speech:  # a voiced line moves its speaker's mouth with its own audio
@@ -512,7 +546,7 @@ class Scene:
                 idx = next((i for i, w in enumerate(who) if w.lower() == sp), k // 2 % n)
             else:
                 idx = (k // 2) % n
-            fx = (idx + 1) / (n + 1)
+            fx = skit_places(self.layout, n)[idx][0] / W
         else:
             fx = 0.75
         local = (t - k * shot) / shot
@@ -595,14 +629,16 @@ class Scene:
         n = len(who)
         if self.crowd:
             self._crowd(img, t)
+        places = skit_places(self.layout, n)
         for i, w in enumerate(who):
-            cx = W * (i + 1) / (n + 1)
+            cx, feet, size = places[i]
+            if self.layout == "walk_in" and i == n - 1 and n > 1:
+                cx += (1 - ease(t / 1.3)) * 700  # the last figure walks in from the right
             lines = [k for k, s in enumerate(self.speech) if str(s.get("who", "")).lower() == w.lower()
                      ]
             active = self._active_line(t)
             talk = active is not None and active in lines and self._line_mouth(active, t)
-            self.actor(img, w, cx, 640, 430 if n <= 2 else 340, t, i, talk,
-                       enter=0.1 * i)
+            self.actor(img, w, cx, feet, size, t, i, talk, enter=0.1 * i)
         act = self._active_line(t)
         for k, s in enumerate(self.speech):
             start = self._line_start(k)
@@ -613,8 +649,8 @@ class Scene:
             if t >= nxt:
                 continue
             idx = next((i for i, w in enumerate(who) if w.lower() == str(s.get("who", "")).lower()), k % n)
-            cx = W * (idx + 1) / (n + 1)
-            bubble(img, str(s.get("text", "")), cx, 640 - (430 if n <= 2 else 340) * 0.78, ease((t - start) / 0.25))
+            cx, feet, size = places[idx]
+            bubble(img, str(s.get("text", "")), cx, feet - size * 0.78, ease((t - start) / 0.25))
         _ = act
 
     def _line_start(self, k: int) -> float:
@@ -1023,7 +1059,7 @@ def look_seed(pkg: dict, project_dir: Path) -> str:
 def fingerprint(seg: dict, dur: float, audio: Path | None, characters: list[dict] | None = None,
                 seed: str = "") -> str:
     """Hash of everything that decides how a scene looks (re-render only when it changes)."""
-    keys = {k: seg.get(k) for k in ("scene", "scene_data", "cast", "speech", "chapter", "era")}
+    keys = {k: seg.get(k) for k in ("scene", "scene_data", "cast", "speech", "chapter", "era", "_layout")}
     names = {str(n).lower() for n in seg.get("cast") or []} | {str(x.get("who", "")).lower()
                                                                for x in seg.get("speech") or [] if isinstance(x, dict)}
     keys["characters"] = [c for c in characters or [] if str(c.get("name", "")).lower() in names]

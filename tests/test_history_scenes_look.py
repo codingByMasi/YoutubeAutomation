@@ -234,3 +234,19 @@ def test_the_map_caption_gives_way_to_the_strip_and_the_chip_hides_in_close_ups(
                    [0.0] * 400, 0)
     close = next(t / 10 for t in range(0, 120) if chip.camera(t / 10)[0] > 1.25)
     assert plain.frame(close).tobytes() == chip.frame(close).tobytes()  # nothing drawn over the speech bubble
+
+
+def test_skit_layouts_vary_from_skit_to_skit_and_keep_figures_and_bubbles_in_frame(tmp_path):
+    segs = [{"scene": "skit"}, {"scene": "map"}, {"scene": "skit"}, {"scene": "skit", "scene_data": {"layout": "stagger"}},
+            {"scene": "skit"}, {"scene": "skit"}, {"scene": "skit"}, {"scene": "skit"}]
+    got = r.assign_layouts(segs)
+    skits = [got[i] for i in sorted(got)]
+    assert all(a != b for a, b in zip(skits, skits[1:])) and got[3] == "stagger" and len(set(skits)) >= 4
+    for layout in r.LAYOUTS:
+        for n in (1, 2, 3, 4):
+            for cx, feet, size in r.skit_places(layout, n):
+                assert size / 2 < cx < r.W - size / 2 and feet - size * 0.94 > 150 and feet < r.H + 40, (layout, n)
+    base = {"scene": "skit", "cast": ["A", "B"], "narration": "x", "speech": [{"who": "B", "text": "Hi there."}]}
+    frames = {lay: r.Scene({**base, "_layout": lay}, 10.0, r.Cast(tmp_path), [0.0] * 300, 0).frame(8.0).tobytes()
+              for lay in r.LAYOUTS}
+    assert len(set(frames.values())) == len(r.LAYOUTS)  # every layout looks different

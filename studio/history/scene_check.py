@@ -156,6 +156,7 @@ def check_package(pkg: dict) -> list[str]:
     if not any(isinstance(s, dict) and s.get("scene") for s in segs):
         return []
     cast = R.Cast(Path("."), pkg.get("characters"))
+    layouts = R.assign_layouts(segs)
     out: list[str] = []
     for pos, seg in enumerate(segs, 1):
         if not isinstance(seg, dict) or not seg.get("scene"):
@@ -164,6 +165,7 @@ def check_package(pkg: dict) -> list[str]:
         where = f"Segment {pos} ({seg['scene']}, {str(seg.get('chapter') or '')[:30]})"
         found = backdrop_problems(seg)
         try:
+            seg = {**seg, "_layout": layouts.get(pos - 1)}
             scene = R.Scene({**seg, "era": seg.get("era") or "default"}, dur, cast, [0.0] * (int(dur * R.FPS) + 2), 0)
             for t in (dur * 0.5, dur * 0.9):  # each frame on its own: a text may legitimately move
                 with record_text() as items:
